@@ -7,9 +7,17 @@
 
 (def-async-test "Connecting to socket lumo REPL" {:teardown (client/disconnect! :lumo)}
   (let [[in out] (client/connect-socket! :lumo "localhost" 5550)]
+    (check (:out (await! out)) => #"Lumo")
     (go (>! in '(+ 1 2)))
-    (println "WAT?")
-    (check (await! out) => {:result "3"})))
+    (check (await! out) => {:out "3" :result "3"})
+    (go (>! in '(+ 1 6)))
+    (check (await! out) => {:out "7" :result "7"})))
+
+(comment
+ (def inout (client/connect-socket! :lumo "localhost" 5550))
+ (let [[in out] inout]
+   (go (>! in '(println "1110")))
+   (go (prn (<! out)))))
 
 (run-tests)
   ; (:require [repl-tooling.repl-client :as client]))

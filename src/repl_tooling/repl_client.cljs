@@ -11,31 +11,31 @@
     (.end socket)
     (swap! sessions dissoc session-name)))
 
-(defn- parse-output [output])
-  ; (if)
-  ; ())
+(defn- parse-output [output]
+  (let [result (some-> output not-empty pop)]
+    {:result (last result)
+     :out (str/join "\n" result)}))
 
-(defn- treat-first-texts! [socket out]
-  (let [listen (fn listen [output]
-                 (when (str/ends-with? (str output) "=>")
-                   (.off socket "data" listen)
-                   (.on socket "data" #(go (>! out {:result (str %)})))))]
-
-    (.on socket "data" listen)))
-
+(def ^:private buffer-txt (atom []))
+(defn- accumulate [out data]
+  (let [string (str data)]
+    (swap! buffer-txt #(vec (concat (some-> % not-empty pop)
+                                    (str/split (str (last %) string) #"\n"))))
+    (when (str/ends-with? string "=> ")
+      (let [output (parse-output @buffer-txt)]
+        (go (>! out output))
+        (reset! buffer-txt [])))))
 
 (defn connect-socket! [session-name host port]
   (let [in (chan)
         out (chan)
-        socket (doto (. net createConnection 5550 "localhost")
-                     (.on "close" #(println "OK")))]
+        socket (doto (. net createConnection port host)
+                     (.on "data" #(accumulate out %)))]
 
     (swap! sessions assoc session-name socket)
-    (treat-first-texts! socket out)
     (go-loop []
       (let [data (str (<! in))
             to-send (cond-> data (not (str/ends-with? data "\n")) (str "\n"))]
-        (println "SENDING " to-send)
         (.write socket to-send))
       (recur))
     [in out]))
