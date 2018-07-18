@@ -13,8 +13,7 @@
 
 (defn- parse-output [output]
   (let [result (some-> output not-empty pop)]
-    {:result (last result)
-     :out (str/join "\n" result)}))
+    {:out (str/join "\n" result)}))
 
 (def ^:private buffer-txt (atom []))
 (defn- accumulate [out data]
