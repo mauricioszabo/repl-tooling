@@ -4,7 +4,7 @@
             [cljs.core.async :refer [chan <! >!] :refer-macros [go-loop go]]
             [clojure.string :as str]))
 
-(defn- parse-output2 [output]
+(defn- parse-output [output]
   (let [parsed (some-> output not-empty pop)
         result (last parsed)
         out (cond-> parsed (-> parsed last (= result)) pop)]
@@ -19,7 +19,7 @@
       (swap! buffer-txt #(vec (concat (some-> % not-empty pop)
                                       (str/split (str (last %) string) #"\n"))))
       (when (str/ends-with? string "=> ")
-        (let [output (parse-output2 @buffer-txt)]
+        (let [output (parse-output @buffer-txt)]
           (go (>! out output))
           (reset! buffer-txt [])))))
 
