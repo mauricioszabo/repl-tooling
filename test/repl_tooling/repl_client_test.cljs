@@ -22,13 +22,13 @@
 ;       (go (>! in '(do (println "Foo") (+ 2 3))))
 ;       (check (await! out) => {:out "Foo" :result "5"}))))
 
-(def-async-test "Connecting to socket lumo REPL" {:teardown (client/disconnect! :lumo)}
-  (let [[in out] (lumo/connect-socket! :lumo "localhost" 5550)]
-    (testing "sending commands"
-      (check (:out (await! out)) => #"Lumo")
-      (go (>! in '(+ 1 2)))
-      (check (await! out) => {:out "" :result "3"}))))
-      ; (go (>! in '(+ 1 6)))
-      ; (check (await! out) => {:out "" :result "7"}))))
+; (def-async-test "Connecting to socket lumo REPL" {:teardown (client/disconnect! :lumo)}
+;   (let [[in out] (lumo/connect-socket! :lumo "localhost" 5550)]
+;     (testing "sending commands"
+;       (check (:out (await! out)) => #"Lumo")
+;       (go (>! in '(+ 1 2)))
+;       (check (await! out) => {:out "" :result "3"}))))
+;       ; (go (>! in '(+ 1 6)))
+;       ; (check (await! out) => {:out "" :result "7"}))))
 
 (run-tests)

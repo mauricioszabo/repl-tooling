@@ -1,6 +1,7 @@
 (ns ^:figwheel-always repl-tooling.all-tests
   (:require [cljs.nodejs :as nodejs]
             [clojure.test :refer-macros [run-tests]]
+            [repl-tooling.repl-client.generic-test]
             [repl-tooling.repl-client-test]
             [repl-tooling.eval-test]))
 
