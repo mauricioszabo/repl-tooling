@@ -4,7 +4,8 @@
 
 (defprotocol Repl
   (treat-data [_ data])
-  (send-command [_ command]))
+  (send-command [_ command])
+  (cmd-to-send [_ command]))
 
 ; (str/split "foo\nbar\nbaz\n" #"\n" 2)
 ; (str/split "a\n" #"\n" 2)

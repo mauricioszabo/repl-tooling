@@ -1,33 +1,67 @@
 (ns repl-tooling.repl-client.generic
   (:require [repl-tooling.repl-client.protocols :as repl]
             [repl-tooling.repl-client :as client]
-            [cljs.core.async :refer [chan <! >!] :refer-macros [go-loop go]]
+            [cljs.core.async :as async :refer [<! >!] :refer-macros [go-loop go]]
             [clojure.string :as str]))
 
 (defn- parse-output [output]
-  (let [parsed (some-> output not-empty pop)
+  (let [parsed (some-> output not-empty)
         result (last parsed)
-        out (cond-> parsed (-> parsed last (= result)) pop)]
+        out (if (and parsed (-> parsed last (= result)))
+              (pop parsed)
+              parsed)]
     {:result result
      :out (str/join "\n" out)}))
+;
+; (def ^:private buffer-txt (atom []))
+; (defrecord Generic [in out socket]
+;   repl/Repl
+;   (treat-data [_ data]
+;     (let [string (str data)]
+;       (swap! buffer-txt #(vec (concat (some-> % not-empty pop)
+;                                       (str/split (str (last %) string) #"\n"))))
+;       (when (str/ends-with? string "=> ")
+;         (let [output (parse-output @buffer-txt)]
+;           (go (>! out output))
+;           (reset! buffer-txt [])))))
+;
+;   (send-command [_ command]
+;     (.write socket command)))
+;
+; (defn connect-socket! [session-name host port]
+;   (let [[in out socket] (client/socket! session-name host port)
+;         repl (->Generic in out socket)]
+;     (client/integrate-repl in repl socket)
+;     [in out]))
 
-(def ^:private buffer-txt (atom []))
-(defrecord Generic [in out socket]
+(defrecord Generic []
   repl/Repl
-  (treat-data [_ data]
-    (let [string (str data)]
-      (swap! buffer-txt #(vec (concat (some-> % not-empty pop)
-                                      (str/split (str (last %) string) #"\n"))))
-      (when (str/ends-with? string "=> ")
-        (let [output (parse-output @buffer-txt)]
-          (go (>! out output))
-          (reset! buffer-txt [])))))
+  (cmd-to-send [_ command] command))
 
-  (send-command [_ command]
-    (.write socket command)))
+  ; (treat-data [_ data]
+  ;   (let [string (str data)]
+  ;     (swap! buffer-txt #(vec (concat (some-> % not-empty pop)
+  ;                                     (str/split (str (last %) string) #"\n"))))
+  ;     (when (str/ends-with? string "=> ")
+  ;       (let [output (parse-output @buffer-txt)]
+  ;         (go (>! out output))
+  ;         (reset! buffer-txt []))))))
+
+(defn- treat-data [out to-world]
+  (go-loop [data (<! out)]
+    (prn [:f-data data])
+    (loop [data data
+           buffer []]
+      (prn [:data data])
+      (if data
+        (recur (async/poll! out) (conj buffer (str data)))
+        (>! to-world (parse-output buffer))))
+    (recur (<! out))))
 
 (defn connect-socket! [session-name host port]
-  (let [[in out socket] (client/socket! session-name host port)
-        repl (->Generic in out socket)]
-    (client/integrate-repl in repl socket)
-    [in out]))
+  (let [[in out] (client/socket! session-name host port)
+        repl (->Generic)
+        new-out (async/chan)
+        [in out] (client/integrate-repl in out repl)]
+    (treat-data out new-out)
+    [in new-out]))

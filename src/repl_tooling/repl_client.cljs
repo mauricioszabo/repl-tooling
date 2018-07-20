@@ -12,20 +12,18 @@
     (swap! sessions dissoc session-name)))
 
 (defn socket! [session-name host port]
-  (let [in (chan)
-        out (chan)
-        socket (. net createConnection port host)]
+  (let [[in out socket] (repl/connect-socket! host port)]
 
     (swap! sessions assoc session-name socket)
-    [in out socket]))
+    [in out]))
 
-(defn integrate-repl [in repl socket]
-  (. socket on "data" #(repl/treat-data repl %))
-  (go-loop []
-    (let [data (str (<! in))
-          to-send (cond-> data (not (str/ends-with? data "\n")) (str "\n"))]
-      (repl/send-command repl to-send))
-    (recur)))
+(defn p [a] (prn [:in a]) a)
+(defn integrate-repl [in out repl]
+  (let [n-in (chan)]
+    (go-loop []
+      (>! in (p (repl/cmd-to-send repl (str (<! n-in)))))
+      (recur))
+    [n-in out]))
 
 ; (defn connect-lumo! [session-name host port]
 ;   (let [[in out socket] (socket! session-name host port)
