@@ -1,5 +1,5 @@
 (ns repl-tooling.repl-client.protocols
-  (:require [cljs.core.async :refer [chan <! >!] :refer-macros [go-loop go]]
+  (:require [cljs.core.async :as async :refer [<! >!] :refer-macros [go-loop go]]
             [clojure.string :as str]))
 
 (defprotocol Repl
@@ -9,34 +9,46 @@
 ; (str/split "foo\nbar\nbaz\n" #"\n" 2)
 ; (str/split "a\n" #"\n" 2)
 
-(defn- treat-result [buffer out fragment data]
-  (let [string (str data)
-        [first-line rest] (str/split string #"\n" 2)]
+(defn- pause-buffer! [buffer] (swap! buffer assoc :paused true))
+(defn- resume-buffer! [buffer] (swap! buffer assoc :paused false))
+(defn- reset-contents! [buffer] (swap! buffer assoc :contents ""))
+
+(defn- update-buffer-and-send [buffer out string]
+  (let [[first-line rest] (str/split string #"\n" 2)
+        contents (str (:contents @buffer) first-line)]
     (if rest
       (do
-        (reset! buffer "")
-        (go (>! out (str first-line "\n")))
+        (reset-contents! buffer)
+        (go (>! out contents))
         (recur buffer out rest))
-      (do
-        (swap! buffer str first-line)
-        (go (>! fragment first-line))))))
+      (swap! buffer #(update % :contents str first-line)))))
 
-(defn- write-into [socket data buffer out]
-  (let [lines (-> data str str/trim (str/split #"\n"))]
-    (reset! buffer "")
+(defn- treat-result [buffer out fragment data]
+  (let [string (str data)]
+    (if (:paused @buffer)
+      (go (>! fragment string))
+      (update-buffer-and-send buffer out string))))
+
+(defn- write-into [socket data buffer fragment]
+  (let [lines (-> data str str/trim (str/split #"\n"))
+        to-send (butlast lines)]
+
+    (pause-buffer! buffer)
     (go
-     (doseq [line lines]
-       (prn [:in line])
+     (doseq [line to-send]
        (.write socket (str line "\n"))
-       (prn [:out (<! out)])))))
-      ; (reset! buffer ""))))
+       (while (not (re-find #"#_=>" (str/join " " (async/alts! [fragment
+                                                                (async/timeout 500)]))))))
+     (reset-contents! buffer)
+     (resume-buffer! buffer)
+     (.write socket (str (last lines) "\n")))))
 
 (def ^:private net (js/require "net"))
 (defn connect-socket! [host port]
-  (let [in (chan)
-        fragment (chan)
-        out (chan)
-        buffer (atom "")
+  (let [in (async/chan)
+        fragment (async/chan)
+        out (async/chan)
+        buffer (atom {:paused false :contents ""})
         socket (doto (. net createConnection port host)
                      (.on "data" #(treat-result buffer out fragment %)))]
     (go-loop []
