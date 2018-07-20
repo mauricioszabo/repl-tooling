@@ -7,16 +7,20 @@
             [repl-tooling.repl-client.generic :as generic]
             [repl-tooling.repl-client.lumo :as lumo]))
 
-; (def-async-test "Connecting to some generic socket REPL"
-;   {:teardown (client/disconnect! :generic)}
-;   (let [[in out] (generic/connect-socket! :generic "localhost" 5550)]
-;     (check (:out (await! out)) => #"Lumo")
-;
-;     (testing "sending commands"
-;       (go (>! in '(+ 1 2)))
-;       (check (await! out) => {:out "" :result "3"})
-;       (go (>! in '(+ 1 6)))
-;       (check (await! out) => {:out "" :result "7"}))
+(defn p [a] (prn [:debug a]) a)
+(def-async-test "Connecting to some generic socket REPL"
+  {:teardown (client/disconnect! :generic)}
+  (let [[in out] (generic/connect-socket! :generic "localhost" 5550)]
+    (check (:out (p (await! out))) => #"Lumo")
+
+    (testing "sending commands"
+      (println "SENT!")
+      (go (>! in '(+ 1 2)))
+      (check (await! out) => {:out "" :result "3"}))))
+      ; (go (>! in "(+ 1\n 2)"))
+      ; (check (await! out) => {:out "" :result "3"}))))
+      ; (go (>! in '(+ 1 6)))
+      ; (check (await! out) => {:out "" :result "7"}))))
 ;
 ;     (testing "send composite commands"
 ;       (go (>! in '(do (println "Foo") (+ 2 3))))
