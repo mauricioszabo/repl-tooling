@@ -1,4 +1,4 @@
-(defproject repl-tooling "0.0.1-SNAPSHOT"
+(defproject repl-tooling "0.0.1"
   :dependencies [[org.clojure/clojurescript "1.10.339"]
                  [cljs-node-io "0.5.0"]
                  [org.clojure/core.async "0.4.474"]]
@@ -28,15 +28,15 @@
                                    :target :nodejs
                                    :optimizations :none
                                    :source-map true
-                                   :warnings {:single-segment-namespace false}}}]}
+                                   :warnings {:single-segment-namespace false}}}
 
-                       ; {:id "release"
-                       ;  :source-paths ["src"]
-                       ;  :figwheel true
-                       ;  :compiler {:main repl-tooling.core
-                       ;             :output-to "lib/js/main.js"
-                       ;            ;  :output-dir "lib/js"
-                       ;             :target :nodejs
-                       ;             :optimizations :simple
-                       ;             :output-wrapper true}}]}
+                       {:id "test"
+                        :source-paths ["src" "test"]
+                        :figwheel false
+                        :compiler {:main repl-tooling.all-tests
+                                   :output-to "out/test.js"
+                                   :output-dir "out"
+                                   :target :nodejs
+                                   :optimizations :simple
+                                   :output-wrapper true}}]}
   :figwheel {})

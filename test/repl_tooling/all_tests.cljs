@@ -1,5 +1,6 @@
 (ns ^:figwheel-always repl-tooling.all-tests
   (:require [cljs.nodejs :as nodejs]
+            [cljs.test]
             [repl-tooling.repl-client.protocols-test]
             [repl-tooling.repl-client-test]
             [repl-tooling.eval-test]))
@@ -10,14 +11,8 @@
 
 (set! *main-cli-fn* -main)
 
-
-; js/__filename
-; (. js/process -env -PWD)
-; (. js/process cwd)
-; js/__dirname
-; (def fs (js/require "fs"))
-; (aset js/global "__dirname" (. fs realpathSync "."))
-; (. js/global -__dirname)
-; (println "FOO")
-;
-; (run-tests)
+(def process (js/require "process"))
+(defmethod cljs.test/report [:cljs.test/default :end-run-tests] [m]
+  (when-not (cljs.test/successful? m)
+    (println "Some tests failed")
+    (aset process "exitCode" 1)))
