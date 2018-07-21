@@ -1,15 +1,12 @@
 (ns ^:figwheel-always repl-tooling.all-tests
   (:require [cljs.nodejs :as nodejs]
-            [clojure.test :refer-macros [run-tests]]
             [repl-tooling.repl-client.protocols-test]
             [repl-tooling.repl-client-test]
             [repl-tooling.eval-test]))
 
 (nodejs/enable-util-print!)
 
-(defn -main []
-  (println "LOADED")
-  (run-tests))
+(defn -main [])
 
 (set! *main-cli-fn* -main)
 
