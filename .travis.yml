@@ -18,7 +18,7 @@ jdk:
 
 script:
   - BUILD_ONLY=true npm install lumo-cljs
-  - ./node_modules/.bin/lumo -n 5550 &
+  - ./node_modules/.bin/lumo -e '()' -n 5550 &
   - lein cljsbuild once test
   - node out/test.js
 
