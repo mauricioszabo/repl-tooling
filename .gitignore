@@ -13,3 +13,4 @@ figwheel_server.log
 node_modules/*
 package-lock.json
 main.js
+out/*
