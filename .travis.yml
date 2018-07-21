@@ -1,0 +1,43 @@
+language: clojure
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.9
+      - gcc-4.9
+      - libc6-dev
+
+before_install:
+  - export CC=/usr/bin/gcc-4.9;
+  - export CXX=/usr/bin/g++-4.9;
+
+jdk:
+  - oraclejdk8
+
+script:
+  - BUILD_ONLY=true npm install lumo-cljs
+  - ./node_modules/.bin/lumo -e '()' -n 5550 &
+  - lein cljsbuild once test
+  - node out/test.js
+
+before_install:
+ - if [ ! -z "$GPG_SECRET_KEYS" ]; then echo $GPG_SECRET_KEYS | base64 --decode | gpg --import; fi
+ - if [ ! -z "$GPG_OWNERTRUST" ]; then echo $GPG_OWNERTRUST | base64 --decode | gpg --import-ownertrust; fi
+
+deploy:
+ - provider: script
+   skip_cleanup: true
+   script: scripts/deploy.sh
+   on:
+     tags: true
+
+ - provider: script
+   skip_cleanup: true
+   script: scripts/deploy.sh
+   on:
+     branch: master
+
+notifications:
+  email: false
