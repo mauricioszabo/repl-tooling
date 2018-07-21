@@ -24,7 +24,6 @@
       (go (>! in '(do (println "Foo") (+ 2 3))))
       (check (await! out) => {:out "Foo\n" :result "5"}))))
 
-; (prn "BAR")
 (def-async-test "Connecting to socket lumo REPL" {:teardown (client/disconnect! :lumo)}
   (let [[in out] (lumo/connect-socket! :lumo "localhost" 5550)]
     (while (not= (:out (await! out)) ""))
