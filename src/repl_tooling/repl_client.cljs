@@ -17,11 +17,10 @@
     (swap! sessions assoc session-name socket)
     [in out]))
 
-(defn p [a] (prn [:in a]) a)
 (defn integrate-repl [in out repl]
   (let [n-in (chan)]
     (go-loop []
-      (>! in (p (repl/cmd-to-send repl (str (<! n-in)))))
+      (>! in (repl/cmd-to-send repl (str (<! n-in))))
       (recur))
     [n-in out]))
 

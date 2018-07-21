@@ -6,8 +6,8 @@
 
 (defn- parse-output [output]
   (let [parsed (some-> output not-empty)
-        result (last parsed)
-        out (if (and parsed (-> parsed last (= result)))
+        result (-> parsed last str/trim)
+        out (if (and parsed (-> parsed last str/trim (= result)))
               (pop parsed)
               parsed)]
     {:result result
@@ -38,21 +38,10 @@
   repl/Repl
   (cmd-to-send [_ command] command))
 
-  ; (treat-data [_ data]
-  ;   (let [string (str data)]
-  ;     (swap! buffer-txt #(vec (concat (some-> % not-empty pop)
-  ;                                     (str/split (str (last %) string) #"\n"))))
-  ;     (when (str/ends-with? string "=> ")
-  ;       (let [output (parse-output @buffer-txt)]
-  ;         (go (>! out output))
-  ;         (reset! buffer-txt []))))))
-
 (defn- treat-data [out to-world]
   (go-loop [data (<! out)]
-    (prn [:f-data data])
     (loop [data data
            buffer []]
-      (prn [:data data])
       (if data
         (recur (async/poll! out) (conj buffer (str data)))
         (>! to-world (parse-output buffer))))

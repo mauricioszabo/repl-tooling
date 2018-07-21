@@ -7,9 +7,6 @@
   (send-command [_ command])
   (cmd-to-send [_ command]))
 
-; (str/split "foo\nbar\nbaz\n" #"\n" 2)
-; (str/split "a\n" #"\n" 2)
-
 (defn- pause-buffer! [buffer] (swap! buffer assoc :paused true))
 (defn- resume-buffer! [buffer] (swap! buffer assoc :paused false))
 (defn- reset-contents! [buffer] (swap! buffer assoc :contents ""))
@@ -36,6 +33,7 @@
 
     (pause-buffer! buffer)
     (go
+     (async/alts! [fragment (async/timeout 50)])
      (doseq [line to-send]
        (.write socket (str line "\n"))
        (while (not (re-find #"#_=>" (str/join " " (async/alts! [fragment
