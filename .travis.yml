@@ -38,3 +38,6 @@ deploy:
    script: scripts/deploy.sh
    on:
      branch: master
+
+notifications:
+  email: false
