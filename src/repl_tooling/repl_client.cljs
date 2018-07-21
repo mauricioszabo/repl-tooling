@@ -1,5 +1,5 @@
 (ns repl-tooling.repl-client
-  (:require [cljs.core.async :refer [chan <! >!] :refer-macros [go-loop go]]
+  (:require [cljs.core.async :refer [chan <! >!] :refer-macros [go-loop go] :as async]
             [repl-tooling.repl-client.protocols :as repl]
             [clojure.string :as str]))
 
@@ -23,8 +23,3 @@
       (>! in (repl/cmd-to-send repl (str (<! n-in))))
       (recur))
     [n-in out]))
-
-; (defn connect-lumo! [session-name host port]
-;   (let [[in out socket] (socket! session-name host port)
-;         repl (lumo/->Lumo in out socket)]
-;     (integrate-repl in repl socket)))
