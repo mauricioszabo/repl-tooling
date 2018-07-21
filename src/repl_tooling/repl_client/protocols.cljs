@@ -3,8 +3,6 @@
             [clojure.string :as str]))
 
 (defprotocol Repl
-  (treat-data [_ data])
-  (send-command [_ command])
   (cmd-to-send [_ command]))
 
 (defn- pause-buffer! [buffer] (swap! buffer assoc :paused true))

@@ -9,9 +9,10 @@
         result (-> parsed last str/trim)
         out (if (and parsed (-> parsed last str/trim (= result)))
               (pop parsed)
-              parsed)]
+              parsed)
+        out (cond-> (str/join "\n" out) (not-empty out) (str "\n"))]
     {:result result
-     :out (str/join "\n" out)}))
+     :out out}))
 
 (defrecord Generic []
   repl/Repl
