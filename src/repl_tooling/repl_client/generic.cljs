@@ -12,27 +12,6 @@
               parsed)]
     {:result result
      :out (str/join "\n" out)}))
-;
-; (def ^:private buffer-txt (atom []))
-; (defrecord Generic [in out socket]
-;   repl/Repl
-;   (treat-data [_ data]
-;     (let [string (str data)]
-;       (swap! buffer-txt #(vec (concat (some-> % not-empty pop)
-;                                       (str/split (str (last %) string) #"\n"))))
-;       (when (str/ends-with? string "=> ")
-;         (let [output (parse-output @buffer-txt)]
-;           (go (>! out output))
-;           (reset! buffer-txt [])))))
-;
-;   (send-command [_ command]
-;     (.write socket command)))
-;
-; (defn connect-socket! [session-name host port]
-;   (let [[in out socket] (client/socket! session-name host port)
-;         repl (->Generic in out socket)]
-;     (client/integrate-repl in repl socket)
-;     [in out]))
 
 (defrecord Generic []
   repl/Repl
