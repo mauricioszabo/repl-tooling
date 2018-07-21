@@ -1,7 +1,7 @@
 (ns repl-tooling.repl-client.lumo
   (:require [repl-tooling.repl-client.protocols :as repl]
             [repl-tooling.repl-client :as client]
-            [cljs.core.async :refer [<! >!] :refer-macros [go-loop go] :as async]
+            [cljs.core.async :as async]
             [cljs.reader :as reader]
             [clojure.string :as str]))
 
