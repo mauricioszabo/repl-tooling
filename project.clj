@@ -38,5 +38,6 @@
                                    :output-dir "out"
                                    :target :nodejs
                                    :optimizations :simple
+                                   :warnings {:single-segment-namespace false}
                                    :output-wrapper true}}]}
   :figwheel {})
