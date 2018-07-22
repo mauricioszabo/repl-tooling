@@ -14,12 +14,10 @@
                              {key fun})))))))
 
 (defn- lumo-fn [evaluator ns-name text callback]
-  (let [ns-form (str "(in-ns '" ns-name ")")
-        complete-form `(lumo.repl/get-completions
-                        ~text cljs.core/js->clj)]
-    (eval/eval evaluator
-               (str ns-form complete-form)
-               callback)))
+  (let [complete-form `(lumo.repl/get-completions
+                        ~(str text) cljs.core/js->clj)]
+    (eval/eval evaluator (str "(ns " ns-name ")")
+               #(eval/eval evaluator complete-form callback))))
 
 (defn- merge-all [ & features])
 
