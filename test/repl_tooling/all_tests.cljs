@@ -3,7 +3,8 @@
             [cljs.test]
             [repl-tooling.repl-client.protocols-test]
             [repl-tooling.repl-client-test]
-            [repl-tooling.eval-test]))
+            [repl-tooling.eval-test]
+            [repl-tooling.features.base-test]))
 
 (nodejs/enable-util-print!)
 
