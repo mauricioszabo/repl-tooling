@@ -28,7 +28,8 @@
   (let [[_ match] (re-find #"^\s*\[(.+?) " out)]
     (if (@pending-cmds match)
       (let [[_ out result] (reader/read-string out)]
-        {:out out :result result})
+        (swap! pending-cmds disj match)
+        {:in match :out out :result result})
       {:out out})))
 
 (defn connect-socket! [session-name host port]

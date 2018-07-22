@@ -1,5 +1,5 @@
 (ns repl-tooling.repl-client
-  (:require [cljs.core.async :refer [chan <! >!] :refer-macros [go-loop go] :as async]
+  (:require [cljs.core.async :refer [<! >!] :refer-macros [go-loop go] :as async]
             [repl-tooling.repl-client.protocols :as repl]
             [clojure.string :as str]))
 
@@ -18,7 +18,7 @@
     [in out]))
 
 (defn integrate-repl [in out repl]
-  (let [n-in (chan)]
+  (let [n-in (async/chan)]
     (go-loop []
       (>! in (repl/cmd-to-send repl (str (<! n-in))))
       (recur))

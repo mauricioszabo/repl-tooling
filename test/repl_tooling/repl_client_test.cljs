@@ -30,12 +30,12 @@
 
     (testing "sending commands"
       (go (>! in '(+ 1 2)))
-      (check (await! out) => {:out "" :result "3"})
+      (check (await! out) =includes=> {:out "" :result "3"})
       (go (>! in "(+ 1\n 2)"))
-      (check (await! out) => {:out "" :result "3"}))
+      (check (await! out) =includes=> {:out "" :result "3"}))
 
     (testing "send composite commands"
       (go (>! in '(do (println "Foo") (+ 2 3))))
-      (check (await! out) => {:out "Foo\n" :result "5"}))))
+      (check (await! out) =includes=> {:out "Foo\n" :result "5"}))))
 
 (run-tests)
