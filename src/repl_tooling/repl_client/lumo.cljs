@@ -19,17 +19,18 @@
 (defrecord Lumo [pending-cmds]
   repl/Repl
   (cmd-to-send [_ command]
-    (let [id (gensym)
-          cmd (code-to-lumo id command)]
+    (let [[id cmd] (if (str/starts-with? command "[")
+                     (reader/read-string command)
+                     [(gensym) command])]
       (swap! pending-cmds conj (str id))
-      cmd)))
+      (code-to-lumo id cmd))))
 
 (defn- treat-output [pending-cmds out]
   (let [[_ match] (re-find #"^\s*\[(.+?) " out)]
     (if (@pending-cmds match)
       (let [[_ out result] (reader/read-string out)]
         (swap! pending-cmds disj match)
-        {:in match :out out :result result})
+        {:id match :out out :result result})
       {:out out})))
 
 (defn connect-socket! [session-name host port]

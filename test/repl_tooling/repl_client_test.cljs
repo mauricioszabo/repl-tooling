@@ -1,5 +1,5 @@
 (ns repl-tooling.repl-client-test
-  (:require [clojure.test :refer-macros [deftest testing is run-tests]]
+  (:require [clojure.test :refer-macros [testing run-tests]]
             [check.core :refer-macros [check]]
             [check.async-cljs :refer-macros [def-async-test await!]]
             [cljs.core.async :refer [>!] :refer-macros [go]]
@@ -36,6 +36,10 @@
 
     (testing "send composite commands"
       (go (>! in '(do (println "Foo") (+ 2 3))))
-      (check (await! out) =includes=> {:out "Foo\n" :result "5"}))))
+      (check (await! out) =includes=> {:out "Foo\n" :result "5"}))
+
+    (testing "send identified commands"
+      (go (>! in ["foobar" '(+ 1 2)]))
+      (check (await! out) => {:out "" :result "3" :id "foobar"}))))
 
 (run-tests)
