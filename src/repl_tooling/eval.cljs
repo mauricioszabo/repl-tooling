@@ -15,7 +15,8 @@
              (on-unexpected result))))
        (recur))
      {:pending-cmds pending-cmds
-      :in in})))
+      :in in
+      :out out})))
 
 (defn eval [evaluator command callback]
   (let [id (str "eval" (gensym))]
