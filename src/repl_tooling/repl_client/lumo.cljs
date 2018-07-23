@@ -40,5 +40,6 @@
         repl (->Lumo pending-cmds)
         [in out] (client/integrate-repl in out repl)
         new-out (async/map #(treat-output pending-cmds %) [out])]
+    (async/put! in "(require 'lumo.repl)")
 
     [in new-out]))
