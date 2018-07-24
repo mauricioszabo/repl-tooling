@@ -10,7 +10,6 @@
         result (str (gensym) "result" (gensym))]
     (str "(let [" reader " (goog.string/StringBuffer.)]
             (binding [cljs.core/*print-newline* true
-                      lumo.repl/*pprint-results* false
                       cljs.core/*print-fn* (fn [x] (.append " reader " x))]
         (let [" result " (cljs.core/eval '" code "\n)]
           ['" identifier "
