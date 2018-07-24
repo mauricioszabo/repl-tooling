@@ -29,12 +29,3 @@
       (check (await! c) => "[\"clojure.string/lower-case\"]"))))
 
 (run-tests)
-
-(comment
- (def pair (lumo/connect-socket! :lumo-feat "localhost" 5550))
- (let [[in out] pair
-       evaluator (eval/evaluator in out identity)]
-
-   (eval/eval evaluator "lumo.repl/get-completions"
-              #(.log js/console "BOO" %)))
- (client/disconnect! :lumo-feat))

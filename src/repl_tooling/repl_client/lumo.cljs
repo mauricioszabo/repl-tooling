@@ -1,7 +1,7 @@
 (ns repl-tooling.repl-client.lumo
   (:require [repl-tooling.repl-client.protocols :as repl]
             [repl-tooling.repl-client :as client]
-            [cljs.core.async :as async]
+            [cljs.core.async :as async :refer-macros [go]]
             [cljs.reader :as reader]
             [clojure.string :as str]))
 
@@ -22,9 +22,10 @@
   (cmd-to-send [_ command]
     (let [[id cmd] (if (str/starts-with? command "[")
                      (reader/read-string command)
-                     [(gensym) command])]
+                     [(gensym) command])
+          command (code-to-lumo id cmd)]
       (swap! pending-cmds conj (str id))
-      (code-to-lumo id cmd))))
+      command)))
 
 (defn- treat-output [pending-cmds out]
   (let [[_ match] (re-find #"^\s*\[(.+?) " out)]
@@ -40,6 +41,7 @@
         repl (->Lumo pending-cmds)
         [in out] (client/integrate-repl in out repl)
         new-out (async/map #(treat-output pending-cmds %) [out])]
-    (async/put! in "(require 'lumo.repl)")
+    (async/put! in '(require 'lumo.repl))
+    (async/put! in "(set! lumo.repl/*pprint-results* false)")
 
     [in new-out]))
