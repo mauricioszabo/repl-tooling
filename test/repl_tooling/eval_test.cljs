@@ -7,7 +7,7 @@
             [repl-tooling.repl-client :as client]
             [repl-tooling.repl-client.lumo :as lumo]))
 
-(def-async-test "Detects current REPL's features"
+(def-async-test "Simulates a request-response"
   {:teardown (client/disconnect! :lumo-eval)}
   (let [[in out] (lumo/connect-socket! :lumo-eval "localhost" 5550)
         result (chan)
