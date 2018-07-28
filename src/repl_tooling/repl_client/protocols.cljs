@@ -58,3 +58,22 @@
         (write-into socket code buffer fragment new-sync)
         (recur new-sync)))
     [in out socket]))
+
+; FIXME! REALLY!
+(defn connect-socket2! [host port]
+  (let [in (async/chan)
+        fragment (async/chan)
+        out (async/chan)
+        buffer (atom {:paused false :contents ""})
+        socket (doto (. net createConnection port host)
+                     (.on "data" #(treat-result buffer out fragment %)))]
+    (go-loop []
+      (let [string (str (<! in))]
+        (.log js/console "BUFFER")
+        (.log js/console string)
+        (.log js/console (str [:buffer @buffer]))
+        (.write socket string)
+        (.log js/console (str [:buffer @buffer]))
+        (reset-contents! buffer))
+      (recur))
+    [in out socket]))
