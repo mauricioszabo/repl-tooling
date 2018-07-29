@@ -7,6 +7,12 @@
 - Auto-detect of features
 - Upgradable Clojure REPL (unrepl)
 - Add support to `id` for Generic REPL
+- Add support for ..more.. in Clojure REPL
+- Add support for more than one form eval on Clojure REPL
+
+## 0.0.2
+- Fixed a bug when we could interleave REPL commands
+- Autocomplete for Lumo (the same that's used on the REPL)
 
 ## 0.0.1
 - Evaluator, and eval commands
