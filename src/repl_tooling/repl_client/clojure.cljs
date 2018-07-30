@@ -9,10 +9,6 @@
 
 (def blob (blob-contents))
 
-(defn- deliver! [channel message]
-  (async/put! channel message)
-  (async/close! channel))
-
 (defrecord Evaluator [in out session]
   eval/Evaluator
   (evaluate [_ command opts callback]
@@ -23,7 +19,13 @@
       (go (callback (<! chan)))
       (async/put! in command)
       id))
-  (break [_ id]))
+
+  (break [this id]
+    (let [interrupt (->> @session :pending-evals
+                          (filter #(= id (:id %)))
+                          first :interrupt)]
+      (when interrupt
+        (eval/evaluate this interrupt {} identity)))))
 
 (def ^:private decoders
   (let [param-decoder (fn [p] {:param p})
@@ -40,9 +42,12 @@
                :actions (:actions res)))))
 
 (defn- send-result! [parsed session]
-  (let [chan (-> @session :pending-evals first :channel)]
+  (let [chan (-> @session :pending-evals first :channel)
+        res (-> parsed second prn-str str/trim)]
     (swap! session update :pending-evals #(vec (drop 1 %)))
-    (deliver! chan (str (second parsed)))))
+    ((:on-output @session) {:result res})
+    (async/put! chan res)
+    (async/close! chan)))
 
 (defn- treat-unrepl-message! [raw-out session]
   (let [parsed (reader/read-string {:readers decoders} raw-out)]
@@ -50,6 +55,7 @@
       :started-eval (swap! session update-in [:pending-evals 0] assoc
                            :interrupt (-> parsed second :actions :interrupt))
       :eval (send-result! parsed session)
+      :out ((:on-output @session) {:out (second parsed)})
       :nothing-really)))
 
 (defn- treat-all-output! [raw-out session]
@@ -72,11 +78,12 @@
 
 (defn repl [session-name host port on-output]
   (let [[in out] (client/socket2! session-name host port)
-        session (atom {:pending-evals []})
+        session (atom {:pending-evals []
+                       :on-output on-output})
         pending-cmds (atom {})]
     (async/put! in blob)
     (go-loop [output (<! out)]
-      (prn [:loop-out output])
+      ; (prn [:loop-out output])
       (treat-all-output! output session)
       (recur (<! out)))
     (->Evaluator in out session)))
