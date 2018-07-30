@@ -4,7 +4,8 @@
             [repl-tooling.repl-client.protocols-test]
             [repl-tooling.repl-client-test]
             [repl-tooling.eval-test]
-            [repl-tooling.features.all-features-test]))
+            [repl-tooling.features.all-features-test]
+            [repl-tooling.repl-client.clojure-test]))
 
 (nodejs/enable-util-print!)
 

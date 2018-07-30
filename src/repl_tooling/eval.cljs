@@ -2,6 +2,10 @@
   (:refer-clojure :exclude [eval])
   (:require [cljs.core.async :refer [<! >! chan] :refer-macros [go go-loop]]))
 
+(defprotocol Evaluator
+  (evaluate [this command opts callback])
+  (break [this id]))
+
 (defn evaluator
   ([in out on-line] (evaluator in out on-line identity))
   ([in out on-line on-unexpected]
@@ -18,7 +22,7 @@
       :in in
       :out out})))
 
-(defn eval [evaluator command callback]
+(defn eval [evaluator command opts callback]
   (let [id (str "eval" (gensym))]
     (swap! (:pending-cmds evaluator) assoc id callback)
     (go (>! (:in evaluator) [id command]))
