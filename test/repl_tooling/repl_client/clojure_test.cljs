@@ -14,13 +14,13 @@
     (testing "evaluating resquest-response"
       (eval/evaluate repl "(+ 1 2)" {} #(async/put! out %))
       (check (await! out) => {:result "3"})
-      (check (await! out) => "3"))
+      (check (await! out) =includes=> {:result "3" :as-text "3"}))
 
     (testing "capturing output"
       (eval/evaluate repl "(println :foobar)" {} #(async/put! out %))
       (check (await! out) => {:out ":foobar\n"})
       (check (await! out) => {:result "nil"})
-      (check (await! out) => "nil"))))
+      (check (await! out) => {:result "nil" :as-text "nil"}))))
 
     ; (testing "breaks long-running evaluations"
     ;   (let [id (eval/evaluate repl "(do (Thread/sleep 1000) :foo)" {}
@@ -58,12 +58,15 @@
         (check (:as-text r) => '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9" ...))
 
         (eval/evaluate repl (-> r :as-text last meta :get-more) {} res)
-        (check (:result (await! out)) => #"(10 11 12 13 14.*)")))))
+        (check (:result (await! out)) => #"(10 11 12 13 14.*)")))
+
+    (testing "capturing big strings"
+      (eval/evaluate repl "(str (range 500))" {} res)
+      (let [r (await! out)]
+        (check (:result r) => #"(0 1 2 3 4.*)")
+        (check (pr-str (:as-text r)) => #"\(0 1 2 3 4 5.*\.\.\.")
+
+        (eval/evaluate repl (-> r :as-text meta :get-more) {} res)
+        (check (pr-str (:as-text (await! out))) => #"^\s?\d+.*\.\.\.")))))
 
 (run-tests)
-
-; (comment
-;   (client/disconnect! :clj-test)
-;   (def repl (clj/repl :clj-test "localhost" 5555 identity))
-;   (eval/evaluate repl "Throwable\n" {} #(prn [:OUT %]))
-;   (eval/evaluate repl "(println 10)" {} #(prn [:OUT %])))

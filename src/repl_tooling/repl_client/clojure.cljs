@@ -31,6 +31,15 @@
 (defn- default-tags [tag data]
   (with-meta data {:tag (str "#" tag)}))
 
+(deftype IncompleteStr [str]
+  IPrintWithWriter
+  (-pr-writer [_ writer opts]
+    (-write writer (first str))
+    (-write writer " ..."))
+
+  IMeta
+  (-meta [coll] {:get-more (-> str second :repl-tooling/...)}))
+
 (def ^:private decoders
   (let [param-decoder (fn [p] {:param p})
         more-decoder (fn [{:keys [get]}] {:repl-tooling/... get})
@@ -39,8 +48,7 @@
      'unrepl/ns ns-decoder
      'unrepl.java/class identity
      'unrepl/... more-decoder
-     'unrepl/string first
-     'error identity}))
+     'unrepl/string #(IncompleteStr. %)}))
 
 (defn- treat-hello! [hello session]
   (let [param-decoder (fn [p] {:param p})
@@ -52,7 +60,7 @@
 
 (defn- send-result! [parsed session error? additional-info]
   (let [chan (-> @session :pending-evals first :channel)
-        res (-> parsed prn-str str/trim)
+        res (pr-str parsed)
         key (if error? :error :result)]
     (swap! session update :pending-evals #(vec (drop 1 %)))
     ((:on-output @session) {key res})
@@ -60,9 +68,11 @@
     (async/close! chan)))
 
 (defn- parse-res [result]
-  (let [to-s #(-> % prn-str (str/replace #"\n$" ""))
-        to-string #(cond
-                     (not (coll? %)) (to-s %)
+  (let [to-string #(cond
+                     (instance? IncompleteStr %)
+                     %
+
+                     (not (coll? %)) (pr-str %)
 
                      (and (map? %) (:repl-tooling/... %))
                      (with-meta '... {:get-more (:repl-tooling/... %)})
@@ -70,11 +80,9 @@
                      :else %)]
     (if (coll? result)
       {:as-text (walk/prewalk to-string result)}
-      {:as-text (prn-str result)})))
+      {:as-text (to-string result)})))
 
 (defn- treat-unrepl-message! [raw-out session]
-  (prn [:RAW raw-out])
-  (def out raw-out)
   (let [parsed (reader/read-string {:readers decoders :default default-tags} raw-out)]
     (case (first parsed)
       :started-eval (swap! session update-in [:pending-evals 0] assoc
@@ -91,25 +99,13 @@
       (treat-unrepl-message! raw-out session))))
       ; ((:on-output @session) {:unexpected (str raw-out)}))))
 
-; (defn connect-socket! [session-name host port]
-;   (let [[in out] (client/socket2! session-name host port)
-;         new-out (async/chan)
-;         session (atom {:pending-evals []})
-;         pending-cmds (atom {})]
-;     (async/put! in blob)
-;     (go-loop [output (<! out)]
-;       (treat-all-output! output session)
-;       (recur (<! out)))
-;     [in new-out]))
-
 (defn repl [session-name host port on-output]
   (let [[in out] (client/socket2! session-name host port)
         session (atom {:pending-evals []
                        :on-output on-output})
         pending-cmds (atom {})]
     (async/put! in blob)
-    (go-loop []
-      ; (prn [:loop-out output])
-      (treat-all-output! (<! out) session)
-      (recur))
+    (go-loop [string (<! out)]
+      (treat-all-output! string session)
+      (recur (<! out)))
     (->Evaluator in out session)))
