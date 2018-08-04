@@ -28,6 +28,9 @@
       (when interrupt
         (eval/evaluate this interrupt {} identity)))))
 
+(defn- default-tags [tag data]
+  (with-meta data {:tag (str "#" tag)}))
+
 (def ^:private decoders
   (let [param-decoder (fn [p] {:param p})
         more-decoder (fn [{:keys [get]}] {:repl-tooling/... get})
@@ -72,7 +75,7 @@
 (defn- treat-unrepl-message! [raw-out session]
   (prn [:RAW raw-out])
   (def out raw-out)
-  (let [parsed (reader/read-string {:readers decoders} raw-out)]
+  (let [parsed (reader/read-string {:readers decoders :default default-tags} raw-out)]
     (case (first parsed)
       :started-eval (swap! session update-in [:pending-evals 0] assoc
                            :interrupt (-> parsed second :actions :interrupt))

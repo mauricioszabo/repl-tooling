@@ -39,7 +39,13 @@
 
     (testing "capturing JAVA classes"
       (eval/evaluate repl "Throwable" {} res)
-      (check (await! out) => {:result "java.lang.Throwable"}))
+      (check (await! out) =includes=> {:result "java.lang.Throwable"}))
+
+    (testing "capturing records"
+      (eval/evaluate repl "(do (defrecord Foo []) (->Foo))" {} res)
+      (let [r (await! out)]
+        (check r =includes=> {:result "{}" :as-text {}})
+        (check (-> r :as-text meta :tag) => "#user.Foo")))
 
     (testing "capturing exceptions"
       (eval/evaluate repl "(/ 20 0)" {} res)
