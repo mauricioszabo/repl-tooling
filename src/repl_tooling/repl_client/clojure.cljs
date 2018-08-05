@@ -10,23 +10,55 @@
 
 (def blob (blob-contents))
 
-(defrecord Evaluator [in out session]
+(defn- next-eval! [state]
+  (prn [:NEXT-EVAL (:state @state)])
+  (when (= (:state @state) :ready)
+    (when-let [eval (-> @state :pending first)]
+      (prn [:EVALUATING eval])
+      (swap! state (fn [s]
+                     (-> s
+                         (update :pending #(->> % (drop 1) vec))
+                         (assoc :processing eval)
+                         (assoc :state :evaluating))))
+      (async/put! (:channel-in @state) (:cmd eval)))))
+
+(defn- add-to-eval-queue! [id chan cmd state]
+  (prn [:ADD-TO-EVAL @state])
+  (swap! state update :pending conj {:cmd cmd :channel chan :id id})
+  (next-eval! state))
+
+(declare repl)
+(defrecord Evaluator [session]
   eval/Evaluator
   (evaluate [_ command opts callback]
     (let [id (gensym)
           chan (async/chan)
           {:keys [filename row col namespace]} opts]
-      (swap! session #(update % :pending-evals conj {:channel chan :id id}))
+      (add-to-eval-queue! id chan command (:state @session))
       (go (callback (<! chan)))
-      (async/put! in (str command "\n"))
       id))
 
-  (break [this id]
-    (let [interrupt (->> @session :pending-evals
-                          (filter #(= id (:id %)))
-                          first :interrupt)]
-      (when interrupt
-        (eval/evaluate this interrupt {} identity)))))
+  (break [this id]))
+    ; (let [interrupt (->> @session :pending-evals
+    ;                       (filter #(= id (:id %)))
+    ;                       first :interrupt)]
+    ;   (when interrupt
+    ;     ; RESET connection, because UNREPL's interrupt is not working!
+    ;     ; (async/put! @in (str interrupt "\n"))
+    ;     (doseq [pending (-> @session :pending-evals)]
+    ;       (async/put! (:channel pending) {}))
+    ;     (prn :disconnecting)
+    ;     (client/disconnect! (:session-name @session))
+    ;     (let [evaluator (repl (:session-name @session)
+    ;                           (:host @session) (:port @session)
+    ;                           (:on-output @session))]
+    ;       (reset! in @(:in evaluator))
+    ;       (swap! session (constantly @(:session evaluator)))
+    ;       (prn :all-reset))))))
+
+        ; (prn [:sending (str interrupt "\n")])
+        ; (prn [:sending (pr-str interrupt)])
+        ; (prn :DONE)))))
 
 (defn- default-tags [tag data]
   (with-meta data {:tag (str "#" tag)}))
@@ -50,22 +82,14 @@
      'unrepl/... more-decoder
      'unrepl/string #(IncompleteStr. %)}))
 
-(defn- treat-hello! [hello session]
-  (let [param-decoder (fn [p] {:param p})
-        [_ res] (reader/read-string {:readers decoders} hello)]
-    (-> session
-        (swap! assoc
-               :session (:session res)
-               :actions (:actions res)))))
+(defn- eval-next! [state]
+  (swap! state assoc :state :ready)
+  (next-eval! state))
 
-(defn- send-result! [parsed session error? additional-info]
-  (let [chan (-> @session :pending-evals first :channel)
-        res (pr-str parsed)
-        key (if error? :error :result)]
-    (swap! session update :pending-evals #(vec (drop 1 %)))
-    ((:on-output @session) {key res})
-    (async/put! chan (assoc additional-info key res))
-    (async/close! chan)))
+(defn- start-eval! [{:keys [actions]} state]
+  (swap! state update :processing #(assoc %
+                                            :interrupt (:interrupt actions)
+                                            :background (:background actions))))
 
 (defn- parse-res [result]
   (let [to-string #(cond
@@ -82,30 +106,60 @@
       {:as-text (walk/prewalk to-string result)}
       {:as-text (to-string result)})))
 
-(defn- treat-unrepl-message! [raw-out session]
-  (let [parsed (reader/read-string {:readers decoders :default default-tags} raw-out)]
-    (case (first parsed)
-      :started-eval (swap! session update-in [:pending-evals 0] assoc
-                           :interrupt (-> parsed second :actions :interrupt))
-      :eval (send-result! (second parsed) session false (parse-res (second parsed)))
-      :exception (send-result! (-> parsed second :ex) session true {})
-      :out ((:on-output @session) {:out (second parsed)})
+(defn- send-result! [res exception? state]
+  (let [parsed (parse-res res)
+        msg (assoc parsed (if exception? :error :result) (pr-str res))
+        on-out (:on-output @state)]
+    (on-out msg)
+    (when-let [chan (-> @state :processing :channel)]
+      (async/put! chan msg)
+      (async/close! chan))))
+
+(defn- send-output! [out state]
+  (let [on-out (:on-output @state)]
+    (on-out {:out out})))
+
+(defn- treat-unrepl-message! [raw-out state]
+  (let [[cmd args] (reader/read-string {:readers decoders :default default-tags} raw-out)]
+    (prn [:TREATING cmd])
+    (case cmd
+      :prompt (eval-next! state)
+      :started-eval (start-eval! args state)
+      :eval (send-result! args false state)
+      :exception (send-result! args true state)
+      :out (send-output! args state)
       :nothing-really)))
 
-(defn- treat-all-output! [raw-out session]
+(defn- treat-hello! [hello state]
+  (let [[_ res] (reader/read-string {:readers decoders} hello)]
+    (swap! state assoc
+           :session (:session res)
+           :actions (:actions res))))
+
+(defn- treat-all-output! [raw-out state]
   (if-let [hello (re-find #"\[:unrepl/hello.*" (str raw-out))]
-    (treat-hello! hello session)
-    (if (:session @session)
-      (treat-unrepl-message! raw-out session))))
+    (treat-hello! hello state)
+    (if (:session @state)
+      (treat-unrepl-message! raw-out state))))
       ; ((:on-output @session) {:unexpected (str raw-out)}))))
 
 (defn repl [session-name host port on-output]
   (let [[in out] (client/socket2! session-name host port)
-        session (atom {:pending-evals []
-                       :on-output on-output})
+        state (atom {:state :starting
+                     :processing nil
+                     :pending []
+                     :channel-in in
+                     :on-output on-output})
+        session (atom {:state state
+                       :session-name session-name
+                       :host host
+                       :port port})
         pending-cmds (atom {})]
+    (add-watch session 1 (fn [_key _ref old-value new-value]
+                          (prn [:OLD old-value])
+                          (prn [:NEW new-value])))
     (async/put! in blob)
     (go-loop [string (<! out)]
-      (treat-all-output! string session)
+      (treat-all-output! string state)
       (recur (<! out)))
-    (->Evaluator in out session)))
+    (->Evaluator session)))
