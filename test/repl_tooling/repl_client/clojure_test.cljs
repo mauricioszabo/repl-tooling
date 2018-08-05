@@ -22,6 +22,12 @@
       (check (await! out) =includes=> {:result "nil"})
       (check (await! out) => {:result "nil" :as-text "nil"}))
 
+    (testing "passing parameters to evaluation"
+      (let [res (async/chan)]
+        (eval/evaluate repl "(/ 10 0)" {:filename "foo.clj" :row 12 :col 0}
+                       #(async/put! res (:error %)))
+        (check (await! res) => #"foo\.clj\" 12")))
+
     (testing "breaking"
       (let [res (async/chan)
             id (eval/evaluate repl "(do (Thread/sleep 1000) :foo)" {}
@@ -82,4 +88,13 @@
    (let [id (eval/evaluate repl "(do (Thread/sleep 5000) :foo)" {} prn)]
      (<! (async/timeout 100))
      (eval/break repl id)))
-  (eval/evaluate repl ":bar\n" {} prn))
+  (eval/evaluate repl ":bar\n" {} prn)
+  (eval/evaluate repl '(/ 10 0) {} prn)
+  (-> repl :session deref :state deref :actions :set-source
+      (vec)
+      (assoc 2 "foo.clj")
+      (assoc 3 12)
+      (assoc 4 0)
+      (seq)
+      (str "(/ 10 0)")
+      (#(eval/evaluate repl % {} prn))))

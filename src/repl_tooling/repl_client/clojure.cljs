@@ -18,20 +18,43 @@
                          (update :pending #(->> % (drop 1) vec))
                          (assoc :processing eval)
                          (assoc :state :evaluating))))
-      (async/put! (:channel-in @state) (str (:cmd eval) "\n")))))
+      (async/put! (:channel-in @state) (:cmd eval)))))
 
 (defn- add-to-eval-queue! [id chan cmd state]
   (swap! state update :pending conj {:cmd cmd :channel chan :id id})
   (next-eval! state))
 
+(defn- cmd-for [{:keys [filename row col namespace]} command state]
+  (let [set-params #(case %
+                      {:repl-tooling/param :unrepl/sourcename} (str filename)
+                      {:repl-tooling/param :unrepl/column} (or col 0)
+                      {:repl-tooling/param :unrepl/line} (or row 0)
+                      %)]
+    (if (or filename row col)
+      (str (->> @state :actions :set-source (map set-params)) command)
+      command)))
+
+(defn- prepare-opts [repl {:keys [filename row col namespace]}]
+  (let [state (-> repl :session deref :state)
+        set-params #(case %
+                      {:repl-tooling/param :unrepl/sourcename} (str filename)
+                      {:repl-tooling/param :unrepl/column} (or col 0)
+                      {:repl-tooling/param :unrepl/line} (or row 0)
+                      %)]
+    (when (or filename row col)
+      (add-to-eval-queue! (gensym) (async/chan)
+                          (->> @state :actions :set-source (map set-params))
+                          state))))
+
 (declare repl)
 (defrecord Evaluator [session]
   eval/Evaluator
-  (evaluate [_ command opts callback]
+  (evaluate [this command opts callback]
     (let [id (gensym)
           chan (async/chan)
-          {:keys [filename row col namespace]} opts]
-      (add-to-eval-queue! id chan command (:state @session))
+          state (:state @session)]
+      (prepare-opts this opts)
+      (add-to-eval-queue! id chan (str command "\n") state)
       (go (callback (<! chan)))
       id))
 
@@ -66,7 +89,7 @@
   (-meta [coll] {:get-more (-> str second :repl-tooling/...)}))
 
 (def ^:private decoders
-  (let [param-decoder (fn [p] {:param p})
+  (let [param-decoder (fn [p] {:repl-tooling/param p})
         more-decoder (fn [{:keys [get]}] {:repl-tooling/... get})
         ns-decoder identity]
     {'unrepl/param param-decoder
