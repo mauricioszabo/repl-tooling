@@ -80,21 +80,3 @@
         (check (pr-str (:as-text (await! out))) => #"^\s?\d+.*\.\.\.")))))
 
 (run-tests)
-
-(comment
-  (client/disconnect! :clj-test)
-  (def repl (clj/repl :clj-test "localhost" 5555 #(prn [:stdout %])))
-  (go
-   (let [id (eval/evaluate repl "(do (Thread/sleep 5000) :foo)" {} prn)]
-     (<! (async/timeout 100))
-     (eval/break repl id)))
-  (eval/evaluate repl ":bar\n" {} prn)
-  (eval/evaluate repl '(/ 10 0) {} prn)
-  (-> repl :session deref :state deref :actions :set-source
-      (vec)
-      (assoc 2 "foo.clj")
-      (assoc 3 12)
-      (assoc 4 0)
-      (seq)
-      (str "(/ 10 0)")
-      (#(eval/evaluate repl % {} prn))))
