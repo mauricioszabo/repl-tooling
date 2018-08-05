@@ -12,13 +12,13 @@
 
 (defn- next-eval! [state]
   (when (= (:state @state) :ready)
-    (when-let [eval (-> @state :pending first)]
+    (when-let [cmd (-> @state :pending first)]
       (swap! state (fn [s]
                      (-> s
                          (update :pending #(->> % (drop 1) vec))
-                         (assoc :processing eval)
+                         (assoc :processing cmd)
                          (assoc :state :evaluating))))
-      (async/put! (:channel-in @state) (:cmd eval)))))
+      (async/put! (:channel-in @state) (:cmd cmd)))))
 
 (defn- add-to-eval-queue! [id chan cmd state]
   (swap! state update :pending conj {:cmd cmd :channel chan :id id})
