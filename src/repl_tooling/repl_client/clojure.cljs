@@ -11,19 +11,16 @@
 (def blob (blob-contents))
 
 (defn- next-eval! [state]
-  (prn [:NEXT-EVAL (:state @state)])
   (when (= (:state @state) :ready)
     (when-let [eval (-> @state :pending first)]
-      (prn [:EVALUATING eval])
       (swap! state (fn [s]
                      (-> s
                          (update :pending #(->> % (drop 1) vec))
                          (assoc :processing eval)
                          (assoc :state :evaluating))))
-      (async/put! (:channel-in @state) (:cmd eval)))))
+      (async/put! (:channel-in @state) (str (:cmd eval) "\n")))))
 
 (defn- add-to-eval-queue! [id chan cmd state]
-  (prn [:ADD-TO-EVAL @state])
   (swap! state update :pending conj {:cmd cmd :channel chan :id id})
   (next-eval! state))
 
@@ -38,27 +35,23 @@
       (go (callback (<! chan)))
       id))
 
-  (break [this id]))
-    ; (let [interrupt (->> @session :pending-evals
-    ;                       (filter #(= id (:id %)))
-    ;                       first :interrupt)]
-    ;   (when interrupt
-    ;     ; RESET connection, because UNREPL's interrupt is not working!
-    ;     ; (async/put! @in (str interrupt "\n"))
-    ;     (doseq [pending (-> @session :pending-evals)]
-    ;       (async/put! (:channel pending) {}))
-    ;     (prn :disconnecting)
-    ;     (client/disconnect! (:session-name @session))
-    ;     (let [evaluator (repl (:session-name @session)
-    ;                           (:host @session) (:port @session)
-    ;                           (:on-output @session))]
-    ;       (reset! in @(:in evaluator))
-    ;       (swap! session (constantly @(:session evaluator)))
-    ;       (prn :all-reset))))))
+  (break [this id]
+    (when (-> @session :state deref :processing :id (= id))
+      ; RESET connection, because UNREPL's interrupt is not working!
+      ; First, clear all pending evals
+      (some-> @session :state deref :processing :channel (doto
+                                                           (async/put! {})
+                                                           (async/close!)))
 
-        ; (prn [:sending (str interrupt "\n")])
-        ; (prn [:sending (pr-str interrupt)])
-        ; (prn :DONE)))))
+      (doseq [pending (-> @session :state deref :pending-evals)]
+        (async/put! (:channel pending) {})
+        (async/close! (:channel pending)))
+
+      (client/disconnect! (:session-name @session))
+      (let [evaluator (repl (:session-name @session)
+                            (:host @session) (:port @session)
+                            (-> @session :state deref :on-output))]
+        (reset! session @(:session evaluator))))))
 
 (defn- default-tags [tag data]
   (with-meta data {:tag (str "#" tag)}))
@@ -121,7 +114,6 @@
 
 (defn- treat-unrepl-message! [raw-out state]
   (let [[cmd args] (reader/read-string {:readers decoders :default default-tags} raw-out)]
-    (prn [:TREATING cmd])
     (case cmd
       :prompt (eval-next! state)
       :started-eval (start-eval! args state)
@@ -155,9 +147,6 @@
                        :host host
                        :port port})
         pending-cmds (atom {})]
-    (add-watch session 1 (fn [_key _ref old-value new-value]
-                          (prn [:OLD old-value])
-                          (prn [:NEW new-value])))
     (async/put! in blob)
     (go-loop [string (<! out)]
       (treat-all-output! string state)

@@ -22,65 +22,64 @@
       (check (await! out) =includes=> {:result "nil"})
       (check (await! out) => {:result "nil" :as-text "nil"}))
 
-    (testing "breaks long-running evaluations"
+    (testing "breaking"
       (let [res (async/chan)
             id (eval/evaluate repl "(do (Thread/sleep 1000) :foo)" {}
                               #(async/put! res %))]
         (await! (async/timeout 100))
-        (eval/break repl id)
-        (check (await! res) => {})
+        (testing "breaks evaliation"
+          (eval/break repl id)
+          (check (await! res) => {}))
 
-        (eval/evaluate repl ":bar" {} #(async/put! res %))
-        (check (await! res) =includes=> {:result ":bar"})))))
+        (testing "allows new commands"
+          (eval/evaluate repl ":bar" {} #(async/put! res %))
+          (check (await! res) =includes=> {:result ":bar"}))))))
 
-; (def-async-test "Captures specific UnREPL outputs"
-;   {:teardown (client/disconnect! :clj-test2)}
-;   (let [out (async/chan)
-;         repl (clj/repl :clj-test2 "localhost" 5555 identity)
-;         res #(async/put! out %)]
-;
-;     (testing "capturing JAVA classes"
-;       (eval/evaluate repl "Throwable" {} res)
-;       (check (await! out) =includes=> {:result "java.lang.Throwable"}))
-;
-;     (testing "capturing records"
-;       (eval/evaluate repl "(do (defrecord Foo []) (->Foo))" {} res)
-;       (let [r (await! out)]
-;         (check r =includes=> {:result "{}" :as-text {}})
-;         (check (-> r :as-text meta :tag) => "#user.Foo")))
-;
-;     (testing "capturing exceptions"
-;       (eval/evaluate repl "(/ 20 0)" {} res)
-;       (check (:error (await! out)) => #"Divide by zero"))
-;
-;     (testing "capturing big data"
-;       (eval/evaluate repl "(range)" {} res)
-;       (let [r (await! out)]
-;         (check (:result r) => #"(0 1 2 3 4.*)")
-;         (check (:as-text r) => '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9" ...))
-;
-;         (eval/evaluate repl (-> r :as-text last meta :get-more) {} res)
-;         (check (:result (await! out)) => #"(10 11 12 13 14.*)")))
-;
-;     (testing "capturing big strings"
-;       (eval/evaluate repl "(str (range 500))" {} res)
-;       (let [r (await! out)]
-;         (check (:result r) => #"(0 1 2 3 4.*)")
-;         (check (pr-str (:as-text r)) => #"\(0 1 2 3 4 5.*\.\.\.")
-;
-;         (eval/evaluate repl (-> r :as-text meta :get-more) {} res)
-;         (check (pr-str (:as-text (await! out))) => #"^\s?\d+.*\.\.\.")))))
+(def-async-test "Captures specific UnREPL outputs"
+  {:teardown (client/disconnect! :clj-test2)}
+  (let [out (async/chan)
+        repl (clj/repl :clj-test2 "localhost" 5555 identity)
+        res #(async/put! out %)]
+
+    (testing "capturing JAVA classes"
+      (eval/evaluate repl "Throwable" {} res)
+      (check (await! out) =includes=> {:result "java.lang.Throwable"}))
+
+    (testing "capturing records"
+      (eval/evaluate repl "(do (defrecord Foo []) (->Foo))" {} res)
+      (let [r (await! out)]
+        (check r =includes=> {:result "{}" :as-text {}})
+        (check (-> r :as-text meta :tag) => "#user.Foo")))
+
+    (testing "capturing exceptions"
+      (eval/evaluate repl "(/ 20 0)" {} res)
+      (check (:error (await! out)) => #"Divide by zero"))
+
+    (testing "capturing big data"
+      (eval/evaluate repl "(range)" {} res)
+      (let [r (await! out)]
+        (check (:result r) => #"(0 1 2 3 4.*)")
+        (check (:as-text r) => '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9" ...))
+
+        (eval/evaluate repl (-> r :as-text last meta :get-more) {} res)
+        (check (:result (await! out)) => #"(10 11 12 13 14.*)")))
+
+    (testing "capturing big strings"
+      (eval/evaluate repl "(str (range 500))" {} res)
+      (let [r (await! out)]
+        (check (:result r) => #"(0 1 2 3 4.*)")
+        (check (pr-str (:as-text r)) => #"\(0 1 2 3 4 5.*\.\.\.")
+
+        (eval/evaluate repl (-> r :as-text meta :get-more) {} res)
+        (check (pr-str (:as-text (await! out))) => #"^\s?\d+.*\.\.\.")))))
 
 (run-tests)
 
-; (comment
-;   (client/disconnect! :clj-test)
-;   (def repl (clj/repl :clj-test "localhost" 5555 #(prn [:stdout %])))
-;   (eval/evaluate repl "Throwable\n" {} #(prn [:OUT %]))
-;   (eval/evaluate repl "(figwheel-sidecar.repl-api/cljs-repl)" {} #(prn [:OUT %]))
-;   (eval/evaluate repl '[:FOO (do (ns lumo.a) (+ 1 2))] {} #(prn [:OUT %]))
-;   (eval/evaluate repl "*!" {} #(prn [:OUT %]))
-;   (eval/evaluate repl '(ns lumo.a (:require [cljs.reader :as edn])) {} #(prn [:OUT %]))
-;   (eval/evaluate repl ":cljs/quit" {} #(prn [:OUT %])))
-  ; (let [id (eval/evaluate repl "(println (range))" {} #(prn [:OUT %]))]
-  ;   (eval/break repl id)))
+(comment
+  (client/disconnect! :clj-test)
+  (def repl (clj/repl :clj-test "localhost" 5555 #(prn [:stdout %])))
+  (go
+   (let [id (eval/evaluate repl "(do (Thread/sleep 5000) :foo)" {} prn)]
+     (<! (async/timeout 100))
+     (eval/break repl id)))
+  (eval/evaluate repl ":bar\n" {} prn))
