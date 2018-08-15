@@ -15,7 +15,7 @@
 
 (defn top-levels [text]
   (let [text (str/split-lines text)]
-    (loop [acc {:forms []}
+    (loop [forms []
            {:keys [current close depth start] :as state} nil
            [row col] [0 0]]
 
@@ -23,20 +23,20 @@
             next (next-pos row col text)]
         (cond
           (nil? row)
-          acc
+          forms
 
           (and (nil? current) (delim char))
-          (recur acc {:current char :close (closes char) :depth 0 :start [row col]}
+          (recur forms {:current char :close (closes char) :depth 0 :start [row col]}
             next)
 
           (delim char)
-          (recur acc (update state :depth inc) next)
+          (recur forms (update state :depth inc) next)
 
           (and (zero? depth) (= close char))
-          (recur (update acc :forms conj [start [row col]]) nil next)
+          (recur (conj forms [start [row col]]) nil next)
 
           (= close char)
-          (recur acc (update state :depth dec) next)
+          (recur forms (update state :depth dec) next)
 
           :else
-          (recur acc state next))))))
+          (recur forms  state next))))))

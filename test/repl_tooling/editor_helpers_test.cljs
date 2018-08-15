@@ -26,7 +26,7 @@
 (def algo 10)")
 
 (deftest toplevel-forms
-  (check (:forms (editor/top-levels simple-clj))
+  (check (editor/top-levels simple-clj)
          => [[[0 0] [0 6]]
              [[0 8] [0 16]]
              [[1 0] [2 1]]]))
