@@ -25,10 +25,19 @@
 
 (def algo 10)")
 
+(deftest stripping-comments
+  (testing "simple comments"
+    (check (editor/strip-comments "(+ ; foobar)") => "(+ "))
+
+  (testing "comments inside strings"
+    (check (editor/strip-comments "\"foo;bar\"; foobar)") => "\"foo;bar\"")))
+
 (deftest toplevel-forms
-  (check (editor/top-levels simple-clj)
-         => [[[0 0] [0 6]]
-             [[0 8] [0 16]]
-             [[1 0] [2 1]]]))
+  (testing "gets top-level forms"
+    (check (editor/top-levels simple-clj) => [[[0 0] [0 6]]
+                                              [[0 8] [0 16]]
+                                              [[1 0] [2 1]]]))
+
+  (testing "gets "))
 
 (run-tests)

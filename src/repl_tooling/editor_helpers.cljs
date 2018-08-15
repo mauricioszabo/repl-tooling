@@ -1,6 +1,9 @@
 (ns repl-tooling.editor-helpers
   (:require [clojure.string :as str]))
 
+(defn strip-comments [text]
+  (str/replace text #";.*$" ""))
+
 (def delim #{"(" "[" "{"})
 (def closes {"(" ")"
              "[" "]"
