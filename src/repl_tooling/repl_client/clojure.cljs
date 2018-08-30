@@ -136,7 +136,9 @@
     (on-out {:out out})))
 
 (defn- treat-unrepl-message! [raw-out state]
-  (let [[cmd args] (reader/read-string {:readers decoders :default default-tags} raw-out)]
+  (let [parsed (try (reader/read-string {:readers decoders :default default-tags} raw-out)
+                 (catch :default e))
+        [cmd args] (when (vector? parsed) parsed)]
     (case cmd
       :prompt (eval-next! state)
       :started-eval (start-eval! args state)
