@@ -18,21 +18,12 @@
                          (update :pending #(->> % (drop 1) vec))
                          (assoc :processing cmd)
                          (assoc :state :evaluating))))
+      (prn [:RAW-IN (:cmd cmd)])
       (async/put! (:channel-in @state) (:cmd cmd)))))
 
 (defn- add-to-eval-queue! [id chan cmd state]
   (swap! state update :pending conj {:cmd cmd :channel chan :id id})
   (next-eval! state))
-
-(defn- cmd-for [{:keys [filename row col namespace]} command state]
-  (let [set-params #(case %
-                      {:repl-tooling/param :unrepl/sourcename} (str filename)
-                      {:repl-tooling/param :unrepl/column} (or col 0)
-                      {:repl-tooling/param :unrepl/line} (or row 0)
-                      %)]
-    (if (or filename row col)
-      (str (->> @state :actions :set-source (map set-params)) command)
-      command)))
 
 (defn- prepare-opts [repl {:keys [filename row col namespace]}]
   (let [state (-> repl :session deref :state)
@@ -41,6 +32,8 @@
                       {:repl-tooling/param :unrepl/column} (or col 0)
                       {:repl-tooling/param :unrepl/line} (or row 0)
                       %)]
+    (when namespace
+      (add-to-eval-queue! (gensym) (async/chan) (str "(ns " namespace ")") state))
     (when (or filename row col)
       (add-to-eval-queue! (gensym) (async/chan)
                           (->> @state :actions :set-source (map set-params))
@@ -76,25 +69,32 @@
                             (-> @session :state deref :on-output))]
         (reset! session @(:session evaluator))))))
 
-(defn- default-tags [tag data]
-  (with-meta data {:tag (str "#" tag)}))
-
-(deftype IncompleteStr [str]
+(deftype TaggedObj [tag obj]
   IPrintWithWriter
   (-pr-writer [_ writer opts]
-    (-write writer (first str))
-    (-write writer " ..."))
+    (-write writer "#")
+    (-write writer tag)
+    (-write writer " ")
+    (-write writer (pr-str obj))))
+
+(defn- default-tags [tag data]
+  (TaggedObj. tag data))
+
+(deftype IncompleteStr [string]
+  IPrintWithWriter
+  (-pr-writer [_ writer opts]
+    (-write writer (pr-str (str (first string) " ..."))))
 
   IMeta
-  (-meta [coll] {:get-more (-> str second :repl-tooling/...)}))
+  (-meta [coll] {:get-more (-> string second :repl-tooling/...)}))
 
 (def ^:private decoders
   (let [param-decoder (fn [p] {:repl-tooling/param p})
         more-decoder (fn [{:keys [get]}] {:repl-tooling/... get})
         ns-decoder identity]
     {'unrepl/param param-decoder
-     'unrepl/ns ns-decoder
-     'unrepl.java/class identity
+     ; 'unrepl/ns ns-decoder
+     ; 'unrepl.java/class identity
      'unrepl/... more-decoder
      'unrepl/string #(IncompleteStr. %)}))
 
@@ -154,6 +154,8 @@
            :actions (:actions res))))
 
 (defn- treat-all-output! [raw-out state]
+  (prn [:RAW (str raw-out)])
+
   (if-let [hello (re-find #"\[:unrepl/hello.*" (str raw-out))]
     (treat-hello! hello state)
     (if (:session @state)
@@ -174,6 +176,7 @@
         pending-cmds (atom {})]
     (async/put! in blob)
     (go-loop [string (<! out)]
-      (treat-all-output! string state)
-      (recur (<! out)))
+      (when string
+        (treat-all-output! string state)
+        (recur (<! out))))
     (->Evaluator session)))
