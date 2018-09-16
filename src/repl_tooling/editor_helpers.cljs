@@ -1,5 +1,37 @@
 (ns repl-tooling.editor-helpers
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [cljs.reader :as reader]))
+
+; TODO: I don't know if this belongs here or not
+(defprotocol Taggable
+  (obj [this])
+  (tag [this]))
+
+(deftype WithTag [obj tag]
+  IPrintWithWriter
+  (-pr-writer [_ writer opts]
+    (-write writer "#")
+    (-write writer tag)
+    (-write writer " ")
+    (-write writer obj))
+
+  Taggable
+  (obj [_] obj)
+  (tag [_] (str "#" tag " ")))
+
+(defn- default-tag [tag data]
+  (case (str tag)
+    "clojure/var" (->> data (str "#'") symbol)
+    ; "unrepl/object" (as-obj data)
+    "unrepl.java/class" (WithTag. data "class")
+    (WithTag. data tag)))
+
+(defn read-result [res]
+  (try
+    (reader/read-string {:default default-tag} res)
+    (catch :default _
+      (symbol res))))
+
 
 (defn strip-comments [text]
   (str/replace text #";.*$" ""))

@@ -66,7 +66,8 @@
         out (async/chan)
         buffer (atom {:paused false :contents ""})
         socket (doto (. net createConnection port host)
-                     (.on "data" #(treat-result buffer out fragment %)))]
+                     (.on "data" #(treat-result buffer out fragment %))
+                     (.on "close" #(do (prn :CLOSE) (async/close! out))))]
     (go-loop []
       (let [string (str (<! in))]
         (.write socket string))

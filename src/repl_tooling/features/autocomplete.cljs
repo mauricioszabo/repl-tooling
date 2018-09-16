@@ -1,8 +1,73 @@
 (ns repl-tooling.features.autocomplete
   (:require [repl-tooling.eval :as eval]
+            [clojure.string :as str]
             [cljs.core.async :refer [<! >!] :refer-macros [go] :as async]
             [repl-tooling.repl-client :as client]
-            [repl-tooling.repl-client.lumo :as lumo]))
+            [repl-tooling.eval :as eval]
+            [repl-tooling.repl-client.clojure :as clj-repl]
+            [repl-tooling.repl-client.lumo :as lumo]
+            [repl-tooling.editor-helpers :as helpers]))
+
+(defprotocol AutoComplete
+  (complete [repl ns-name text prefix row col]))
+
+(defn- re-escape [str]
+  (str/replace str #"[.*+?^${}()|\[\]\\]" "\\$&"))
+
+(defn- make-context [text prefix row col]
+  (let [lines (str/split-lines text)
+        pattern (re-pattern (str "(.{" (- col (count prefix)) "})" (re-escape prefix)))]
+    (->> "$1__prefix__"
+         (update lines row str/replace-first pattern)
+         (str/join "\n"))))
+
+(declare take-results)
+(defn- get-more [repl resolve more acc]
+  (eval/evaluate repl more {} #(take-results repl resolve acc %)))
+
+(defn- take-results [repl resolve acc {:keys [result]}]
+  (let [acc (vec (concat acc (helpers/read-result result)))
+        more (-> acc last :repl-tooling/...)
+        size (count acc)]
+    (cond
+      (-> size (> 50) (and more)) (-> acc butlast resolve)
+      (-> size (< 50) (and more)) (get-more repl resolve more acc)
+      :else (resolve acc))))
+
+(defn- clj-compliment [repl ns-name text prefix row col]
+  (let [ns (symbol ns-name)
+        context (make-context text prefix row col)
+        code `(clojure.core/let [completions# (compliment.core/completions
+                                                ~prefix
+                                                {:tag-candidates true
+                                                 :ns '~ns
+                                                 :context ~context})]
+                                (clojure.core/vec completions#))]
+    (js/Promise. (fn [resolve]
+                   (eval/evaluate repl code {} #(take-results repl resolve [] %))))))
+
+(defn- require-compliment [repl checker]
+  (js/Promise. (fn [resolve]
+                 (eval/evaluate repl `(clojure.core/require 'compliment.core) {}
+                                (fn [res]
+                                  (if (:error res)
+                                    (reset! checker false)
+                                    (reset! checker true))
+                                  (resolve))))))
+
+(let [compliment? (atom nil)]
+  (extend-protocol AutoComplete
+    clj-repl/Evaluator
+    (complete [repl ns-name text prefix row col]
+      (case @compliment?
+        nil (. (require-compliment repl compliment?)
+              (then #(complete repl ns-name text prefix row col)))
+        false (.resolve js/Promise #js [])
+        true (clj-compliment repl ns-name text prefix row col)))))
+
+
+
+;;;;;;;;;;;;; CUT HERE ;;;;;;;;;;;;;;
 
 (defn- detect-fn
   ([evaluator fun-name check-for key fun]
@@ -10,19 +75,20 @@
     (fn [resolve]
       (eval/eval evaluator
                  fun-name
+                 {}
                  #(resolve (when (re-find check-for %)
                              {key fun})))))))
 
 (defn- lumo-fn [evaluator ns-name text callback]
   (let [complete-form `(lumo.repl/get-completions
                         ~(str text) cljs.core/js->clj)]
-    (eval/eval evaluator (str "(ns " ns-name ")")
-               #(eval/eval evaluator complete-form callback))))
+    (eval/eval evaluator (str "(ns " ns-name ")") {}
+               #(eval/eval evaluator complete-form {} callback))))
 
 (defn- merge-all [ & features])
 
 (defn detect [evaluator callback]
-  (def evaluator evaluator)
+  ; (eval/eval evaluator "(require 'compliment.core)" {} #(println))
   (-> (detect-fn evaluator "lumo.repl/get-completions" #"function "
                  :simple-complete lumo-fn)
       (.then callback)
