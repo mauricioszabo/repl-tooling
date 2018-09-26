@@ -52,7 +52,6 @@
 
 (defn top-levels [text]
   (let [text (-> text strip-comments str/split-lines)]
-    (prn text)
     (loop [forms []
            {:keys [current close depth start] :as state} nil
            [row col] [0 0]]
@@ -67,7 +66,7 @@
           (recur forms {:current char :close (closes char) :depth 0 :start [row col]}
             next)
 
-          (delim char)
+          (= current char)
           (recur forms (update state :depth inc) next)
 
           (and (zero? depth) (= close char))
