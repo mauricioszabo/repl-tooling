@@ -34,7 +34,7 @@
 
 (defn strip-comments [text]
   (-> text
-      (str/replace #"\".(\\\"|[^\"])*\"" (fn [[a]] (apply str (take (count a) (repeat " ")))))
+      (str/replace #"\".(\\\"|[^\"])*\"" (fn [[a]] (str/replace a #";" " ")))
       (str/replace #"\\;" "  ")
       (str/replace #";.*" "")))
 

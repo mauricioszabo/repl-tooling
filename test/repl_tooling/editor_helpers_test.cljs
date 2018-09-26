@@ -29,7 +29,7 @@
     (check (editor/strip-comments "(+ ; foobar)") => "(+ "))
 
   (testing "comments inside strings"
-    (check (editor/strip-comments "\"foo;bar\"; foobar)") => "         ")))
+    (check (editor/strip-comments "\"foo;bar\"; foobar)") => "\"foo bar\"")))
 
 (deftest toplevel-forms
   (testing "gets top-level forms"
