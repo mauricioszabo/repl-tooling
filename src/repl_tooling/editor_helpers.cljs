@@ -32,9 +32,11 @@
     (catch :default _
       (symbol res))))
 
-
 (defn strip-comments [text]
-  (str/replace text #";.*$" ""))
+  (-> text
+      (str/replace #"\".(\\\"|[^\"])*\"" (fn [[a]] (apply str (take (count a) (repeat " ")))))
+      (str/replace #"\\;" "  ")
+      (str/replace #";.*" "")))
 
 (def delim #{"(" "[" "{"})
 (def closes {"(" ")"
@@ -49,7 +51,8 @@
     [row (inc col)]))
 
 (defn top-levels [text]
-  (let [text (str/split-lines text)]
+  (let [text (-> text strip-comments str/split-lines)]
+    (prn text)
     (loop [forms []
            {:keys [current close depth start] :as state} nil
            [row col] [0 0]]

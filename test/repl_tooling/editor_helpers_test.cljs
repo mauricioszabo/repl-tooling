@@ -15,11 +15,10 @@
 (ns foobar)
 
 (defn foo [a b c]
-  (+ 1 2 ; ))
-))
+  (+ 1 2) ; ))
 
  (defn bar [x y z]
-   {:a x :b y :c z})
+   {:a x :b y :c z}))
 
 (ns barbaz)
 
@@ -30,7 +29,7 @@
     (check (editor/strip-comments "(+ ; foobar)") => "(+ "))
 
   (testing "comments inside strings"
-    (check (editor/strip-comments "\"foo;bar\"; foobar)") => "\"foo;bar\"")))
+    (check (editor/strip-comments "\"foo;bar\"; foobar)") => "         ")))
 
 (deftest toplevel-forms
   (testing "gets top-level forms"
@@ -38,6 +37,9 @@
                                               [[0 8] [0 16]]
                                               [[1 0] [2 1]]]))
 
-  (testing "gets "))
+  (testing "gets top-level forms in complex CLJ code"
+    (check (editor/top-levels some-clj) => [[[0 0] [0 6]]
+                                            [[0 8] [0 16]]
+                                            [[1 0] [2 1]]])))
 
 (run-tests)
