@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [cljs.core.async :refer [<! >!] :refer-macros [go] :as async]
             [repl-tooling.repl-client :as client]
+            [repl-tooling.repl-client.cljs.autocomplete :as cljs-auto]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.repl-client.lumo :as lumo]
@@ -42,7 +43,7 @@
                                                 {:tag-candidates true
                                                  :ns '~ns
                                                  :context ~context})]
-                                (clojure.core/vec completions#))]
+                (clojure.core/vec completions#))]
     (js/Promise. (fn [resolve]
                    (eval/evaluate repl code {} #(take-results repl resolve [] %))))))
 
@@ -63,9 +64,17 @@
         nil (. (require-compliment repl compliment?)
               (then #(complete repl ns-name text prefix row col)))
         false (.resolve js/Promise #js [])
-        true (clj-compliment repl ns-name text prefix row col)))))
+        true (clj-compliment repl ns-name text prefix row col)))
 
-
+    clj-repl/SelfHostedCljs
+    (complete [repl ns-name text prefix row col]
+      (js/Promise. (fn [resolve]
+                     (cljs-auto/complete repl
+                                         ns-name
+                                         prefix
+                                         #(if-let [res (:result %)]
+                                            (resolve res)
+                                            (resolve nil))))))))
 
 ;;;;;;;;;;;;; CUT HERE ;;;;;;;;;;;;;;
 
