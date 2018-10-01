@@ -73,8 +73,8 @@
                                          ns-name
                                          prefix
                                          #(if-let [res (:result %)]
-                                            (resolve res)
-                                            (resolve nil))))))))
+                                            (resolve (helpers/read-result res))
+                                            (resolve []))))))))
 
 ;;;;;;;;;;;;; CUT HERE ;;;;;;;;;;;;;;
 
