@@ -9,8 +9,6 @@
             [clojure.walk :as walk]))
 
 (def blob (blob-contents))
-; (def ^:private fs (js/require "fs"))
-; (def blob (.. fs (readFileSync "../resources/blob.clj") str))
 
 (defn- next-eval! [state]
   (when (= (:state @state) :ready)
@@ -97,8 +95,8 @@
     {'unrepl/param param-decoder
      ; 'unrepl/ns ns-decoder
      ; 'unrepl.java/class identity
-     'unrepl/... more-decoder
-     'unrepl/string #(IncompleteStr. %)}))
+     'unrepl/... more-decoder}))
+     ; 'unrepl/string #(IncompleteStr. %)}))
 
 (defn- eval-next! [state]
   (swap! state assoc :state :ready)
@@ -161,8 +159,8 @@
   (if-let [hello (re-find #"\[:unrepl/hello.*" (str raw-out))]
     (treat-hello! hello state)
     (if (:session @state)
-      (treat-unrepl-message! raw-out state))))
-      ; ((:on-output @session) {:unexpected (str raw-out)}))))
+      (treat-unrepl-message! raw-out state)
+      (some-> @state :session deref :on-output (#(% {:unexpected (str raw-out)}))))))
 
 (defn repl [session-name host port on-output]
   (let [[in out] (client/socket2! session-name host port)
@@ -187,19 +185,18 @@
   eval/Evaluator
   (evaluate [_ command opts callback]
     (let [id (gensym)
+          in (-> evaluator :session deref :state deref :channel-in)
           ; code `(clojure.core/let [res# ~command]
           ;         [(quote ~id) res#])
           code (str "(clojure.core/let [res " command "\n] ['" id " (pr-str res)])\n")]
-          ; code (str/replace-first code #"___COMMAND___" (str code))]
 
       (swap! pending assoc id callback)
-      (prn [:EVAL? code])
-      (async/put! (-> evaluator :session deref :state deref :channel-in) code)
-      ; (eval/evaluate evaluator
-      ;                `(clojure.core/let [res# ~command]
-      ;                   [(quote ~id) res#])
-      ;                {}
-      ;                identity)
+
+      (prn [:OPTS opts])
+      (when-let [ns-name (:namespace opts)]
+        (async/put! in (str "(ns " ns-name ")")))
+
+      (async/put! in code)
       (swap! (:session evaluator) assoc :pending [])
       id))
 
@@ -208,9 +205,6 @@
 (defn- pending-evals-for-cljs [pending output-fn]
   (fn [{:keys [out as-text] :as res}]
     (prn [:CLJS-OUT res])
-    (prn [:CLJS-OUT as-text])
-    (prn [:CLJS-OUT out])
-    ; (prn)
     (if (and out (str/starts-with? out "["))
       (let [[id parsed] (reader/read-string {:default default-tags} out)]
         (if-let [callback (get @pending id)]
@@ -218,24 +212,13 @@
           (output-fn {:out out :result [id parsed]})))
       (output-fn {:out out}))))
 
-; (defn- cljs-repl [clj-evaluator]
-;     (->SelfHostedCljs clj-evaluator pending))
-
 (defn self-host [clj-evaluator command]
   (let [pending (atom {})
         cljs-repl (->SelfHostedCljs clj-evaluator pending)
         old-fn (-> clj-evaluator :session deref :state deref :on-output)]
-    ; #_
-    ; (eval/evaluate clj-evaluator command {} identity)
+
     (swap! (-> clj-evaluator :session deref :state)
            assoc :on-output (pending-evals-for-cljs pending old-fn))
-
-    ; (js/Promise. (fn [resolve]
-    ;                (swap! (-> clj-evaluator :session deref :state)
-    ;                       assoc :on-output (pending-evals-for-cljs pending old-fn))
-    ;                (js/setTimeout #(resolve cljs-repl) 500)))))
-
-    ; #_
     (js/Promise. (fn [resolve]
                    (eval/evaluate clj-evaluator command {}
                                   (fn [{:keys [error]}]
@@ -243,30 +226,3 @@
                                       (resolve nil))))
                    ; CLJS self-hosted REPL never returns, so we'll just set a timeout
                    (js/setTimeout #(resolve cljs-repl) 500)))))
-    ; cljs-repl))
-
-    ;                (eval/evaluate cljs-repl command {}
-    ;                               (fn [{:keys [error] :as foo}]
-    ;                                 (prn [:RESULT foo])
-    ;                                 (if error
-    ;                                   (resolve nil)
-    ;                                   (resolve cljs-repl))))))))
-
-#_#_
-(shadow.cljs.devtools.api/repl :dev)
-(ns repl-tooling.repl-client.clojure)
-
-#_
-(async/put! (-> clj-evaluator :session deref :state deref :channel-in) "(+ 1 2)\n")
-
-#_#_#_
-(def pending (atom {}))
-(def cljs-repl (->SelfHostedCljs clj-evaluator pending))
-(def old-fn (-> clj-evaluator :session deref :state deref :on-output))
-#_#_
-(def new-fn (pending-evals-for-cljs pending old-fn))
-(swap! (-> clj-evaluator :session deref :state)
-       assoc :on-output new-fn)
-
-#_
-(eval/evaluate clj-evaluator cmd {} (fn [{:keys [error]}]))

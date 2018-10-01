@@ -26,6 +26,6 @@
                           "(js->clj (.keys js/Object (aget js/goog \"global\" \"cljs\" \"core\")))")
                         "      both (concat from-ns from-core " special-forms ")]"
                         "(filter #(re-find #\"" prefix "\" %) "
-                        "(map cljs.core/demunge both)))")
+                        "(take 50 (map cljs.core/demunge both))))")
                    {:namespace ns-name}
                    callback)))

@@ -2,6 +2,24 @@
   (:require [clojure.string :as str]
             [cljs.reader :as reader]))
 
+(defprotocol IIncompleteStr
+  (only-str [_])
+  (concat-with [_ other]))
+
+(deftype IncompleteStr [string]
+  IPrintWithWriter
+  (-pr-writer [_ writer opts]
+    (-write writer (pr-str (str (first string) "..."))))
+
+  IIncompleteStr
+  (only-str [_] (first string))
+  (concat-with [_ other]
+    (IncompleteStr. [(str (first string) (only-str other))
+                     {:repl-tooling/... (-> other meta :get-more)}]))
+
+  IMeta
+  (-meta [coll] {:get-more (-> string second :repl-tooling/...)}))
+
 ; TODO: I don't know if this belongs here or not
 (defprotocol Taggable
   (obj [this])
@@ -28,9 +46,15 @@
 
 (defn read-result [res]
   (try
-    (reader/read-string {:default default-tag} res)
+    (reader/read-string {:readers {'unrepl/string #(IncompleteStr. %)}
+                         :default default-tag} res)
     (catch :default _
       (symbol res))))
+
+(defn parse-result [result]
+  (if (:result result)
+    (update result :result read-result)
+    (update result :error read-result)))
 
 (defn strip-comments [text]
   (-> text
@@ -77,3 +101,22 @@
 
           :else
           (recur forms  state next))))))
+
+(def text (.. js/atom -workspace getActiveTextEditor getText))
+(def levels (top-levels text))
+(strip-comments text)
+
+(defn text-in-range [text [[row1 col1] [row2 col2]]]
+  (let [lines (str/split-lines text)]
+    (-> lines
+        (subvec row1 (inc row2))
+        (update 0 #(str/join "" (drop col1 %)))
+        (update (- row2 row1) #(str/join "" (take col2 %)))
+        (->> (str/join "\n")))))
+
+(text-in-range text (last levels))
+(defn current-top-block [text row col]
+  (let [levels (top-levels text)]))
+
+(let [row 63
+      col 11])
