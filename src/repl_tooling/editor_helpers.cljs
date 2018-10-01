@@ -2,6 +2,16 @@
   (:require [clojure.string :as str]
             [cljs.reader :as reader]))
 
+(deftype LiteralRenderResult [string]
+  IPrintWithWriter
+  (-pr-writer [_ writer opts]
+    (-write writer (str "#repl-tooling/literal-render " (pr-str string)))))
+
+(deftype LiteralRender [string]
+  IPrintWithWriter
+  (-pr-writer [_ writer opts]
+    (-write writer string)))
+
 (defprotocol IIncompleteStr
   (only-str [_])
   (concat-with [_ other]))
@@ -46,7 +56,8 @@
 
 (defn read-result [res]
   (try
-    (reader/read-string {:readers {'unrepl/string #(IncompleteStr. %)}
+    (reader/read-string {:readers {'unrepl/string #(IncompleteStr. %)
+                                   'repl-tooling/literal-render #(LiteralRender. %)}
                          :default default-tag} res)
     (catch :default _
       (symbol res))))
