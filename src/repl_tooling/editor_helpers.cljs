@@ -2,11 +2,6 @@
   (:require [clojure.string :as str]
             [cljs.reader :as reader]))
 
-(deftype LiteralRenderResult [string]
-  IPrintWithWriter
-  (-pr-writer [_ writer opts]
-    (-write writer (str "#repl-tooling/literal-render " (pr-str string)))))
-
 (deftype LiteralRender [string]
   IPrintWithWriter
   (-pr-writer [_ writer opts]
