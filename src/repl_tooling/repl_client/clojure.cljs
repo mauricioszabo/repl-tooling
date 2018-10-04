@@ -202,23 +202,35 @@
 
   (break [this id]))
 
-(defn- pending-evals-for-cljs [pending output-fn]
+(defn- treat-result-of-call [out pending output-fn buffer]
+  (let [full-out (str @buffer out)
+        [_ id] (re-find #"^\[(.+?) " full-out)]
+    (if-let [callback (some->> id symbol (get @pending))]
+      (if (str/ends-with? full-out "\n")
+        (let [[_ parsed] (reader/read-string {:default default-tags} full-out)]
+          (reset! buffer nil)
+          (callback {:result parsed})
+          (swap! pending dissoc id)
+          (output-fn {:as-text out :result parsed}))
+        (swap! buffer str out))
+      (do
+        (reset! buffer nil)
+        (output-fn {:out full-out})))))
+
+(defn- pending-evals-for-cljs [pending output-fn buffer]
   (fn [{:keys [out as-text] :as res}]
-    (prn [:CLJS-OUT res])
-    (if (and out (str/starts-with? out "["))
-      (let [[id parsed] (reader/read-string {:default default-tags} out)]
-        (if-let [callback (get @pending id)]
-          (do (callback {:result parsed}) (swap! pending dissoc id))
-          (output-fn {:out out :result [id parsed]})))
+    (if (or @buffer (and out (str/starts-with? out "[")))
+      (treat-result-of-call out pending output-fn buffer)
       (output-fn {:out out}))))
 
 (defn self-host [clj-evaluator command]
   (let [pending (atom {})
+        buffer (atom nil)
         cljs-repl (->SelfHostedCljs clj-evaluator pending)
         old-fn (-> clj-evaluator :session deref :state deref :on-output)]
 
     (swap! (-> clj-evaluator :session deref :state)
-           assoc :on-output (pending-evals-for-cljs pending old-fn))
+           assoc :on-output (pending-evals-for-cljs pending old-fn buffer))
     (js/Promise. (fn [resolve]
                    (eval/evaluate clj-evaluator command {}
                                   (fn [{:keys [error]}]
