@@ -38,14 +38,18 @@
 (defn- clj-compliment [repl ns-name text prefix row col]
   (let [ns (symbol ns-name)
         context (make-context text prefix row col)
-        code `(clojure.core/let [completions# (compliment.core/completions
-                                                ~prefix
-                                                {:tag-candidates true
-                                                 :ns '~ns
-                                                 :context ~context})]
-                (clojure.core/vec completions#))]
+        code `(try
+                (clojure.core/require '[compliment.core])
+                (clojure.core/let [completions# (compliment.core/completions
+                                                  ~prefix
+                                                  {:tag-candidates true
+                                                   :ns '~ns
+                                                   :context ~context})]
+                                  (clojure.core/vec completions#))
+                (catch java.lang.Throwable t#
+                  []))]
     (js/Promise. (fn [resolve]
-                   (eval/evaluate repl code {} #(take-results repl resolve [] %))))))
+                   (eval/evaluate repl code {:ignore true} #(take-results repl resolve [] %))))))
 
 (defn- require-compliment [repl checker]
   (js/Promise. (fn [resolve]
@@ -56,25 +60,20 @@
                                     (reset! checker true))
                                   (resolve))))))
 
-(let [compliment? (atom nil)]
-  (extend-protocol AutoComplete
-    clj-repl/Evaluator
-    (complete [repl ns-name text prefix row col]
-      (case @compliment?
-        nil (. (require-compliment repl compliment?)
-              (then #(complete repl ns-name text prefix row col)))
-        false (.resolve js/Promise #js [])
-        true (clj-compliment repl ns-name text prefix row col)))
+(extend-protocol AutoComplete
+  clj-repl/Evaluator
+  (complete [repl ns-name text prefix row col]
+    (clj-compliment repl ns-name text prefix row col))
 
-    clj-repl/SelfHostedCljs
-    (complete [repl ns-name text prefix row col]
-      (js/Promise. (fn [resolve]
-                     (cljs-auto/complete repl
-                                         ns-name
-                                         prefix
-                                         #(if-let [res (:result %)]
-                                            (resolve (helpers/read-result res))
-                                            (resolve []))))))))
+  clj-repl/SelfHostedCljs
+  (complete [repl ns-name text prefix row col]
+    (js/Promise. (fn [resolve]
+                   (cljs-auto/complete repl
+                                       ns-name
+                                       prefix
+                                       #(if-let [res (:result %)]
+                                          (resolve (helpers/read-result res))
+                                          (resolve [])))))))
 
 ;;;;;;;;;;;;; CUT HERE ;;;;;;;;;;;;;;
 
