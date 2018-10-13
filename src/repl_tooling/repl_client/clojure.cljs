@@ -13,16 +13,17 @@
 (defn- next-eval! [state]
   (when (= (:state @state) :ready)
     (when-let [cmd (-> @state :pending first)]
+      (prn [:CMD cmd])
       (swap! state (fn [s]
                      (-> s
                          (update :pending #(->> % (drop 1) vec))
-                         (assoc :processing cmd)
-                         (assoc :state :evaluating))))
+                         (assoc :processing cmd
+                                :state :evaluating))))
       (prn [:RAW-IN (:cmd cmd)])
       (async/put! (:channel-in @state) (:cmd cmd)))))
 
-(defn- add-to-eval-queue! [id chan cmd state]
-  (swap! state update :pending conj {:cmd cmd :channel chan :id id})
+(defn- add-to-eval-queue! [id chan cmd state ignore?]
+  (swap! state update :pending conj {:cmd cmd :channel chan :id id :ignore-result? ignore?})
   (next-eval! state))
 
 (defn- prepare-opts [repl {:keys [filename row col namespace]}]
@@ -33,11 +34,12 @@
                       {:repl-tooling/param :unrepl/line} (or row 0)
                       %)]
     (when namespace
-      (add-to-eval-queue! (gensym) (async/chan) (str "(ns " namespace ")") state))
+      (add-to-eval-queue! (gensym) (async/chan) (str "(ns " namespace ")") state true))
     (when (or filename row col)
       (add-to-eval-queue! (gensym) (async/chan)
                           (->> @state :actions :set-source (map set-params))
-                          state))))
+                          state
+                          true))))
 
 (declare repl)
 (defrecord Evaluator [session]
@@ -47,7 +49,7 @@
           chan (async/chan)
           state (:state @session)]
       (prepare-opts this opts)
-      (add-to-eval-queue! id chan (str command "\n") state)
+      (add-to-eval-queue! id chan (str command "\n") state (:ignore opts))
       (go (callback (<! chan)))
       id))
 
@@ -93,8 +95,10 @@
         more-decoder (fn [{:keys [get]}] {:repl-tooling/... get})
         ns-decoder identity]
     {'unrepl/param param-decoder
+     'class identity
      ; 'unrepl/ns ns-decoder
-     ; 'unrepl.java/class identity
+     ; 'unrepl.java/class #(pr-str %)
+     ; 'unrepl/object #(pr-str %)
      'unrepl/... more-decoder}))
      ; 'unrepl/string #(IncompleteStr. %)}))
 
@@ -112,12 +116,14 @@
                      (instance? IncompleteStr %)
                      %
 
-                     (not (coll? %)) (pr-str %)
+                     (not (coll? %))
+                     (pr-str %)
 
                      (and (map? %) (:repl-tooling/... %))
                      (with-meta '... {:get-more (:repl-tooling/... %)})
 
-                     :else %)]
+                     :else
+                     %)]
     (if (coll? result)
       {:as-text (walk/prewalk to-string result)}
       {:as-text (to-string result)})))
@@ -126,7 +132,8 @@
   (let [parsed (parse-res res)
         msg (assoc parsed (if exception? :error :result) (pr-str res))
         on-out (:on-output @state)]
-    (on-out msg)
+    (when-not (-> @state :processing :ignore-result?)
+      (on-out msg))
     (when-let [chan (-> @state :processing :channel)]
       (async/put! chan msg)
       (async/close! chan))))
@@ -176,9 +183,11 @@
         pending-cmds (atom {})]
     (async/put! in blob)
     (go-loop [string (<! out)]
-      (when string
-        (treat-all-output! string state)
-        (recur (<! out))))
+      (if string
+        (do
+          (treat-all-output! string state)
+          (recur (<! out)))
+        (on-output nil)))
     (->Evaluator session)))
 
 (defrecord SelfHostedCljs [evaluator pending]
