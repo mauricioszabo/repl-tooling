@@ -19,8 +19,10 @@
   IIncompleteStr
   (only-str [_] (first string))
   (concat-with [_ other]
-    (IncompleteStr. [(str (first string) (only-str other))
-                     {:repl-tooling/... (-> other meta :get-more)}]))
+    (if (string? other)
+      (str (first string) other)
+      (IncompleteStr. [(str (first string) (only-str other))
+                       {:repl-tooling/... (-> other meta :get-more)}])))
 
   IMeta
   (-meta [coll] {:get-more (-> string second :repl-tooling/...)}))
