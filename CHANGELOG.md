@@ -1,6 +1,9 @@
 # CHANGELOG
 
 ## TODO yet
+- Documentation for multiple formats (IncompleteStr, LiteralRender)
+- Port to ShadowCLJS
+- Tests for Clojure and ClojureScript
 - Add "inferior clojure" support (open up a REPL using processes)
 - Autocomplete for Lumo
 - Auto-detect of features
