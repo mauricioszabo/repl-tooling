@@ -7,6 +7,7 @@
             [lein-figwheel "0.5.16"]]
 
   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+  :jvm-opts ["-Dclojure.server.repl={:port 5555 :accept clojure.core.server/repl}"]
 
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.9.0"]
                                   [check "0.0.1-SNAPSHOT"]

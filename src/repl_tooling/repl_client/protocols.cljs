@@ -25,7 +25,7 @@
       (go (>! fragment string))
       (update-buffer-and-send buffer out string))))
 
-(defn- write-into [socket data buffer fragment]
+(defn- write-into [socket data buffer fragment sync]
   (let [lines (-> data str str/trim (str/split #"\n"))
         to-send (butlast lines)]
 
@@ -38,17 +38,38 @@
                                                                 (async/timeout 500)]))))))
      (reset-contents! buffer)
      (resume-buffer! buffer)
-     (.write socket (str (last lines) "\n")))))
+     (.write socket (str (last lines) "\n"))
+     (async/close! sync))))
 
 (def ^:private net (js/require "net"))
 (defn connect-socket! [host port]
   (let [in (async/chan)
         fragment (async/chan)
         out (async/chan)
+        sync (async/promise-chan)
         buffer (atom {:paused false :contents ""})
         socket (doto (. net createConnection port host)
                      (.on "data" #(treat-result buffer out fragment %)))]
+    (async/close! sync)
+    (go-loop [sync sync]
+      (let [code (<! in)
+            new-sync (async/promise-chan)]
+        (<! sync)
+        (write-into socket code buffer fragment new-sync)
+        (recur new-sync)))
+    [in out socket]))
+
+; FIXME! REALLY!
+(defn connect-socket2! [host port]
+  (let [in (async/chan)
+        fragment (async/chan)
+        out (async/chan)
+        buffer (atom {:paused false :contents ""})
+        socket (doto (. net createConnection port host)
+                     (.on "data" #(treat-result buffer out fragment %))
+                     (.on "close" #(async/close! out)))]
     (go-loop []
-      (write-into socket (<! in) buffer fragment)
+      (let [string (str (<! in))]
+        (.write socket string))
       (recur))
     [in out socket]))
