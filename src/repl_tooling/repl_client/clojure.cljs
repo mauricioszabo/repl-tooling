@@ -195,9 +195,9 @@
   (evaluate [_ command opts callback]
     (let [id (gensym)
           in (-> evaluator :session deref :state deref :channel-in)
-          ; code `(clojure.core/let [res# ~command]
-          ;         [(quote ~id) res#])
-          code (str "(clojure.core/let [res " command "\n] ['" id " (pr-str res)])\n")]
+          code (str "(try (clojure.core/let [res " command
+                    "\n] ['" id " :result (pr-str res)]) (catch :default e "
+                    "['" id " :error (pr-str e)]))\n")]
 
       (swap! pending assoc id callback)
 
@@ -216,9 +216,9 @@
         [_ id] (re-find #"^\[(.+?) " full-out)]
     (if-let [callback (some->> id symbol (get @pending))]
       (if (str/ends-with? full-out "\n")
-        (let [[_ parsed] (reader/read-string {:default default-tags} full-out)]
+        (let [[_ key parsed] (reader/read-string {:default default-tags} full-out)]
           (reset! buffer nil)
-          (callback {:result parsed})
+          (callback {key parsed})
           (swap! pending dissoc id)
           (output-fn {:as-text out :result parsed}))
         (swap! buffer str out))
