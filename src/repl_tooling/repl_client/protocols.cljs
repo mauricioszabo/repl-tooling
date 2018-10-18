@@ -52,7 +52,7 @@
         buffer (atom {:paused false :contents ""})
         socket (doto (. net createConnection port host)
                      (.on "data" #(treat-result buffer out fragment %))
-                     (.on "close" (async/close! out)))]
+                     (.on "close" #(async/close! out)))]
     (async/close! sync)
     (go-loop [sync sync]
       (let [code (<! in)

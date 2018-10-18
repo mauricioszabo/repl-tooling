@@ -195,13 +195,13 @@
   (evaluate [_ command opts callback]
     (let [id (gensym)
           in (-> evaluator :session deref :state deref :channel-in)
-          code (str "(try (clojure.core/let [res " command
+          code (str "(pr-str (try (clojure.core/let [res " command
                     "\n] ['" id " :result (pr-str res)]) (catch :default e "
-                    "['" id " :error (pr-str e)]))\n")]
+                    "['" id " :error (pr-str {:obj e :type (.-type e) "
+                    ":message (.-message e) :trace (.-stack e)})])))\n")]
 
       (swap! pending assoc id callback)
 
-      (prn [:OPTS opts])
       (when-let [ns-name (:namespace opts)]
         (async/put! in (str "(ns " ns-name ")")))
 
