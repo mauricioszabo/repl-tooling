@@ -37,8 +37,10 @@
        (while (not (re-find #"#_=>" (str/join " " (async/alts! [fragment
                                                                 (async/timeout 500)]))))))
      (reset-contents! buffer)
+     (.write socket (last lines))
+     (async/alts! [fragment (async/timeout 150)])
      (resume-buffer! buffer)
-     (.write socket (str (last lines) "\n"))
+     (.write socket "\n")
      (async/close! sync))))
 
 (def ^:private net (js/require "net"))
@@ -49,7 +51,8 @@
         sync (async/promise-chan)
         buffer (atom {:paused false :contents ""})
         socket (doto (. net createConnection port host)
-                     (.on "data" #(treat-result buffer out fragment %)))]
+                     (.on "data" #(treat-result buffer out fragment %))
+                     (.on "close" (async/close! out)))]
     (async/close! sync)
     (go-loop [sync sync]
       (let [code (<! in)
