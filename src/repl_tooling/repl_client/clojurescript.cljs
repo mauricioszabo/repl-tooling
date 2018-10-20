@@ -34,7 +34,7 @@
   (try
     (treat-result-of-call (-> out reader/read-string reader/read-string)
                           pending output-fn)
-    (catch :defaul _
+    (catch :default _
       (output-fn {:out out}))))
 
 (defn repl [session-name host port on-output]

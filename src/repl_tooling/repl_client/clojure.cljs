@@ -213,10 +213,12 @@
 
 (defn- treat-result-of-call [out pending output-fn buffer]
   (let [full-out (str @buffer out)
-        [_ id] (re-find #"^\[(.+?) " full-out)]
+        [_ id] (re-find #"^\"\[(.+?) " full-out)]
     (if-let [callback (some->> id symbol (get @pending))]
       (if (str/ends-with? full-out "\n")
-        (let [[_ key parsed] (reader/read-string {:default default-tags} full-out)]
+        (let [[_ key parsed] (->> full-out
+                                  reader/read-string
+                                  (reader/read-string {:default default-tags}))]
           (reset! buffer nil)
           (callback {key parsed})
           (swap! pending dissoc id)
@@ -228,7 +230,7 @@
 
 (defn- pending-evals-for-cljs [pending output-fn buffer]
   (fn [{:keys [out as-text] :as res}]
-    (if (or @buffer (and out (str/starts-with? out "[")))
+    (if (or @buffer (and out (str/starts-with? out "\"[")))
       (treat-result-of-call out pending output-fn buffer)
       (output-fn {:out out}))))
 
