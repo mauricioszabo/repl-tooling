@@ -13,7 +13,7 @@
                   "\n] ['" id " :result (pr-str res)]) (catch :default e "
                   "['" id " :error (pr-str {:obj e :type (.-type e) "
                   ":message (.-message e) :trace (.-stack e)})])))\n")]
-    (swap! pending assoc id callback)
+    (swap! pending assoc id {:callback callback :ignore (:ignore opts)})
     (when-let [ns-name (:namespace opts)]
       (async/put! in (str "(ns " ns-name ")")))
     (async/put! in code)
@@ -65,11 +65,11 @@
       :generic (generic-autocomplete repl ns-name prefix))))
 
 (defn- treat-result-of-call [out pending output-fn]
-  (if-let [callback (and (vector? out) (some->> out first (get @pending)))]
+  (if-let [pendency (and (vector? out) (some->> out first (get @pending)))]
     (let [[id key parsed] out]
-      (callback {key parsed})
+      ((:callback pendency) {key parsed})
       (swap! pending dissoc id)
-      (output-fn {:as-text out :result parsed}))
+      (when-not (:ignore pendency) (output-fn {:as-text out :result parsed})))
     (output-fn {:out out})))
 
 (defn- pending-evals [pending output-fn out]
