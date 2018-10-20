@@ -12,6 +12,3 @@
                                    (:arglists m#) "\n  "
                                    (:doc m#))))]
     (repl/eval-and-present editor ns-name (.getFileName editor) row 0 code)))
-
-(-> js/atom .-workspace .getActiveTextEditor
-    (doc-for 11 "+"))
