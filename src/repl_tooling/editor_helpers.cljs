@@ -122,9 +122,5 @@
         (update (- row2 row1) #(str/join "" (take col2 %)))
         (->> (str/join "\n")))))
 
-(text-in-range text (last levels))
 (defn current-top-block [text row col]
   (let [levels (top-levels text)]))
-
-(let [row 63
-      col 11])
