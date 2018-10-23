@@ -195,13 +195,13 @@
   (evaluate [_ command opts callback]
     (let [id (gensym)
           in (-> evaluator :session deref :state deref :channel-in)
-          ; code `(clojure.core/let [res# ~command]
-          ;         [(quote ~id) res#])
-          code (str "(clojure.core/let [res " command "\n] ['" id " (pr-str res)])\n")]
+          code (str "(cljs.core/pr-str (try (clojure.core/let [res\n" command
+                    "\n] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
+                    "['" id " :error (cljs.core/pr-str {:obj (cljs.core/pr-str e) :type (.-type e) "
+                    ":message (.-message e) :trace (.-stack e)})])))\n")]
 
-      (swap! pending assoc id callback)
+      (swap! pending assoc id {:callback callback :ignore (:ignore opts)})
 
-      (prn [:OPTS opts])
       (when-let [ns-name (:namespace opts)]
         (async/put! in (str "(ns " ns-name ")")))
 
@@ -213,14 +213,16 @@
 
 (defn- treat-result-of-call [out pending output-fn buffer]
   (let [full-out (str @buffer out)
-        [_ id] (re-find #"^\[(.+?) " full-out)]
-    (if-let [callback (some->> id symbol (get @pending))]
+        [_ id] (re-find #"^\"\[(.+?) " full-out)]
+    (if-let [pendency (some->> id symbol (get @pending))]
       (if (str/ends-with? full-out "\n")
-        (let [[_ parsed] (reader/read-string {:default default-tags} full-out)]
+        (let [[_ key parsed] (->> full-out
+                                  reader/read-string
+                                  (reader/read-string {:default default-tags}))]
           (reset! buffer nil)
-          (callback {:result parsed})
+          ((:callback pendency) {key parsed})
           (swap! pending dissoc id)
-          (output-fn {:as-text out :result parsed}))
+          (when-not (:ignore pendency) (output-fn {:as-text out :result parsed})))
         (swap! buffer str out))
       (do
         (reset! buffer nil)
@@ -228,7 +230,7 @@
 
 (defn- pending-evals-for-cljs [pending output-fn buffer]
   (fn [{:keys [out as-text] :as res}]
-    (if (or @buffer (and out (str/starts-with? out "[")))
+    (if (or @buffer (and out (str/starts-with? out "\"[")))
       (treat-result-of-call out pending output-fn buffer)
       (output-fn {:out out}))))
 

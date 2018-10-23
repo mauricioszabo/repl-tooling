@@ -110,10 +110,6 @@
           :else
           (recur forms  state next))))))
 
-(def text (.. js/atom -workspace getActiveTextEditor getText))
-(def levels (top-levels text))
-(strip-comments text)
-
 (defn text-in-range [text [[row1 col1] [row2 col2]]]
   (let [lines (str/split-lines text)]
     (-> lines
@@ -122,9 +118,5 @@
         (update (- row2 row1) #(str/join "" (take col2 %)))
         (->> (str/join "\n")))))
 
-(text-in-range text (last levels))
 (defn current-top-block [text row col]
   (let [levels (top-levels text)]))
-
-(let [row 63
-      col 11])
