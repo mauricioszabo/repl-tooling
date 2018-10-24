@@ -38,18 +38,18 @@
 (defn- clj-compliment [repl ns-name text prefix row col]
   (let [ns (symbol ns-name)
         context (make-context text prefix row col)
-        code `(try
-                (clojure.core/require '[compliment.core])
-                (clojure.core/let [completions# (compliment.core/completions
+        code `(do
+                 (clojure.core/require '[compliment.core])
+                 (clojure.core/let [completions# (compliment.core/completions
                                                   ~prefix
                                                   {:tag-candidates true
                                                    :ns '~ns
                                                    :context ~context})]
-                                  (clojure.core/vec completions#))
-                (catch java.lang.Throwable t#
-                  []))]
+                   (clojure.core/symbol (clojure.core/pr-str (clojure.core/vec completions#)))))]
     (js/Promise. (fn [resolve]
-                   (eval/evaluate repl code {:ignore true} #(take-results repl resolve [] %))))))
+                   (eval/evaluate repl code {:ignore true} #(if-let [res (:result %)]
+                                                              (resolve (helpers/read-result res))
+                                                              (resolve [])))))))
 
 (defn- require-compliment [repl checker]
   (js/Promise. (fn [resolve]
