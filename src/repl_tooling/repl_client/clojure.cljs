@@ -246,6 +246,6 @@
                    (eval/evaluate clj-evaluator command {}
                                   (fn [{:keys [error]}]
                                     (when error
-                                      (resolve nil))))
+                                      (resolve {:error error}))))
                    ; CLJS self-hosted REPL never returns, so we'll just set a timeout
                    (js/setTimeout #(resolve cljs-repl) 500)))))
