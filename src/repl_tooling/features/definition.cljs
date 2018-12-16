@@ -29,11 +29,12 @@
     (let [chan (async/chan)]
       (async/go
        (if (re-find #"\.jar!/" file-name)
-         (let [cmd (cmd-for-read-jar file-name)]
-           (eval/evaluate repl cmd {:ignore true} #(async/put! chan (:result %)))
-           (resolve {:file-name file-name
-                     :line (dec line)
-                     :contents (async/<! chan)}))
+         (resolve nil) ; FIXME: For now.
+         ; (let [cmd (cmd-for-read-jar file-name)]
+         ;   (eval/evaluate repl cmd {:ignore true} #(async/put! chan (:result %)))
+         ;   (resolve {:file-name file-name
+         ;             :line (dec line)
+         ;             :contents (async/<! chan)}))
          (resolve {:file-name file-name :line (dec line)}))
        (async/close! chan)))))
 
