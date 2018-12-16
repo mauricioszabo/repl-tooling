@@ -43,13 +43,10 @@
    (fn [resolve]
      (let [chan (async/chan)]
        (async/go
-        (prn :WAT (str "`" symbol-name))
         (eval/evaluate repl (str "`" symbol-name) {:namespace ns-name :ignore true}
                        #(async/put! chan %))
         (if-let [fqn (some-> (async/<! chan) :result symbol)]
-          (let [_ (prn :DONEEEEE)
-                cmd (cmd-for-filename fqn)]
-            (prn [:CMD cmd])
+          (let [cmd (cmd-for-filename fqn)]
             (eval/evaluate repl cmd {:ignore true}
                            #(async/put! chan (:result (editor-helpers/parse-result %))))
             (get-result repl (async/<! chan) resolve))
