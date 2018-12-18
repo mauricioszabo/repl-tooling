@@ -36,7 +36,7 @@
       :else (resolve acc))))
 
 (defn- clj-compliment [repl ns-name text prefix row col]
-  (let [ns (symbol ns-name)
+  (let [ns (when ns-name (symbol ns-name))
         context (make-context text prefix row col)
         code `(do
                  (clojure.core/require '[compliment.core])
