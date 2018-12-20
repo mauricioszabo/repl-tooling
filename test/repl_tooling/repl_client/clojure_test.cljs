@@ -1,32 +1,42 @@
 (ns repl-tooling.repl-client.clojure-test
   (:require [clojure.test :refer-macros [testing run-tests]]
             [check.core :refer-macros [check]]
-            [check.async-cljs :refer-macros [def-async-test await!]]
-            [cljs.core.async :refer-macros [go go-loop] :as async]
+            [check.async :refer [def-async-test await!] :include-macros true]
+            [clojure.core.async :as async :include-macros true]
             [repl-tooling.repl-client :as client]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj]))
 
-; (def-async-test "Evaluate a request-response test"
-;   {:teardown (client/disconnect! :clj-test1)}
-;   (let [out (async/chan)
-;         repl (clj/repl :clj-test1 "localhost" 5555 #(async/put! out %))]
-;     (testing "evaluating resquest-response"
-;       (eval/evaluate repl "(+ 1 2)" {} #(async/put! out %))
-;       (check (await! out) =includes=> {:result "3"})
-;       (check (await! out) =includes=> {:result "3" :as-text "3"}))
-;
-;     (testing "capturing output"
-;       (eval/evaluate repl "(println :foobar)" {} #(async/put! out %))
-;       (check (await! out) => {:out ":foobar\n"})
-;       (check (await! out) =includes=> {:result "nil"})
-;       (check (await! out) => {:result "nil" :as-text "nil"}))
-;
-;     (testing "passing parameters to evaluation"
-;       (let [res (async/chan)]
-;         (eval/evaluate repl "(/ 10 0)" {:filename "foo.clj" :row 12 :col 0}
-;                        #(async/put! res (:error %)))
-;         (check (await! res) => #"foo\.clj\" 12")))
+#_
+(def-async-test "Evaluate a request-response test"
+  {:teardown (client/disconnect! :clj-test1)}
+  (let [out (async/chan)
+        repl (clj/repl :clj-test1 "localhost" 2233 #(async/put! out %))]
+    (testing "evaluating request-response"
+      (eval/evaluate repl "(+ 1 2)" {} #(async/put! out %))
+      (check (await! out) =includes=> {:result "3"})
+      (check (await! out) =includes=> {:result "3" :as-text "3"}))
+
+    (testing "capturing output"
+      (eval/evaluate repl "(println :foobar)" {} #(async/put! out %))
+      (check (await! out) => {:out ":foobar\n"})
+      (check (await! out) =includes=> {:result "nil"})
+      (check (await! out) => {:result "nil" :as-text "nil"}))
+
+    (testing "passing parameters to evaluation"
+      (let [res (async/chan)]
+        (eval/evaluate repl "(/ 10 0)" {:filename "foo.clj" :row 12 :col 0}
+                       #(async/put! res (:error %)))
+        (check (await! res) => #"foo\.clj\" 12")))))
+
+(def-async-test "Batches of commands"
+  {:teardown (client/disconnect! :clj-test2)}
+  (let [out (async/chan 60000)
+        repl (clj/repl :clj-test2 "localhost" 2233 #(async/put! out %))]
+    (eval/evaluate repl "(doseq [n (range 40000)] (prn n))" {} #(async/put! out %))
+    (doseq [n (range 40000)]
+      (check out =resolves=> {:out (str n)}))))
+
 ;
 ;     (testing "breaking"
 ;       (let [res (async/chan)

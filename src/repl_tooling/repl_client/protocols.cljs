@@ -15,7 +15,7 @@
     (if rest
       (do
         (reset-contents! buffer)
-        (go (>! out contents))
+        (async/put! out contents)
         (recur buffer out rest))
       (swap! buffer #(update % :contents str first-line)))))
 
