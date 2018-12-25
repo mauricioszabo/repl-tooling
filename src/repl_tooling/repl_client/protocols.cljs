@@ -9,21 +9,23 @@
 (defn- resume-buffer! [buffer] (swap! buffer assoc :paused false))
 (defn- reset-contents! [buffer] (swap! buffer assoc :contents ""))
 
-(defn- update-buffer-and-send [buffer out string]
-  (let [[first-line rest] (str/split string #"\n" 2)
+(defn- update-buffer-and-send [buffer promises string]
+  (let [[first-line frags] (str/split string #"\n" 2)
         contents (str (:contents @buffer) first-line)]
-    (if rest
+    (if frags
       (do
         (reset-contents! buffer)
-        (async/put! out contents)
-        (recur buffer out rest))
+        ; THIS IS THE ERROR
+        (async/put! (first @promises) contents)
+        (swap! promises rest)
+        (recur buffer promises frags))
       (swap! buffer #(update % :contents str first-line)))))
 
-(defn- treat-result [buffer out fragment data]
+(defn- treat-result [buffer promises fragment data]
   (let [string (str data)]
     (if (:paused @buffer)
-      (go (>! fragment string))
-      (update-buffer-and-send buffer out string))))
+      (async/put! fragment string)
+      (update-buffer-and-send buffer promises string))))
 
 (defn- write-into [socket data buffer fragment sync]
   (let [lines (-> data str str/trim (str/split #"\n"))
@@ -47,12 +49,19 @@
 (defn connect-socket! [host port]
   (let [in (async/chan)
         fragment (async/chan)
+        promises (atom (iterate #(async/promise-chan) (async/promise-chan)))
         out (async/chan)
+        _ (go-loop [[chan & others] @promises]
+            (if-let [val (async/<! chan)]
+              (do
+                (async/>! out val)
+                (recur others))
+              (async/close! out)))
         sync (async/promise-chan)
         buffer (atom {:paused false :contents ""})
         socket (doto (. net createConnection port host)
-                     (.on "data" #(treat-result buffer out fragment %))
-                     (.on "close" #(async/close! out)))]
+                     (.on "data" #(treat-result buffer promises fragment %))
+                     (.on "close" #(async/close! (first @promises))))]
     (async/close! sync)
     (go-loop [sync sync]
       (let [code (<! in)
@@ -66,13 +75,21 @@
 (defn connect-socket2! [host port]
   (let [in (async/chan)
         fragment (async/chan)
+        promises (atom (iterate #(async/promise-chan) (async/promise-chan)))
         out (async/chan)
+        _ (go-loop [[chan & others] @promises]
+            (if-let [val (async/<! chan)]
+              (do
+                (async/>! out val)
+                (recur others))
+              (async/close! out)))
         buffer (atom {:paused false :contents ""})
         socket (doto (. net createConnection port host)
-                     (.on "data" #(treat-result buffer out fragment %))
-                     (.on "close" #(async/close! out)))]
+                     (.on "data" #(treat-result buffer promises fragment %))
+                     (.on "close" #(async/close! (first @promises))))]
     (go-loop []
       (let [string (str (<! in))]
         (.write socket string))
       (recur))
+
     [in out socket]))
