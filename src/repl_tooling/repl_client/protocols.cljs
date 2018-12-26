@@ -15,7 +15,6 @@
     (if frags
       (do
         (reset-contents! buffer)
-        ; THIS IS THE ERROR
         (async/put! (first @promises) contents)
         (swap! promises rest)
         (recur buffer promises frags))

@@ -16,7 +16,7 @@
       (prn [:CMD cmd])
       (swap! state (fn [s]
                      (-> s
-                         (update :pending #(->> % (drop 1) vec))
+                         (update :pending #(-> % rest vec))
                          (assoc :processing cmd
                                 :state :evaluating))))
       (prn [:RAW-IN (:cmd cmd)])
@@ -49,7 +49,7 @@
           chan (async/chan)
           state (:state @session)]
       (prepare-opts this opts)
-      (add-to-eval-queue! id chan (str command "\n") state (:ignore opts))
+      (add-to-eval-queue! id chan command state (:ignore opts))
       (go (callback (<! chan)))
       id))
 
@@ -107,6 +107,7 @@
   (next-eval! state))
 
 (defn- start-eval! [{:keys [actions]} state]
+  (prn [:START-EVAL (:processing @state)])
   (swap! state update :processing #(assoc %
                                           :interrupt (:interrupt actions)
                                           :background (:background actions))))
