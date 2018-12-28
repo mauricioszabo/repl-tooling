@@ -41,3 +41,16 @@
     (testing "disconnecting"
       (features/disconnect!)
       (check (a/await! disconnect) => :DONE))))
+
+(a/def-async-test "Batches of commands" {:teardown (features/disconnect!)}
+  (let [repls (async/promise-chan)
+        stdout (async/chan 60000)]
+    (. (features/connect-unrepl! "localhost" 2233
+                                 #(async/put! stdout %)
+                                 #()
+                                 #()
+                                 #())
+      then #(async/put! repls %))
+    (-> repls a/await! :clj/repl (eval/evaluate "(doseq [n (range 2000)] (prn n))" {} identity))
+    (doseq [n (range 2000)]
+      (check (a/await! stdout) => (str n "\n")))))

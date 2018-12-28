@@ -28,14 +28,6 @@
                        #(async/put! res %))
         (check (:error (await! res)) => #"foo\.clj\" 12")))))
 
-(def-async-test "Batches of commands"
-  {:teardown (client/disconnect! :clj-test2)}
-  (let [out (async/chan 60000)
-        repl (clj/repl :clj-test2 "localhost" 2233 #(async/put! out %))]
-    (eval/evaluate repl "(doseq [n (range 2000)] (prn n))" {} #(async/put! out %))
-    (doseq [n (range 2000)]
-      (check out =resolves=> {:out (str n)}))))
-
 #_
 (def-async-test "Captures specific UnREPL outputs"
   {:teardown (client/disconnect! :clj-test3)}
