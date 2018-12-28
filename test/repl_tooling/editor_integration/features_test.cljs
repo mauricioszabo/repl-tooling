@@ -22,6 +22,10 @@
                                  #(async/put! disconnect :DONE))
       then #(async/put! repls %))
 
+    (testing "capturing result"
+      (-> repls a/await! :clj/repl (eval/evaluate "(/ 10 2)" {} identity))
+      (check (a/await! result) => 5))
+
     (testing "capturing stdout"
       (-> repls a/await! :clj/repl (eval/evaluate '(prn :foo) {} identity))
       (check (a/await! stdout) => ":foo\n"))
@@ -30,10 +34,10 @@
       (-> repls a/await! :clj/repl (eval/evaluate "(binding [*out* *err*] (prn :bar))" {} identity))
       (check (a/await! stderr) => ":bar"))
 
-    (testing "capturing result"
-      (-> repls a/await! :clj/repl (eval/evaluate "(/ 10 2)" {} identity))
-      (check (a/await! result) => 5))
-
     (testing "capturing error"
       (-> repls a/await! :clj/repl (eval/evaluate "(/ 10 0)" {} identity))
-      (check (a/await! error) => map?))))
+      (check (a/await! error) => map?))
+
+    (testing "disconnecting"
+      (features/disconnect!)
+      (check (a/await! disconnect) => :DONE))))
