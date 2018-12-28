@@ -4,9 +4,17 @@
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]))
 
+(defn disconnect!
+  "Disconnect all REPLs. Indempotent."
+  []
+  (repl-client/disconnect! :clj-eval)
+  (repl-client/disconnect! :clj-aux)
+  (repl-client/disconnect! :cljs-eval))
+
 (defn callback [on-stdout on-stderr on-result on-disconnect output]
-  (prn [:CALLBACK output])
-  (when (nil? output) (on-disconnect))
+  (when (nil? output)
+    (disconnect!)
+    (on-disconnect))
   (when-let [out (:out output)] (on-stdout out))
   (when-let [out (:err output)] (on-stderr out))
   (when (or (:result output) (:error output))
@@ -36,10 +44,3 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 
        (eval/evaluate aux ":aux-connected" {:ignore true}
                       #(connect-primary))))))
-
-(defn disconnect!
-  "Disconnect all REPLs. Indempotent."
-  []
-  (repl-client/disconnect! :clj-eval)
-  (repl-client/disconnect! :clj-aux)
-  (repl-client/disconnect! :cljs-eval))
