@@ -13,13 +13,10 @@
 (defn- next-eval! [state]
   (when (= (:state @state) :ready)
     (when-let [cmd (-> @state :pending first)]
-      (prn [:CMD cmd])
       (swap! state (fn [s]
                      (-> s
                          (update :pending #(-> % rest vec))
-                         (assoc :processing cmd
-                                :state :evaluating))))
-      (prn [:RAW-IN (:cmd cmd)])
+                         (assoc :processing cmd :state :evaluating))))
       (async/put! (:channel-in @state) (:cmd cmd)))))
 
 (defn- add-to-eval-queue! [id chan cmd state ignore?]
@@ -34,9 +31,9 @@
                       {:repl-tooling/param :unrepl/line} (or row 0)
                       %)]
     (when namespace
-      (add-to-eval-queue! (gensym) (async/chan) (str "(ns " namespace ")") state true))
+      (add-to-eval-queue! (gensym) (async/promise-chan) (str "(ns " namespace ")") state true))
     (when (or filename row col)
-      (add-to-eval-queue! (gensym) (async/chan)
+      (add-to-eval-queue! (gensym) (async/promise-chan)
                           (->> @state :actions :set-source (map set-params))
                           state
                           true))))
@@ -46,10 +43,10 @@
   eval/Evaluator
   (evaluate [this command opts callback]
     (let [id (gensym)
-          chan (async/chan)
+          chan (async/promise-chan)
           state (:state @session)]
       (prepare-opts this opts)
-      (add-to-eval-queue! id chan command state (:ignore opts))
+      (add-to-eval-queue! id chan (str command "\n") state (:ignore opts))
       (go (callback (<! chan)))
       id))
 
@@ -62,8 +59,7 @@
                                                            (async/close!)))
 
       (doseq [pending (-> @session :state deref :pending-evals)]
-        (async/put! (:channel pending) {})
-        (async/close! (:channel pending)))
+        (async/put! (:channel pending) {}))
 
       (client/disconnect! (:session-name @session))
       (let [evaluator (repl (:session-name @session)
@@ -107,7 +103,6 @@
   (next-eval! state))
 
 (defn- start-eval! [{:keys [actions]} state]
-  (prn [:START-EVAL (:processing @state)])
   (swap! state update :processing #(assoc %
                                           :interrupt (:interrupt actions)
                                           :background (:background actions))))
@@ -136,12 +131,13 @@
     (when-not (-> @state :processing :ignore-result?)
       (on-out msg))
     (when-let [chan (-> @state :processing :channel)]
-      (async/put! chan msg)
-      (async/close! chan))))
+      (async/put! chan msg))))
 
-(defn- send-output! [out state]
+(defn- send-output! [out state err?]
   (let [on-out (:on-output @state)]
-    (on-out {:out out})))
+    (if err?
+      (on-out {:err out})
+      (on-out {:out out}))))
 
 (defn- treat-unrepl-message! [raw-out state]
   (let [parsed (try (reader/read-string {:readers decoders :default default-tags} raw-out)
@@ -152,7 +148,8 @@
       :started-eval (start-eval! args state)
       :eval (send-result! args false state)
       :exception (send-result! args true state)
-      :out (send-output! args state)
+      :out (send-output! args state false)
+      :err (send-output! args state true)
       :nothing-really)))
 
 (defn- treat-hello! [hello state]
