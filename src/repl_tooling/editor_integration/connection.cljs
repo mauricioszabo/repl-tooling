@@ -1,4 +1,4 @@
-(ns repl-tooling.editor-integration.features
+(ns repl-tooling.editor-integration.connection
   (:require [repl-tooling.repl-client :as repl-client]
             [repl-tooling.editor-helpers :as editor-helpers]
             [repl-tooling.eval :as eval]
