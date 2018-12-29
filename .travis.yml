@@ -17,10 +17,7 @@ jdk:
   - oraclejdk8
 
 script:
-  - BUILD_ONLY=true npm install lumo-cljs
-  - ./node_modules/.bin/lumo -e '()' -n 5550 &
-  - lein cljsbuild once test
-  - node out/test.js
+  - ./scripts/ci
 
 before_install:
  - if [ ! -z "$GPG_SECRET_KEYS" ]; then echo $GPG_SECRET_KEYS | base64 --decode | gpg --import; fi
