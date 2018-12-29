@@ -1,11 +1,11 @@
 (ns repl-tooling.repl-client-test
-  (:require [clojure.test :refer-macros [testing run-tests]]
-            [check.core :refer-macros [check]]
-            [check.async-cljs :refer-macros [def-async-test await!]]
-            [cljs.core.async :refer [>!] :refer-macros [go]]
-            [repl-tooling.repl-client :as client]
-            [repl-tooling.repl-client.generic :as generic]
-            [repl-tooling.repl-client.lumo :as lumo]))
+  (:require [clojure.test :refer-macros [testing run-tests]]))
+            ; [check.core :refer-macros [check]]
+            ; [check.async-cljs :refer-macros [def-async-test await!]]))
+            ; [cljs.core.async :refer [>!] :refer-macros [go]]
+            ; [repl-tooling.repl-client :as client]
+            ; [repl-tooling.repl-client.generic :as generic]
+            ; [repl-tooling.repl-client.lumo :as lumo]))
 
 ; (def-async-test "Connecting to some generic socket REPL"
 ;   {:teardown (client/disconnect! :generic)}

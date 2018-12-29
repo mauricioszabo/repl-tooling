@@ -5,10 +5,11 @@
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-figwheel "0.5.16"]]
 
-  :jvm-opts ["-Dclojure.server.repl={:port 5555 :accept clojure.core.server/repl}"]
+  :jvm-opts ["-Dclojure.server.repl={:port 2233 :accept clojure.core.server/repl}"]
 
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.9.0"]
-                                  [check "0.0.2-SNAPSHOT"]
+                                  [org.clojure/core.async "0.4.490"]
+                                  [check "0.0.3-SNAPSHOT"]
                                   [thheller/shadow-cljs "2.6.6"]]
                    :source-paths ["src" "test"]}}
 

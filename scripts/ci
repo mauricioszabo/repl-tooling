@@ -1,0 +1,14 @@
+#!/bin/bash
+
+lein run -m shadow.cljs.devtools.cli --npm watch tests &
+for n in {1..15}; do
+  ls target/all_tests.js &>/dev/null && break
+  echo "Not compiled yet, waiting..."
+  sleep 10
+done
+node target/all_tests.js
+ret=$?
+
+echo -e "(System/exit 0)\n" | nc localhost 2233
+
+exit $ret
