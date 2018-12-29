@@ -23,7 +23,9 @@
       (check (await! out) => {:result "nil" :as-text "nil"}))
 
     (testing "passing parameters to evaluation"
-      (let [res (async/chan)]
+      ; FIXME: We need better integration when we stack commands
+      (await! (async/timeout 200))
+      (let [res (async/promise-chan)]
         (eval/evaluate repl "(/ 10 0)" {:filename "foo.clj" :row 12 :col 0}
                        #(async/put! res %))
         (check (:error (await! res)) => #"foo\.clj\" 12")))))
