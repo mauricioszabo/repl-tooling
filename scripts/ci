@@ -10,6 +10,5 @@ node target/all_tests.js
 ret=$?
 
 echo -e "(System/exit 0)\n" | nc localhost 2233
-fg
 
 exit $ret
