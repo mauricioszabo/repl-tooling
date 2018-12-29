@@ -38,7 +38,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
            aux (clj-repl/repl :clj-aux host port callback)
            primary (delay (clj-repl/repl :clj-eval host port callback))
            connect-primary (fn []
-                             (eval/evaluate @primary ":primary-connected" {}
+                             (eval/evaluate @primary ":primary-connected" {:ignore true}
                                             (fn [] (resolve {:clj/aux aux
                                                              :clj/repl @primary}))))]
 
