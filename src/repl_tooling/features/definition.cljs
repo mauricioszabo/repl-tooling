@@ -5,13 +5,11 @@
 
 (defn- cmd-for-filename [the-var]
   `(clojure.core/let [res# (clojure.core/meta (clojure.core/resolve (quote ~the-var)))]
-    (clojure.core/require 'clojure.java.io)
-    (clojure.core/symbol
-     (clojure.core/pr-str
-      [(clojure.core/some->> (:file res#)
-                             (.getResource (clojure.lang.RT/baseLoader))
-                             .getPath)
-       (:line res#)]))))
+     (clojure.core/require 'clojure.java.io)
+     [(clojure.core/some->> (:file res#)
+                            (.getResource (clojure.lang.RT/baseLoader))
+                            .getPath)
+      (:line res#)]))
 
 (defn- cmd-for-read-jar [jar-file-name]
   `(clojure.core/let [[jar# path#] (clojure.string/split ~jar-file-name #"!/" 2)
