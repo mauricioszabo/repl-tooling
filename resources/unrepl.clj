@@ -1,7 +1,7 @@
 (clojure.core/let [nop (clojure.core/constantly nil)
 done (promise)
 e (clojure.core/atom eval)]
-(-> (create-ns 'unrepl.repl$dsxeqOGTl166ExvBG6F$sEawWXw)
+(-> (create-ns 'unrepl.repl$Q6RzkHvyx8k2UvjOUsdpr6NRZOo)
 (intern '-init-done)
 (alter-var-root
 (fn [v]
@@ -21,42 +21,85 @@ done))))
 (ns unrepl.core (:refer-clojure :exclude [read eval print]))
 (def ^:once ^:private loaded-by "unrepl.repl")
 (def ^:once ^:dynamic *string-length* 80)
-(def ^:once ^:dynamic ^{:arglists '([x]) :doc "Atomically machine-prints its input to the output stream."} write)
+(def ^:once ^:dynamic ^{:arglists '([x]) :doc "Atomically machine-prints its input (a triple) to the output stream."} write)
 (defn ^:once non-eliding-write "use with care" [x]
 (binding [*print-length* Long/MAX_VALUE
 *print-level* Long/MAX_VALUE
 *string-length* Long/MAX_VALUE]
 (write x)))
 (declare ^:once ^:dynamic read ^:once ^:dynamic print ^:once ^:dynamic eval)(ns
-unrepl.printer$nx7inu1prJtDkszedSdiMnjW$Oo
+unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU
 (:require
 [clojure.string :as str]
 [clojure.edn :as edn]
 [clojure.main :as main]
 [unrepl.core :as unrepl]))
 (def ^:dynamic *print-budget*)
+(def ^:dynamic *elide*
+"Function of 1 argument which returns the elision."
+(constantly nil))
 (def defaults {#'*print-length* 10
 #'*print-level* 8
 #'unrepl/*string-length* 72})
+(defn- bump [n m]
+(if (< n (- Long/MAX_VALUE m))
+(+ n m)
+Long/MAX_VALUE))
 (defn ensure-defaults [bindings]
 (let [bindings (merge-with #(or %1 %2) bindings defaults)]
 (assoc bindings #'*print-budget*
 (long (min (* 1N (bindings #'*print-level*) (bindings #'*print-length*)) Long/MAX_VALUE)))))
 (defprotocol MachinePrintable
 (-print-on [x write rem-depth]))
-(defn print-on [write x rem-depth]
+(defn- really-satisfies? [protocol x]
+(when (class x)
+(let [default (get (:impls protocol) Object)
+impl (find-protocol-impl protocol x)]
+(not (identical? impl default)))))
+(def ^:private datafiable?
+(if-some [Datafiable (some-> 'clojure.core.protocols/Datafiable resolve deref)]
+#(or (get (meta %) 'clojure.core.protocols/datafy) (really-satisfies? Datafiable %))
+(constantly false)))
+(def ^:private datafy
+(or (some-> 'clojure.core.protocols/datafy resolve deref)
+(clojure.lang.Var$Unbound. #'datafy)))
+(def ^:private navigable?
+(if-some [Navigable (some-> 'clojure.core.protocols/Navigable resolve deref)]
+#(or (get (meta %) 'clojure.core.protocols/nav) (really-satisfies? Navigable %))
+(constantly false)))
+(def ^:private nav
+(or (some-> 'clojure.core.protocols/nav resolve deref)
+(clojure.lang.Var$Unbound. #'nav)))
+(when (bound? #'datafy)
+(require 'clojure.datafy))
+(defn- browsify
+"only for datafiables"
+[x]
+(let [d (datafy x)]
+(if (and (navigable? x) (or (map? d) (vector? d)))
+(reduce-kv (fn [d k v] (assoc d k (tagged-literal 'unrepl/browsable [v #(nav x k v)]))) d d)
+d)))
+(defn print-on
+[write x rem-depth]
 (let [rem-depth (dec rem-depth)
 budget (set! *print-budget* (dec *print-budget*))]
 (if (and (or (neg? rem-depth) (neg? budget)) (pos? (or *print-length* 1)))
 (binding [*print-length* 0]
 (print-on write x 0))
 (do
+(when (datafiable? x)
+(write "#unrepl/browsable ["))
 (when (and *print-meta* (meta x))
 (write "#unrepl/meta [")
 (-print-on (meta x) write rem-depth)
 (write " "))
 (-print-on x write rem-depth)
 (when (and *print-meta* (meta x))
+(write "]"))
+(when (datafiable? x)
+(write " ")
+(set! *print-budget* (bump *print-budget* 1))
+(print-on write (tagged-literal 'unrepl/... (*elide* (lazy-seq [(list (browsify x))]))) (inc rem-depth))
 (write "]"))))))
 (defn base64-encode [^java.io.InputStream in]
 (let [table "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
@@ -96,9 +139,6 @@ bits (+ bits 6)]
 (recur bits (bit-and 63 buf)))
 (recur bits buf))))))
 (.toByteArray bos)))
-(def ^:dynamic *elide*
-"Function of 1 argument which returns the elision."
-(constantly nil))
 (def ^:dynamic *max-colls* 100)
 (def ^:dynamic *realize-on-print*
 "Set to false to avoid realizing lazy sequences."
@@ -150,6 +190,11 @@ MachinePrintable
 (print-kvs write s rem-depth)
 (write "}")))
 (def atomic? (some-fn nil? true? false? char? string? symbol? keyword? #(and (number? %) (not (ratio? %)))))
+(defn- roundtrippable? [x]
+(try
+(= x (-> x pr-str read-string))
+(catch Exception e
+false)))
 (defn- as-str
 "Like pr-str but escapes all ASCII control chars."
 [x]
@@ -158,6 +203,9 @@ MachinePrintable
 #(format "\\u%04x" (int (.charAt ^String % 0))))
 (char? x) (str/replace (pr-str x) #"\p{Cntrl}"
 #(format "u%04x" (int (.charAt ^String % 0))))
+(and (or (symbol? x) (keyword? x)) (not (roundtrippable? x)))
+(str (if (keyword? x) "#unrepl/bad-keyword [" "#unrepl/bad-symbol [")
+(as-str (namespace x)) " " (as-str (name x)) "]")
 :else (pr-str x)))
 (defmacro ^:private latent-fn [& fn-body]
 `(let [d# (delay (binding [*ns* (find-ns '~(ns-name *ns*))] (eval '(fn ~@fn-body))))]
@@ -228,8 +276,12 @@ Object (fn [x]
 (defn- print-tag-lit-on [write tag form rem-depth]
 (write (str "#" tag " "))
 (print-on write form rem-depth))
+(defn- sat-inc [n]
+(if (= Long/MAX_VALUE n)
+n
+(unchecked-inc n)))
 (defn- print-trusted-tag-lit-on [write tag form rem-depth]
-(print-tag-lit-on write tag form (inc rem-depth)))
+(print-tag-lit-on write tag form (sat-inc rem-depth)))
 (defn StackTraceElement->vec'
 "Constructs a data representation for a StackTraceElement"
 {:added "1.9"}
@@ -275,6 +327,13 @@ unrepl/... (binding
 unrepl/*string-length* Long/MAX_VALUE]
 (write (str "#" (:tag x) " "))
 (print-on write (:form x) Long/MAX_VALUE))
+unrepl/browsable (let [[x thunk] (:form x)
+rem-depth (inc rem-depth)]
+(set! *print-budget* (bump *print-budget* 2))
+(write (str "#" (:tag x) " ["))
+(print-on write (:form x) rem-depth)
+(write " ")
+(print-on write (tagged-literal 'unrepl/... (*elide* (lazy-seq [(thunk)]))) rem-depth))
 (print-tag-lit-on write (:tag x) (:form x) rem-depth)))
 clojure.lang.Ratio
 (-print-on [x write rem-depth]
@@ -342,8 +401,9 @@ Object
 :else
 (print-trusted-tag-lit-on write "unrepl/object"
 [(class x) (format "0x%x" (System/identityHashCode x)) (object-representation x)
-{:bean {unreachable (tagged-literal 'unrepl/... (*elide* (ElidedKVs. (bean x))))}}]
-(inc rem-depth)))))
+{:bean {unreachable (tagged-literal 'unrepl/... (*elide* (ElidedKVs. (bean x))))}
+:pr-str (pr-str x)}]
+(sat-inc rem-depth)))))
 (defn edn-str [x]
 (let [out (java.io.StringWriter.)
 write (fn [^String s] (.write out s))
@@ -357,11 +417,11 @@ bindings (select-keys (get-thread-bindings) [#'*print-length* #'*print-level* #'
 unrepl/*string-length* Integer/MAX_VALUE]
 (edn-str x)))
 (ns
-unrepl.repl$dsxeqOGTl166ExvBG6F$sEawWXw
+unrepl.repl$Q6RzkHvyx8k2UvjOUsdpr6NRZOo
 (:require
 [clojure.main :as m]
 [unrepl.core :as unrepl]
-[unrepl.printer$nx7inu1prJtDkszedSdiMnjW$Oo :as p]
+[unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU :as p]
 [clojure.edn :as edn]
 [clojure.java.io :as io]))
 (defn classloader
@@ -411,11 +471,20 @@ ex
  (throw (blame-ex ~phase t#)))))
 (defn atomic-write [^java.io.Writer w]
 (fn [x]
+(if (and (vector? x) (= (count x) 3))
+(let [[tag payload id] x
+s (blame :print (str "[" (p/edn-str tag)
+" " (p/edn-str payload)
+" " (p/edn-str id) "]"))]
+(locking w
+(.write w s)
+(.write w "\n")
+(.flush w)))
 (let [s (blame :print (p/edn-str x))]
 (locking w
 (.write w s)
 (.write w "\n")
-(.flush w)))))
+(.flush w))))))
 (definterface ILocatedReader
 (setCoords [coords-map]))
 (defn unrepl-reader [^java.io.Reader r]
@@ -512,12 +581,12 @@ ref (java.lang.ref.SoftReference. x refq)]
 (defonce ^:private elision-store (soft-store #(list `fetch %)))
 (defn fetch [id]
 (if-some [[session-id x] ((:get elision-store) id)]
-(unrepl.printer$nx7inu1prJtDkszedSdiMnjW$Oo.WithBindings.
+(unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU.WithBindings.
 (select-keys (some-> session-id session :bindings) [#'*print-length* #'*print-level* #'unrepl/*string-length* #'p/*elide*])
 (cond
-(instance? unrepl.printer$nx7inu1prJtDkszedSdiMnjW$Oo.ElidedKVs x) x
+(instance? unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU.ElidedKVs x) x
 (string? x) x
-(instance? unrepl.printer$nx7inu1prJtDkszedSdiMnjW$Oo.MimeContent x) x
+(instance? unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU.MimeContent x) x
 :else (seq x)))
 p/unreachable))
 (defn interrupt! [session-id eval]
@@ -711,6 +780,7 @@ slcl (classloader cl
 *in* in
 *file* (-> in :coords :file)
 *source-path* *file*
+*default-data-reader-fn* tagged-literal
 p/*elide* (partial (:put elision-store) session-id)
 unrepl/*string-length* unrepl/*string-length*
 unrepl/write (atomic-write raw-out)
@@ -753,7 +823,7 @@ interrupted? #(.peek actions-queue)]
 (let [cl (.getContextClassLoader (Thread/currentThread))]
 (try
 (some->> session-id session :class-loader (.setContextClassLoader (Thread/currentThread)))
-(start)
+(start {})
 (finally
 (.setContextClassLoader (Thread/currentThread) cl)))))
 (defmacro ensure-ns [[fully-qualified-var-name & args :as expr]]
@@ -762,5 +832,5 @@ interrupted? #(.peek actions-queue)]
 ~expr))
 <<<FIN
 (clojure.core/ns user)
-(unrepl.repl$dsxeqOGTl166ExvBG6F$sEawWXw/start (clojure.edn/read {:default tagged-literal} *in*))
+(unrepl.repl$Q6RzkHvyx8k2UvjOUsdpr6NRZOo/start (clojure.edn/read {:default tagged-literal} *in*))
 {}
