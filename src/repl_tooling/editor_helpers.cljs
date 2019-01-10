@@ -54,6 +54,8 @@
 (defn read-result [res]
   (try
     (reader/read-string {:readers {'unrepl/string #(IncompleteStr. %)
+                                   'unrepl/bad-keyword (fn [[ns name]] (keyword ns name))
+                                   'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
                                    'repl-tooling/literal-render #(LiteralRender. %)}
                          :default default-tag} res)
     (catch :default _
