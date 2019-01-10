@@ -4,6 +4,7 @@
             [check.async :as a :include-macros true]
             [clojure.core.async :as async :include-macros true]
             [repl-tooling.editor-integration.connection :as connection]
+            [repl-tooling.editor-helpers :as editor-helpers]
             [repl-tooling.eval :as eval]))
 
 (a/def-async-test "Connecting to Clojure's REPL" {:teardown (connection/disconnect!)}
@@ -25,6 +26,17 @@
     (testing "capturing result"
       (-> repls a/await! :clj/repl (eval/evaluate "(/ 10 2)" {} identity))
       (check (a/await! result) => 5))
+
+    (testing "evaluating request-response with invalid EDN"
+      (let [res (async/promise-chan)]
+        (-> repls a/await! :clj/repl (eval/evaluate "{(keyword \"foo bar\") 10}" {}
+                                                    #(async/put! res (editor-helpers/parse-result %))))
+        (check (:result (a/await! res)) => {(keyword "foo bar") 10}))
+
+      (let [res (async/promise-chan)]
+        (-> repls a/await! :clj/repl (eval/evaluate "{(symbol \"foo bar\") 10}" {}
+                                                    #(async/put! res (editor-helpers/parse-result %))))
+        (check (:result (a/await! res)) => {(symbol "foo bar") 10})))
 
     (testing "capturing stdout"
       (-> repls a/await! :clj/repl (eval/evaluate '(prn :foo) {} identity))
