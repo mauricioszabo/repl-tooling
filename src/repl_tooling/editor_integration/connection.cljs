@@ -11,7 +11,7 @@
   (repl-client/disconnect! :clj-aux)
   (repl-client/disconnect! :cljs-eval))
 
-(defn callback [on-stdout on-stderr on-result on-disconnect output]
+(defn- callback [on-stdout on-stderr on-result on-disconnect output]
   (when (nil? output)
     (disconnect!)
     (on-disconnect))
@@ -38,6 +38,15 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
            aux (clj-repl/repl :clj-aux host port callback)
            primary (delay (clj-repl/repl :clj-eval host port callback))
            connect-primary (fn []
+                             (eval/evaluate aux
+                                            (clj-repl/unrepl-cmd (-> aux :session deref :state)
+                                                                 :print-limits
+                                                                 {:unrepl.print/string-length 9223372036854775807
+                                                                  :unrepl.print/coll-length 9223372036854775807
+                                                                  :unrepl.print/nesting-depth 9223372036854775807})
+                                            {:ignore true}
+                                            identity)
+
                              (eval/evaluate @primary ":primary-connected" {:ignore true}
                                             (fn [] (resolve {:clj/aux aux
                                                              :clj/repl @primary}))))]

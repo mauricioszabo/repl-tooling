@@ -20,23 +20,23 @@
                       ba# (java.io.ByteArrayOutputStream.)
                       is# (.getInputStream jar-file# (.getJarEntry jar-file# path#))]
      (clojure.java.io/copy is# ba#)
-     (clojure.core/symbol
-      (java.lang.String. (.toByteArray ba#)))))
+     (java.lang.String. (.toByteArray ba#))))
 
 (defn- get-result [repl [file-name line] resolve]
   (if (nil? file-name)
     (resolve nil)
-    (let [chan (async/chan)]
+    (let [chan (async/promise-chan)]
       (async/go
        (if (re-find #"\.jar!/" file-name)
-         (resolve nil) ; FIXME: For now.
-         ; (let [cmd (cmd-for-read-jar file-name)]
-         ;   (eval/evaluate repl cmd {:ignore true} #(async/put! chan (:result %)))
-         ;   (resolve {:file-name file-name
-         ;             :line (dec line)
-         ;             :contents (async/<! chan)}))
-         (resolve {:file-name file-name :line (dec line)}))
-       (async/close! chan)))))
+         (let [cmd (cmd-for-read-jar file-name)]
+           (eval/evaluate repl cmd {:ignore true} #(->> %
+                                                        editor-helpers/parse-result
+                                                        :result
+                                                        (async/put! chan)))
+           (resolve {:file-name file-name
+                     :line (dec line)
+                     :contents (async/<! chan)}))
+         (resolve {:file-name file-name :line (dec line)}))))))
 
 (defn find-var-definition [repl ns-name symbol-name]
   (js/Promise.

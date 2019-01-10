@@ -23,18 +23,22 @@
   (swap! state update :pending conj {:cmd cmd :channel chan :id id :ignore-result? ignore?})
   (next-eval! state))
 
+(defn unrepl-cmd [state command params]
+  (let [mapping (->> params
+                     (map (fn [[k v]] [{:repl-tooling/param k} v]))
+                     (into {}))]
+    (->> @state :actions command (walk/postwalk-replace mapping))))
+
 (defn- prepare-opts [repl {:keys [filename row col namespace]}]
   (let [state (-> repl :session deref :state)
-        set-params #(case %
-                      {:repl-tooling/param :unrepl/sourcename} (str filename)
-                      {:repl-tooling/param :unrepl/column} (or col 0)
-                      {:repl-tooling/param :unrepl/line} (or row 0)
-                      %)]
+        params {:unrepl/sourcename (str filename)
+                :unrepl/column (or col 0)
+                :unrepl/line (or row 0)}]
     (when namespace
       (add-to-eval-queue! (gensym) (async/promise-chan) (str "(ns " namespace ")") state true))
     (when (or filename row col)
       (add-to-eval-queue! (gensym) (async/promise-chan)
-                          (->> @state :actions :set-source (map set-params))
+                          (unrepl-cmd state :set-source params)
                           state
                           true))))
 
