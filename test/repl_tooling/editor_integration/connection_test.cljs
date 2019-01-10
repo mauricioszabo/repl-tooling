@@ -54,7 +54,6 @@
       (connection/disconnect!)
       (check (a/await! disconnect) => :DONE))))
 
-#_
 (a/def-async-test "Batches of commands" {:teardown (connection/disconnect!)}
   (let [repls (async/promise-chan)
         stdout (async/chan 60000)]
