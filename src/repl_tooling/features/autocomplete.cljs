@@ -45,7 +45,7 @@
                                                   {:tag-candidates true
                                                    :ns '~ns
                                                    :context ~context})]
-                   (clojure.core/symbol (clojure.core/pr-str (clojure.core/vec completions#)))))]
+                   (clojure.core/vec completions#)))]
     (js/Promise. (fn [resolve]
                    (eval/evaluate repl code {:ignore true} #(if-let [res (:result %)]
                                                               (resolve (helpers/read-result res))
