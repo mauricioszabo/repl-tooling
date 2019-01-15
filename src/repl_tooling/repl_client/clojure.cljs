@@ -19,8 +19,12 @@
                          (assoc :processing cmd :state :evaluating))))
       (async/put! (:channel-in @state) (:cmd cmd)))))
 
-(defn- add-to-eval-queue! [id chan cmd state ignore?]
-  (swap! state update :pending conj {:cmd cmd :channel chan :id id :ignore-result? ignore?})
+(defn- add-to-eval-queue! [id chan cmd state ignore? opts]
+  (swap! state update :pending conj {:cmd cmd
+                                     :channel chan
+                                     :id id
+                                     :ignore-result? ignore?
+                                     :opts opts})
   (next-eval! state))
 
 (defn unrepl-cmd [state command params]
@@ -35,12 +39,13 @@
                 :unrepl/column (or col 0)
                 :unrepl/line (or row 0)}]
     (when namespace
-      (add-to-eval-queue! (gensym) (async/promise-chan) (str "(ns " namespace ")") state true))
+      (add-to-eval-queue! (gensym) (async/promise-chan) (str "(ns " namespace ")") state true {}))
     (when (or filename row col)
       (add-to-eval-queue! (gensym) (async/promise-chan)
                           (unrepl-cmd state :set-source params)
                           state
-                          true))))
+                          true
+                          {}))))
 
 (declare repl)
 (defrecord Evaluator [session]
@@ -50,7 +55,7 @@
           chan (async/promise-chan)
           state (:state @session)]
       (prepare-opts this opts)
-      (add-to-eval-queue! id chan (str command "\n") state (:ignore opts))
+      (add-to-eval-queue! id chan (str command "\n") state (:ignore opts) (:pass opts))
       (go (callback (<! chan)))
       id))
 
@@ -130,7 +135,9 @@
 
 (defn- send-result! [res exception? state]
   (let [parsed (parse-res res)
-        msg (assoc parsed (if exception? :error :result) (pr-str res))
+        msg (->> (pr-str res)
+                 (assoc parsed (if exception? :error :result))
+                 (merge (-> @state :processing :opts)))
         on-out (:on-output @state)]
     (when-not (-> @state :processing :ignore-result?)
       (on-out msg))
@@ -202,7 +209,8 @@
                     "['" id " :error (cljs.core/pr-str {:obj (cljs.core/pr-str e) :type (.-type e) "
                     ":message (.-message e) :trace (.-stack e)})])))\n")]
 
-      (swap! pending assoc id {:callback callback :ignore (:ignore opts)})
+      (swap! pending assoc id {:callback callback :ignore (:ignore opts)
+                               :pass (:pass opts)})
 
       (when-let [ns-name (:namespace opts)]
         (async/put! in (str "(ns " ns-name ")")))
@@ -222,7 +230,7 @@
                                   reader/read-string
                                   (reader/read-string {:default default-tags}))]
           (reset! buffer nil)
-          ((:callback pendency) {key parsed})
+          ((:callback pendency) (assoc (:pass pendency) key parsed))
           (swap! pending dissoc id)
           (when-not (:ignore pendency) (output-fn {:as-text out :result parsed})))
         (swap! buffer str out))

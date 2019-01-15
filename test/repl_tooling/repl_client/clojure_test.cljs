@@ -22,6 +22,12 @@
       (check (await! out) =includes=> {:result "nil"})
       (check (await! out) => {:result "nil" :as-text "nil"}))
 
+    (testing "passing args to result"
+      (let [res (async/promise-chan)]
+        (eval/evaluate repl "(+ 2 3)" {:pass {:literal true}} #(some->> % (async/put! res)))
+        (check (await! res) =includes=> {:result "5" :literal true}))
+      (check (await! out) =includes=> {:result "5" :literal true}))
+
     (testing "passing parameters to evaluation"
       ; FIXME: We need better integration when we stack commands
       (await! (async/timeout 200))
