@@ -209,7 +209,8 @@
                     "['" id " :error (cljs.core/pr-str {:obj (cljs.core/pr-str e) :type (.-type e) "
                     ":message (.-message e) :trace (.-stack e)})])))\n")]
 
-      (swap! pending assoc id {:callback callback :ignore (:ignore opts)})
+      (swap! pending assoc id {:callback callback :ignore (:ignore opts)
+                               :pass (:pass opts)})
 
       (when-let [ns-name (:namespace opts)]
         (async/put! in (str "(ns " ns-name ")")))
@@ -229,7 +230,7 @@
                                   reader/read-string
                                   (reader/read-string {:default default-tags}))]
           (reset! buffer nil)
-          ((:callback pendency) {key parsed})
+          ((:callback pendency) (assoc (:pass pendency) key parsed))
           (swap! pending dissoc id)
           (when-not (:ignore pendency) (output-fn {:as-text out :result parsed})))
         (swap! buffer str out))
