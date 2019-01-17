@@ -213,7 +213,7 @@
                                :pass (:pass opts)})
 
       (when-let [ns-name (:namespace opts)]
-        (async/put! in (str "(ns " ns-name ")")))
+        (async/put! in (str "(in-ns '" ns-name ")")))
 
       (async/put! in code)
       (swap! (:session evaluator) assoc :pending [])
