@@ -62,13 +62,13 @@
       (symbol res))))
 
 (defn parse-result [result]
-  (let [read #(if (:parsed? result)
-                %
-                (cond-> (read-result %) (:literal result) LiteralRender.))]
-    (assoc (if (:result result)
-             (update result :result read)
-             (update result :error read))
-           :parsed? true)))
+  (assoc (if (:result result)
+           (update result :result #(if (:parsed? result)
+                                     %
+                                     (cond-> (read-result %)
+                                             (:literal result) LiteralRender.)))
+           (update result :error #(cond-> % (not (:parsed? result)) read-result)))
+         :parsed? true))
 
 (defn strip-comments [text]
   (-> text
