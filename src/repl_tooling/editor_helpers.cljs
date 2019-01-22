@@ -44,10 +44,26 @@
   (obj [_] obj)
   (tag [_] (str "#" tag " ")))
 
+(declare read-result)
+(defn- as-obj [data]
+  (let [params (last data)
+        parse-obj (fn [[class obj-id repr]]
+                    (prn [:BEAN (:bean params)])
+                    (WithTag. (merge (:bean params)
+                                     {:class class
+                                      :object-id obj-id
+                                      :repr repr})
+                              "object"))]
+    (if-let [as-str (:pr-str params)]
+      (if (str/starts-with? as-str "#object[")
+        (parse-obj data)
+        (read-result as-str))
+      (parse-obj data))))
+
 (defn- default-tag [tag data]
   (case (str tag)
     "clojure/var" (->> data (str "#'") symbol)
-    ; "unrepl/object" (as-obj data)
+    "unrepl/object" (as-obj data)
     "unrepl.java/class" (WithTag. data "class")
     (WithTag. data tag)))
 
