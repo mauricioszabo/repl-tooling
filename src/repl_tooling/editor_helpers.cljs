@@ -54,8 +54,10 @@
                                       :object-id obj-id
                                       :repr repr})
                               "object"))]
+
     (if-let [as-str (:pr-str params)]
-      (if (str/starts-with? as-str "#object[")
+      (if (or (instance? IncompleteStr as-str)
+              (str/starts-with? (str as-str) "#object["))
         (parse-obj data)
         (read-result as-str))
       (parse-obj data))))
