@@ -1,7 +1,7 @@
 (clojure.core/let [nop (clojure.core/constantly nil)
 done (promise)
 e (clojure.core/atom eval)]
-(-> (create-ns 'unrepl.repl$Q6RzkHvyx8k2UvjOUsdpr6NRZOo)
+(-> (create-ns 'unrepl.repl$it5GyJGHGpG9C1D6pDdo03NzJLc)
 (intern '-init-done)
 (alter-var-root
 (fn [v]
@@ -28,7 +28,7 @@ done))))
 *string-length* Long/MAX_VALUE]
 (write x)))
 (declare ^:once ^:dynamic read ^:once ^:dynamic print ^:once ^:dynamic eval)(ns
-unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU
+unrepl.printer$CaqNDtaq2o4QGU_wJp6$ImCUDkU
 (:require
 [clojure.string :as str]
 [clojure.edn :as edn]
@@ -384,6 +384,10 @@ rest (subs x i)]
 (extend-protocol MachinePrintable
 nil
 (-print-on [_ write _] (write "nil"))
+java.math.BigDecimal
+(-print-on [x write _] (write (str "#unrepl/bigdec \"" x "\"")))
+clojure.lang.BigInt
+(-print-on [x write _] (write (str "#unrepl/bigint \"" x "\"")))
 Object
 (-print-on [x write rem-depth]
 (cond
@@ -417,11 +421,11 @@ bindings (select-keys (get-thread-bindings) [#'*print-length* #'*print-level* #'
 unrepl/*string-length* Integer/MAX_VALUE]
 (edn-str x)))
 (ns
-unrepl.repl$Q6RzkHvyx8k2UvjOUsdpr6NRZOo
+unrepl.repl$it5GyJGHGpG9C1D6pDdo03NzJLc
 (:require
 [clojure.main :as m]
 [unrepl.core :as unrepl]
-[unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU :as p]
+[unrepl.printer$CaqNDtaq2o4QGU_wJp6$ImCUDkU :as p]
 [clojure.edn :as edn]
 [clojure.java.io :as io]))
 (defn classloader
@@ -581,12 +585,12 @@ ref (java.lang.ref.SoftReference. x refq)]
 (defonce ^:private elision-store (soft-store #(list `fetch %)))
 (defn fetch [id]
 (if-some [[session-id x] ((:get elision-store) id)]
-(unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU.WithBindings.
+(unrepl.printer$CaqNDtaq2o4QGU_wJp6$ImCUDkU.WithBindings.
 (select-keys (some-> session-id session :bindings) [#'*print-length* #'*print-level* #'unrepl/*string-length* #'p/*elide*])
 (cond
-(instance? unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU.ElidedKVs x) x
+(instance? unrepl.printer$CaqNDtaq2o4QGU_wJp6$ImCUDkU.ElidedKVs x) x
 (string? x) x
-(instance? unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU.MimeContent x) x
+(instance? unrepl.printer$CaqNDtaq2o4QGU_wJp6$ImCUDkU.MimeContent x) x
 :else (seq x)))
 p/unreachable))
 (defn interrupt! [session-id eval]
@@ -832,5 +836,5 @@ interrupted? #(.peek actions-queue)]
 ~expr))
 <<<FIN
 (clojure.core/ns user)
-(unrepl.repl$Q6RzkHvyx8k2UvjOUsdpr6NRZOo/start (clojure.edn/read {:default tagged-literal} *in*))
+(unrepl.repl$it5GyJGHGpG9C1D6pDdo03NzJLc/start (clojure.edn/read {:default tagged-literal} *in*))
 {}
