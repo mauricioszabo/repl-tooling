@@ -1,7 +1,7 @@
 (clojure.core/let [nop (clojure.core/constantly nil)
 done (promise)
 e (clojure.core/atom eval)]
-(-> (create-ns 'unrepl.repl$it5GyJGHGpG9C1D6pDdo03NzJLc)
+(-> (create-ns 'unrepl.repl$0TXEhWrcjkiLbz1aCi4mzHgktrY)
 (intern '-init-done)
 (alter-var-root
 (fn [v]
@@ -28,7 +28,7 @@ done))))
 *string-length* Long/MAX_VALUE]
 (write x)))
 (declare ^:once ^:dynamic read ^:once ^:dynamic print ^:once ^:dynamic eval)(ns
-unrepl.printer$CaqNDtaq2o4QGU_wJp6$ImCUDkU
+unrepl.printer$3EDGycPUwPUjrAGbWElYwBnVJho
 (:require
 [clojure.string :as str]
 [clojure.edn :as edn]
@@ -345,12 +345,23 @@ clojure.lang.Var
 (when-some [ns (:ns (meta x))]
 (symbol (name (ns-name ns)) (name (:name (meta x)))))
 rem-depth))
+java.lang.reflect.Method
+(-print-on [m write rem-depth]
+(print-on write
+(apply list
+(symbol (str "." (.getName m)))
+'this
+(.getParameterTypes m))
+rem-depth))
 Throwable
 (-print-on [t write rem-depth]
 (print-tag-lit-on write "error" (Throwable->map'' t) rem-depth))
 Class
 (-print-on [x write rem-depth]
-(print-tag-lit-on write "unrepl.java/class" (class-form x) rem-depth))
+(print-tag-lit-on write "unrepl.java/class"
+[(class-form x)
+(tagged-literal 'unrepl/... (->> x .getMethods *elide*))]
+rem-depth))
 java.util.Date (-print-on [x write rem-depth] (write (pr-str x)))
 java.util.Calendar (-print-on [x write rem-depth] (write (pr-str x)))
 java.sql.Timestamp (-print-on [x write rem-depth] (write (pr-str x)))
@@ -421,11 +432,11 @@ bindings (select-keys (get-thread-bindings) [#'*print-length* #'*print-level* #'
 unrepl/*string-length* Integer/MAX_VALUE]
 (edn-str x)))
 (ns
-unrepl.repl$it5GyJGHGpG9C1D6pDdo03NzJLc
+unrepl.repl$0TXEhWrcjkiLbz1aCi4mzHgktrY
 (:require
 [clojure.main :as m]
 [unrepl.core :as unrepl]
-[unrepl.printer$CaqNDtaq2o4QGU_wJp6$ImCUDkU :as p]
+[unrepl.printer$3EDGycPUwPUjrAGbWElYwBnVJho :as p]
 [clojure.edn :as edn]
 [clojure.java.io :as io]))
 (defn classloader
@@ -585,12 +596,12 @@ ref (java.lang.ref.SoftReference. x refq)]
 (defonce ^:private elision-store (soft-store #(list `fetch %)))
 (defn fetch [id]
 (if-some [[session-id x] ((:get elision-store) id)]
-(unrepl.printer$CaqNDtaq2o4QGU_wJp6$ImCUDkU.WithBindings.
+(unrepl.printer$3EDGycPUwPUjrAGbWElYwBnVJho.WithBindings.
 (select-keys (some-> session-id session :bindings) [#'*print-length* #'*print-level* #'unrepl/*string-length* #'p/*elide*])
 (cond
-(instance? unrepl.printer$CaqNDtaq2o4QGU_wJp6$ImCUDkU.ElidedKVs x) x
+(instance? unrepl.printer$3EDGycPUwPUjrAGbWElYwBnVJho.ElidedKVs x) x
 (string? x) x
-(instance? unrepl.printer$CaqNDtaq2o4QGU_wJp6$ImCUDkU.MimeContent x) x
+(instance? unrepl.printer$3EDGycPUwPUjrAGbWElYwBnVJho.MimeContent x) x
 :else (seq x)))
 p/unreachable))
 (defn interrupt! [session-id eval]
@@ -836,5 +847,5 @@ interrupted? #(.peek actions-queue)]
 ~expr))
 <<<FIN
 (clojure.core/ns user)
-(unrepl.repl$it5GyJGHGpG9C1D6pDdo03NzJLc/start (clojure.edn/read {:default tagged-literal} *in*))
+(unrepl.repl$0TXEhWrcjkiLbz1aCi4mzHgktrY/start (clojure.edn/read {:default tagged-literal} *in*))
 {}
