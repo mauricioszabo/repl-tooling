@@ -48,7 +48,6 @@
 (defn- as-obj [data]
   (let [params (last data)
         parse-obj (fn [[class obj-id repr]]
-                    (prn [:BEAN (:bean params)])
                     (WithTag. (merge (:bean params)
                                      {:class class
                                       :object-id obj-id
@@ -74,6 +73,8 @@
     (reader/read-string {:readers {'unrepl/string #(IncompleteStr. %)
                                    'unrepl/bad-keyword (fn [[ns name]] (keyword ns name))
                                    'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
+                                   'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
+                                   'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
                                    'repl-tooling/literal-render #(LiteralRender. %)}
                          :default default-tag} res)
     (catch :default _
