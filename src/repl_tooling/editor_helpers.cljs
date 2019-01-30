@@ -44,11 +44,27 @@
   (obj [_] obj)
   (tag [_] (str "#" tag " ")))
 
+(declare read-result)
+(defn- as-obj [data]
+  (let [params (last data)
+        parse-obj (fn [[class obj-id repr]]
+                    (WithTag. (merge (:bean params)
+                                     {:class class
+                                      :object-id obj-id
+                                      :repr repr})
+                              "object"))]
+
+    (if-let [as-str (:pr-str params)]
+      (if (or (instance? IncompleteStr as-str)
+              (str/starts-with? (str as-str) "#object["))
+        (parse-obj data)
+        (read-result as-str))
+      (parse-obj data))))
+
 (defn- default-tag [tag data]
   (case (str tag)
     "clojure/var" (->> data (str "#'") symbol)
-    ; "unrepl/object" (as-obj data)
-    "unrepl.java/class" (WithTag. data "class")
+    "unrepl/object" (as-obj data)
     (WithTag. data tag)))
 
 (defn read-result [res]
@@ -56,6 +72,10 @@
     (reader/read-string {:readers {'unrepl/string #(IncompleteStr. %)
                                    'unrepl/bad-keyword (fn [[ns name]] (keyword ns name))
                                    'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
+                                   'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
+                                   'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
+                                   'unrepl.java/class (fn [k]
+                                                        (WithTag. k "class"))
                                    'repl-tooling/literal-render #(LiteralRender. %)}
                          :default default-tag} res)
     (catch :default _

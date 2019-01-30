@@ -1,7 +1,7 @@
 (clojure.core/let [nop (clojure.core/constantly nil)
 done (promise)
 e (clojure.core/atom eval)]
-(-> (create-ns 'unrepl.repl$Q6RzkHvyx8k2UvjOUsdpr6NRZOo)
+(-> (create-ns 'unrepl.repl$zVytqoKSVi_8JXvtdO3KkJ1yd2k)
 (intern '-init-done)
 (alter-var-root
 (fn [v]
@@ -28,7 +28,7 @@ done))))
 *string-length* Long/MAX_VALUE]
 (write x)))
 (declare ^:once ^:dynamic read ^:once ^:dynamic print ^:once ^:dynamic eval)(ns
-unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU
+unrepl.printer$9H49DRT4zj6A1JVyij29JrkrKOk
 (:require
 [clojure.string :as str]
 [clojure.edn :as edn]
@@ -345,12 +345,37 @@ clojure.lang.Var
 (when-some [ns (:ns (meta x))]
 (symbol (name (ns-name ns)) (name (:name (meta x)))))
 rem-depth))
+java.lang.reflect.Constructor
+(-print-on [m write rem-depth]
+(print-on write
+(cons (symbol (str "new " (.getName m)))
+(.getParameterTypes m))
+rem-depth))
+java.lang.reflect.Method
+(-print-on [m write rem-depth]
+(print-on write
+(if (-> m .getModifiers java.lang.reflect.Modifier/isStatic)
+(cons (symbol (-> m .getDeclaringClass .getName)
+(.getName m))
+(.getParameterTypes m))
+(apply list
+(symbol (str "." (.getName m)))
+'this
+(.getParameterTypes m)))
+rem-depth))
 Throwable
 (-print-on [t write rem-depth]
 (print-tag-lit-on write "error" (Throwable->map'' t) rem-depth))
 Class
 (-print-on [x write rem-depth]
-(print-tag-lit-on write "unrepl.java/class" (class-form x) rem-depth))
+(print-tag-lit-on write "unrepl.java/class"
+[(class-form x)
+(tagged-literal 'unrepl/... (*elide*
+(concat (map (fn [m] (symbol (-> m .getClass .getName) (str m)))
+(.getEnumConstants x))
+(.getConstructors x)
+(.getMethods x))))]
+rem-depth))
 java.util.Date (-print-on [x write rem-depth] (write (pr-str x)))
 java.util.Calendar (-print-on [x write rem-depth] (write (pr-str x)))
 java.sql.Timestamp (-print-on [x write rem-depth] (write (pr-str x)))
@@ -384,6 +409,10 @@ rest (subs x i)]
 (extend-protocol MachinePrintable
 nil
 (-print-on [_ write _] (write "nil"))
+java.math.BigDecimal
+(-print-on [x write _] (write (str "#unrepl/bigdec \"" x "\"")))
+clojure.lang.BigInt
+(-print-on [x write _] (write (str "#unrepl/bigint \"" x "\"")))
 Object
 (-print-on [x write rem-depth]
 (cond
@@ -417,11 +446,11 @@ bindings (select-keys (get-thread-bindings) [#'*print-length* #'*print-level* #'
 unrepl/*string-length* Integer/MAX_VALUE]
 (edn-str x)))
 (ns
-unrepl.repl$Q6RzkHvyx8k2UvjOUsdpr6NRZOo
+unrepl.repl$zVytqoKSVi_8JXvtdO3KkJ1yd2k
 (:require
 [clojure.main :as m]
 [unrepl.core :as unrepl]
-[unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU :as p]
+[unrepl.printer$9H49DRT4zj6A1JVyij29JrkrKOk :as p]
 [clojure.edn :as edn]
 [clojure.java.io :as io]))
 (defn classloader
@@ -581,12 +610,12 @@ ref (java.lang.ref.SoftReference. x refq)]
 (defonce ^:private elision-store (soft-store #(list `fetch %)))
 (defn fetch [id]
 (if-some [[session-id x] ((:get elision-store) id)]
-(unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU.WithBindings.
+(unrepl.printer$9H49DRT4zj6A1JVyij29JrkrKOk.WithBindings.
 (select-keys (some-> session-id session :bindings) [#'*print-length* #'*print-level* #'unrepl/*string-length* #'p/*elide*])
 (cond
-(instance? unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU.ElidedKVs x) x
+(instance? unrepl.printer$9H49DRT4zj6A1JVyij29JrkrKOk.ElidedKVs x) x
 (string? x) x
-(instance? unrepl.printer$JqwLdMzGj5xGny8expH1Dh0nTgU.MimeContent x) x
+(instance? unrepl.printer$9H49DRT4zj6A1JVyij29JrkrKOk.MimeContent x) x
 :else (seq x)))
 p/unreachable))
 (defn interrupt! [session-id eval]
@@ -832,5 +861,5 @@ interrupted? #(.peek actions-queue)]
 ~expr))
 <<<FIN
 (clojure.core/ns user)
-(unrepl.repl$Q6RzkHvyx8k2UvjOUsdpr6NRZOo/start (clojure.edn/read {:default tagged-literal} *in*))
+(unrepl.repl$zVytqoKSVi_8JXvtdO3KkJ1yd2k/start (clojure.edn/read {:default tagged-literal} *in*))
 {}
