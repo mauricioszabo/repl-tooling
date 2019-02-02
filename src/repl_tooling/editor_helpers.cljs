@@ -74,6 +74,8 @@
                                    'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
                                    'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
                                    'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
+                                   ; FIXME: solve in the future this object
+                                   'unrepl/browsable (fn [[o]] o)
                                    'unrepl.java/class (fn [k]
                                                         (WithTag. k "class"))
                                    'repl-tooling/literal-render #(LiteralRender. %)}
