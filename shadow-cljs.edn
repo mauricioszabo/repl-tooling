@@ -9,4 +9,8 @@
 
  :builds {:tests {:target :node-test
                   :output-to "target/all_tests.js"
-                  :autorun true}}}
+                  :autorun true}
+          :integration {:target :node-script
+                        :output-to "target/integration.js"
+                        :main repl-tooling.integration.ui/main}}}
+                        ; :autorun true}}}
