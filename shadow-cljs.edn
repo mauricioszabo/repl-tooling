@@ -1,7 +1,5 @@
 ;; shadow-cljs configuration
-{:source-paths
- ["src"
-  "test"]
+{:source-paths ["src" "test"]
 
  :lein true
  :dependencies [[org.clojure/core.async "0.4.474"]
@@ -10,7 +8,8 @@
  :builds {:tests {:target :node-test
                   :output-to "target/all_tests.js"
                   :autorun true}
-          :integration {:target :node-script
-                        :output-to "target/integration.js"
-                        :main repl-tooling.integration.ui/main}}}
-                        ; :autorun true}}}
+          :integration {:target :browser
+                        :output-dir "target/integration"
+                        :asset-path "target/integration"
+                        :modules {:main {:entries [repl-tooling.integration.ui]}}
+                        :compiler-options {:devcards true}}}}

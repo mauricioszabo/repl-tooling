@@ -1,6 +1,10 @@
 {
   "name": "REPL Tooling",
   "devDependencies": {
-    "electron": "^4.0.4"
+    "create-react-class": "^15.6.3",
+    "electron": "^4.0.4",
+    "react": "^16.8.1",
+    "react-dom": "^16.8.1",
+    "showdown": "^1.9.0"
   }
 }

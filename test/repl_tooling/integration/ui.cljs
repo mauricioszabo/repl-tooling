@@ -1,16 +1,49 @@
 (ns repl-tooling.integration.ui
-  (:require ["electron" :as electron]))
+  ; (:require ["electron" :as electron]
+  ;           ["fs" :as fs]))
+  ; (:require ["fs" :as fs]))
+  (:require [reagent.core :as r]
+            [sablono.core :as sab]
+            [devcards.core :as cards :include-macros true]))
+  ; (:require-macros [devcards.core :refer [defcard]]))
+
+; (defn js-for-browser []
+;   (js/alert "FOO"))
+
+(defn app []
+  (r/as-element [:h1 "Lalala"]))
+
+(cards/defcard reagent-macro-1
+  (cards/reagent [:div "This works fine"]))
+
+(cards/defcard-rg example
+  [app])
+
+(cards/defcard-rg isolating-state
+  (fn [data-atom _]
+    [:div
+     [:p (:count @data-atom)]
+     [:p [:button {:on-click #(swap! data-atom update :count inc)} "Inc"]]])
+  (r/atom {:count 0}) ; <-- intial ratom
+  {:inspect-data true :history true})
 
 (defn main []
-  (println "HELLO" (.-app electron))
+  (r/render [app] (. js/document (querySelector "#app"))))
 
-  (.. electron
-      -app
-      (on "ready"
-          #(let [win (new (.-BrowserWindow electron) #js {:width 900 :height 600})]
-             (.. win (loadURL "about:blank"))
-             (prn (.. win -webContents (insertText "FOOBAR")))
-             (.. win -webContents (executeJavaScript "alert(document.querySelector('body'))"))))))
+; (main)
+(cards/start-devcard-ui!)
+; (devcards.core/start-devcard-ui!)
+
+
+  ; (println "HELLO" (.-app electron))
+  ;
+  ; (.. electron
+  ;     -app
+  ;     (on "ready"
+  ;         #(let [win (new (.-BrowserWindow electron) #js {:width 900 :height 600})]
+  ;            (.. win (loadURL "about:blank"))
+  ;            (prn (.. win -webContents (insertText "FOOBAR")))
+  ;            (.. win -webContents (executeJavaScript "alert(document.querySelector('body'))"))))))
   ; mainWindow = new BrowserWindow({width: 900, height: 600}));
 
 ; var BrowserWindow = require('browser-window');  // Module to create native browser window.

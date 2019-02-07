@@ -10,6 +10,8 @@
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.9.0"]
                                   [org.clojure/core.async "0.4.490"]
                                   [check "0.0.3-SNAPSHOT"]
+                                  [devcards "0.2.5"]
+                                  [reagent "0.8.1"]
                                   [thheller/shadow-cljs "2.6.6"]]
                    :source-paths ["src" "test"]}}
 
