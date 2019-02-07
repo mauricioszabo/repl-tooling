@@ -1,0 +1,6 @@
+{
+  "name": "REPL Tooling",
+  "devDependencies": {
+    "electron": "^4.0.4"
+  }
+}
