@@ -76,15 +76,15 @@
 
 (cards/deftest connect-repl
   (t/async done
-    (let [promise (conn/connect-unrepl! "localhost" 2233
-                                        {:on-stdout identity
-                                         :on-stderr identity
-                                         :on-result identity
-                                         :on-disconnect identity})
+    (let [;promise (conn/connect-unrepl! "localhost" 2233
+        ;                                {:on-stdout identity
+      ;                                   :on-stderr identity
+    ;                                     :on-result identity
+  ;                                       :on-disconnect identity
           c (async/promise-chan)
           r (async/promise-chan)]
       (async/go
-       (.then promise #(async/put! c (:commands %)))
+       ; (.then promise #(async/put! c (:commands %)))
        ; (.log js/console (:evaluate (async/<! c)))
        ; (prn :CMD (async/<! c))
        ((:evaluate (async/<! c)) "(+ 1 2)" {} #(async/put! c (:result %)))
