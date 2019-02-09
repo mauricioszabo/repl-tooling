@@ -15,10 +15,19 @@
   (when (nil? output)
     (disconnect!)
     (on-disconnect))
-  (when-let [out (:out output)] (on-stdout out))
-  (when-let [out (:err output)] (on-stderr out))
+  (when-let [out (:out output)] (and on-stdout (on-stdout out)))
+  (when-let [out (:err output)] (and on-stderr (on-stderr out)))
   (when (or (:result output) (:error output))
-    (on-result (editor-helpers/parse-result output))))
+    (and on-result (on-result (editor-helpers/parse-result output)))))
+
+(defn- cmds-for [aux primary {:keys [editor-data on-start-eval on-eval]}]
+  {:evaluate-selection
+   {:command (fn []
+               (let [{:keys [contents range] :as data} (editor-data)]
+                 (and on-start-eval (on-start-eval data))
+                 (eval/evaluate primary contents {}
+                                #(and on-eval (on-eval %))))
+              :description "Evaluates current editor's selection")}})
 
 (defn connect-unrepl!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
@@ -31,7 +40,8 @@ than once
 
 Returns a promise that will resolve to a map with two repls: :clj/aux will be used
 to autocomplete/etc, :clj/repl will be used to evaluate code."
-  [host port on-stdout on-stderr on-result on-disconnect]
+  [host port {:keys [on-stdout on-stderr on-result on-disconnect
+                     editor-data on-start-eval on-eval] :as opts}]
   (js/Promise.
    (fn [resolve]
      (let [callback (partial callback on-stdout on-stderr on-result on-disconnect)
@@ -49,7 +59,23 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 
                              (eval/evaluate @primary ":primary-connected" {:ignore true}
                                             (fn [] (resolve {:clj/aux aux
-                                                             :clj/repl @primary}))))]
+                                                             :clj/repl @primary
+                                                             :editor/commands (cmds-for aux @primary opts)}))))]
 
        (eval/evaluate aux ":aux-connected" {:ignore true}
                       #(connect-primary))))))
+
+(defn connect!
+  "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
+callbacks:
+* on-stdout -> a function that receives a string when some code prints to stdout
+* on-stderr -> a function that receives a string when some code prints to stderr
+* on-result -> returns a clojure EDN with the result of code
+* on-disconnect -> called with no arguments, will disconnect REPLs. Can be called more
+than once
+
+Returns a promise that will resolve to a map with two repls: :clj/aux will be used
+to autocomplete/etc, :clj/repl will be used to evaluate code."
+  [host port {:keys [on-stdout on-stderr on-result on-disconnect
+                     editor-data on-start-eval on-eval] :as opts}]
+  (connect-unrepl! host port opts))
