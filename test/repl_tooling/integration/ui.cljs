@@ -1,6 +1,6 @@
 (ns repl-tooling.integration.ui
   (:require [reagent.core :as r]
-            [clojure.test :as t :include-macros true]
+            [clojure.test :refer [async testing is] :include-macros true]
             [check.core :refer-macros [check]]
             [check.async :include-macros true]
             [clojure.core.async :as async :include-macros true]
@@ -28,19 +28,23 @@
          :commands {}))
 
 (defn connect! []
-  (.
-   (conn/connect! (:host @state) (:port @state)
-                  {:on-disconnect handle-disconnect
-                   :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
-                   :on-eval #(swap! state update :stdout (fn [e] (str e "=> " (:as-text %) "\n")))
-                   :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
-                   :editor-data #(let [code (:code @state)]
-                                    {:contents code})})
-   (then (fn [res]
-           (swap! state assoc :repls {:eval (:clj/repl res)
-                                      :aux (:clj/aux res)}
-                  :commands (:editor/commands res)
-                  :stdout "" :stderr "")))))
+  (when-not (-> @state :repls :eval)
+    (.
+      (conn/connect! (:host @state) (:port @state)
+                     {:on-disconnect handle-disconnect
+                      :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
+                      :on-eval #(swap! state update :stdout (fn [e] (str e "=> " (:as-text %) "\n")))
+                      :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
+                      :editor-data #(let [code (:code @state)]
+                                      {:contents code})})
+      (then (fn [res]
+              (swap! state assoc :repls {:eval (:clj/repl res)
+                                         :aux (:clj/aux res)}
+                     :commands (:editor/commands res)
+                     :stdout "" :stderr ""))))))
+
+(defn- evaluate []
+  ((-> @state :commands :evaluate-selection :command)))
 
 (defn fake-editor [state]
   [:div
@@ -50,12 +54,12 @@
        [:b " Port: "] [:input {:type "text" :value (:port @state)
                                :on-change #(->> % .-target .-value int (swap! state assoc :port))}]]
    [:textarea {:style {:width "100%" :height "200px"}
-               :on-change #(->> % .-target .-value (swap! state assoc :code))}
-    (:code @state)]
+               :value (:code @state)
+               :on-change #(->> % .-target .-value (swap! state assoc :code))}]
    [:p
     (if (-> @state :repls :eval)
       [:span
-       [:button {:on-click #((-> @state :commands :evaluate-selection :command))}
+       [:button {:on-click evaluate}
         "Evaluate"] " "
        [:button {:on-click disconnect!} "Disconnect!"]]
       [:button {:on-click connect!} "Connect!"])]
@@ -74,23 +78,51 @@
   state
   {:inspect-data true})
 
-(cards/deftest connect-repl
-  (t/async done
-    (let [;promise (conn/connect-unrepl! "localhost" 2233
-        ;                                {:on-stdout identity
-      ;                                   :on-stderr identity
-    ;                                     :on-result identity
-  ;                                       :on-disconnect identity
-          c (async/promise-chan)
-          r (async/promise-chan)]
-      (async/go
-       ; (.then promise #(async/put! c (:commands %)))
-       ; (.log js/console (:evaluate (async/<! c)))
-       ; (prn :CMD (async/<! c))
-       ((:evaluate (async/<! c)) "(+ 1 2)" {} #(async/put! c (:result %)))
-       (check r =resolves=> 3)
-       ; (conn/disconnect!)
-       (done)))))
+(defn wait-for [f]
+  (async/go
+   (loop [t 0]
+     (when (< t 100)
+       (if-let [res (f)]
+         res
+         (do
+           (async/<! (async/timeout 100))
+           (recur (inc t))))))))
+
+(defn- type-in [txt] (swap! state assoc :code txt))
+(defn- type-and-eval [txt]
+  (swap! state assoc :code txt)
+  (evaluate))
+(defn- txt-in-stdout [reg]
+  (wait-for #(re-find reg (:stdout @state))))
+(defn- change-stdout []
+  (let [old (:stdout @state)]
+    (wait-for #(and (not= old (:stdout @state))
+                    (:stdout @state)))))
+(defn- change-stderr []
+  (let [old (:stderr @state)]
+    (wait-for #(and (not= old (:stderr @state))
+                    (:stderr @state)))))
+
+(cards/deftest repl-evaluation
+  (async done
+    (async/go
+     (connect!)
+     (async/<! (wait-for #(-> @state :repls :eval)))
+
+     (testing "evaluation works"
+       (type-and-eval "(+ 2 3)")
+       (check (async/<! (txt-in-stdout #"=> 5")) => "=> 5"))
+
+     (testing "captures STDOUT"
+       (type-and-eval "(println :FOOBAR)")
+       (check (async/<! (change-stdout)) => #":FOOBAR"))
+
+     (testing "captures STDERR"
+       (type-and-eval "(.write *err* \"Error\")")
+       (check (async/<! (change-stderr)) => #"Error"))
+
+     (disconnect!)
+     (done))))
     ; (check {:foo 1} => {:foo 2})))
 
 (defn main [])
@@ -98,49 +130,3 @@
 
 ; (main)
 (cards/start-devcard-ui!)
-; (devcards.core/start-devcard-ui!)
-
-
-  ; (println "HELLO" (.-app electron))
-  ;
-  ; (.. electron
-  ;     -app
-  ;     (on "ready"
-  ;         #(let [win (new (.-BrowserWindow electron) #js {:width 900 :height 600})]
-  ;            (.. win (loadURL "about:blank"))
-  ;            (prn (.. win -webContents (insertText "FOOBAR")))
-  ;            (.. win -webContents (executeJavaScript "alert(document.querySelector('body'))"))))))
-  ; mainWindow = new BrowserWindow({width: 900, height: 600}));
-
-; var BrowserWindow = require('browser-window');  // Module to create native browser window.
-;
-; // Keep a global reference of the window object, if you don't, the window will
-; // be closed automatically when the JavaScript object is garbage collected.
-; var mainWindow = null;
-;
-; // Quit when all windows are closed.
-; app.on('window-all-closed', function() {})
-;     // On OS X it is common for applications and their menu bar
-;     // to stay active until the user quits explicitly with Cmd + Q
-;     if (process.platform != 'darwin') {}
-;         app.quit();
-;
-; ;
-;
-; // This method will be called when Electron has finished
-; // initialization and is ready to create browser windows.
-; app.on('ready', function() {})
-;     // Create the browser window.
-;     mainWindow = new BrowserWindow({width: 900, height: 600});
-;
-;     // and load the index.html of the app.
-;     mainWindow.loadURL('file://' + __dirname + '/index.html');
-;
-;     // Emitted when the window is closed.
-;     mainWindow.on('closed', function() {})
-;         // Dereference the window object, usually you would store windows
-;         // in an array if your app supports multi windows, this is the time
-;         // when you should delete the corresponding element.
-;         mainWindow = null;
-;     ;
-; ;
