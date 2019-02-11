@@ -6,11 +6,3 @@ app.on('ready', () => {
     width: 900, height: 600, nodeIntegration: true})
   browser.loadURL(path.join('file://', __dirname, '/index.html'))
 })
-  //
-  // (.. electron
-  //     -app
-  //     (on "ready"
-  //         #(let [win (new (.-BrowserWindow electron) #js {:width 900 :height 600})]
-  //            (.. win (loadURL "about:blank"))
-  //            (prn (.. win -webContents (insertText "FOOBAR")))
-  //            (.. win -webContents (executeJavaScript "alert(document.querySelector('body'))"))))))
