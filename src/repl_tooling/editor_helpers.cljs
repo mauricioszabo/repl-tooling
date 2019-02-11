@@ -141,8 +141,28 @@
     (-> lines
         (subvec row1 (inc row2))
         (update 0 #(str/join "" (drop col1 %)))
-        (update (- row2 row1) #(str/join "" (take col2 %)))
+        (update (- row2 row1) #(str/join "" (take (inc col2) %)))
         (->> (str/join "\n")))))
+
+(defn- simple-read [str]
+  (reader/read-string {:default (fn [_ res] res)} str))
+
+(defn ns-range-for [code [[row col]]]
+  (let [levels (top-levels code)
+        before-selection? (fn [[[_ _] [erow ecol]]]
+                           (or (and (= erow row) (<= ecol col))
+                               (< erow row)))
+        read-str #(simple-read (text-in-range code %))
+        is-ns? #(and (list? %) (some-> % first (= 'ns)))]
+
+    (->> levels
+         (take-while before-selection?)
+         reverse
+         (filter #(-> % read-str is-ns?))
+         first)))
+
+(defn ns-name-for [code range]
+  (some->> (ns-range-for code range) (text-in-range code) simple-read second))
 
 (defn current-top-block [text row col]
   (let [levels (top-levels text)]))

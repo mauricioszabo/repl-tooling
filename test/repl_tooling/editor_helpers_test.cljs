@@ -1,11 +1,9 @@
 (ns repl-tooling.editor-helpers-test
-  (:require [clojure.test :refer-macros [deftest testing run-tests]]
+  (:require [clojure.test :refer-macros [testing]]
+            [devcards.core :refer [deftest] :include-macros true]
             [check.core :refer-macros [check]]
             [repl-tooling.editor-helpers :as editor]
             [repl-tooling.editor-helpers :as helpers]))
-            ; [check.async-cljs :refer-macros [def-async-test await!]]
-            ; [cljs.core.async :refer [>!] :refer-macros [go] :as async]
-            ; [repl-tooling.repl-client.protocols :as repl]))
 
 (deftest parsing-data
   (testing "parses taggable object"
@@ -65,9 +63,10 @@
 
 (deftest toplevel-forms
   (testing "gets top-level forms"
-    (check (editor/top-levels simple-clj) => [[[0 0] [0 6]]
-                                              [[0 8] [0 16]]
-                                              [[1 0] [2 1]]]))
+    (check (map #(editor/text-in-range simple-clj %) (editor/top-levels simple-clj)) =>
+           ["(+ 1 2)"
+            "(+ (3) 4)"
+            "[1 2\n3]"]))
 
   (testing "gets top-level forms in complex CLJ code"
     (check (editor/top-levels some-clj) => [[[1 0] [1 10]]
@@ -75,4 +74,12 @@
                                             [[9 0] [9 10]]
                                             [[11 0] [11 12]]])))
 
-(run-tests)
+(def ns-code "(ns foobar)\n(def foo 10)\n(ns barbaz)\n(def wow 1)\n\n")
+(deftest getting-ns
+  (testing "getting NS top-level"
+    (check (editor/ns-range-for ns-code [[1 2]]) => [[0 0] [0 10]])
+    (check (editor/ns-range-for ns-code [[1 2]]) => [[0 0] [0 10]]))
+
+  (testing "getting second NS in form"
+    (check (editor/ns-range-for ns-code [[3 4]]) => [[2 0] [2 10]])
+    (check (editor/ns-name-for ns-code [[3 4]]) => 'barbaz)))
