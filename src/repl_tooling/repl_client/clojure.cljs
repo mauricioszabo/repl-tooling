@@ -101,11 +101,7 @@
         ns-decoder identity]
     {'unrepl/param param-decoder
      'class identity
-     ; 'unrepl/ns ns-decoder
-     ; 'unrepl.java/class #(pr-str %)
-     ; 'unrepl/object #(pr-str %)
      'unrepl/... more-decoder}))
-     ; 'unrepl/string #(IncompleteStr. %)}))
 
 (defn- eval-next! [state]
   (swap! state assoc :state :ready)
