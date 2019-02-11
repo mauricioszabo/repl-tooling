@@ -5,6 +5,8 @@
             [check.async :include-macros true]
             [clojure.core.async :as async :include-macros true]
             [devcards.core :as cards :include-macros true]
+            [clojure.string :as str]
+            [repl-tooling.editor-helpers-test]
 
             [repl-tooling.editor-integration.connection :as conn]))
 
@@ -35,8 +37,12 @@
                       :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
                       :on-eval #(swap! state update :stdout (fn [e] (str e "=> " (:as-text %) "\n")))
                       :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
-                      :editor-data #(let [code (:code @state)]
-                                      {:contents code})})
+                      :editor-data #(let [code (:code @state)
+                                          lines (str/split-lines code)]
+                                      {:contents code
+                                       :filename "foo.clj"
+                                       :range [[0 0]
+                                               [(-> lines count dec) (-> lines last count dec)]]})})
       (then (fn [res]
               (swap! state assoc :repls {:eval (:clj/repl res)
                                          :aux (:clj/aux res)}
@@ -103,6 +109,7 @@
     (wait-for #(and (not= old (:stderr @state))
                     (:stderr @state)))))
 
+(set! cards/test-timeout 8000)
 (cards/deftest repl-evaluation
   (async done
     (async/go
@@ -121,12 +128,12 @@
        (type-and-eval "(.write *err* \"Error\")")
        (check (async/<! (change-stderr)) => #"Error"))
 
+     (testing "detects NS on file"
+       (type-and-eval "(do (ns clojure.string)\n(upper-case \"this is upper\"))")
+       (check (async/<! (change-stdout)) => #"THIS IS UPPER"))
+
      (disconnect!)
      (done))))
-    ; (check {:foo 1} => {:foo 2})))
 
 (defn main [])
-;   (r/render [app] (. js/document (querySelector "#app"))))
-
-; (main)
 (cards/start-devcard-ui!)

@@ -1,6 +1,6 @@
 (ns repl-tooling.editor-integration.connection
   (:require [repl-tooling.repl-client :as repl-client]
-            [repl-tooling.editor-helpers :as editor-helpers]
+            [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]))
 
@@ -18,14 +18,20 @@
   (when-let [out (:out output)] (and on-stdout (on-stdout out)))
   (when-let [out (:err output)] (and on-stderr (on-stderr out)))
   (when (or (:result output) (:error output))
-    (and on-result (on-result (editor-helpers/parse-result output)))))
+    (and on-result (on-result (helpers/parse-result output)))))
 
 (defn- cmds-for [aux primary {:keys [editor-data on-start-eval on-eval]}]
   {:evaluate-selection
    {:command (fn []
-               (let [{:keys [contents range] :as data} (editor-data)]
+               (let [{:keys [contents range filename] :as data} (editor-data)
+                     [[row col]] range
+                     code (helpers/text-in-range contents range)
+                     namespace (helpers/ns-name-for contents range)]
                  (and on-start-eval (on-start-eval data))
-                 (eval/evaluate primary contents {}
+                 (eval/evaluate primary contents {:filename filename
+                                                  :row row
+                                                  :col col
+                                                  :namespace (str namespace)}
                                 #(and on-eval (on-eval %))))
               :description "Evaluates current editor's selection")}})
 

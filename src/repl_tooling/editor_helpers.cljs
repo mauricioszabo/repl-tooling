@@ -150,8 +150,8 @@
 (defn ns-range-for [code [[row col]]]
   (let [levels (top-levels code)
         before-selection? (fn [[[_ _] [erow ecol]]]
-                           (or (and (= erow row) (<= ecol col))
-                               (< erow row)))
+                            (or (and (= erow row) (<= col ecol))
+                                (< erow row)))
         read-str #(simple-read (text-in-range code %))
         is-ns? #(and (list? %) (some-> % first (= 'ns)))]
 
