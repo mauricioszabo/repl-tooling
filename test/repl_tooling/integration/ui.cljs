@@ -31,7 +31,7 @@
          :commands {}))
 
 (defn- res [result]
-  (prn result)
+  (swap! state assoc :eval-result (render/parse-result (:result result)))
   (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
 
 (defn connect! []
@@ -77,7 +77,7 @@
    [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]
    (when-let [res (:eval-result @state)]
       [:div {:class "result"}
-       (-> res render/parse-result render/view-for-result)])
+       (render/view-for-result res)])
    (when-let [out (:stdout @state)]
      [:div
       [:h5 "STDOUT"]
