@@ -1,5 +1,6 @@
 (ns repl-tooling.integration.ui
   (:require [reagent.core :as r]
+            [repl-tooling.editor-integration.renderer :as render]
             [clojure.test :refer [async testing is] :include-macros true]
             [check.core :refer-macros [check]]
             [check.async :include-macros true]
@@ -29,13 +30,17 @@
          :stdout nil :stderr nil :eval-result nil
          :commands {}))
 
+(defn- res [result]
+  (prn result)
+  (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
+
 (defn connect! []
   (when-not (-> @state :repls :eval)
     (.
       (conn/connect! (:host @state) (:port @state)
                      {:on-disconnect handle-disconnect
                       :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
-                      :on-eval #(swap! state update :stdout (fn [e] (str e "=> " (:as-text %) "\n")))
+                      :on-eval res
                       :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
                       :editor-data #(let [code (:code @state)
                                           lines (str/split-lines code)]
@@ -70,6 +75,9 @@
        [:button {:on-click disconnect!} "Disconnect!"]]
       [:button {:on-click connect!} "Connect!"])]
    [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]
+   (when-let [res (:eval-result @state)]
+      [:div {:class "result"}
+       (-> res render/parse-result render/view-for-result)])
    (when-let [out (:stdout @state)]
      [:div
       [:h5 "STDOUT"]
@@ -131,6 +139,11 @@
      (testing "detects NS on file"
        (type-and-eval "(do (ns clojure.string)\n(upper-case \"this is upper\"))")
        (check (async/<! (change-stdout)) => #"THIS IS UPPER"))
+
+     (testing "evaluates and presents results"
+       (type-and-eval "(range)")
+       (async/<! (change-stdout)))
+       ; (check  => ""))
 
      (disconnect!)
      (done))))
