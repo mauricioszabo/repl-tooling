@@ -31,7 +31,7 @@
 
 (defn- res [result]
   (swap! state assoc :eval-result (render/parse-result (-> @state :repls :eval)
-                                                       (:result result)))
+                                                       result))
   (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
 
 (defn connect! []
@@ -64,7 +64,7 @@
                                   :on-change #(->> % .-target .-value (swap! state assoc :host))}]
        [:b " Port: "] [:input {:type "text" :value (:port @state)
                                :on-change #(->> % .-target .-value int (swap! state assoc :port))}]]
-   [:textarea {:style {:width "100%" :height "200px"}
+   [:textarea {:style {:width "100%" :height "100px"}
                :value (:code @state)
                :on-change #(->> % .-target .-value (swap! state assoc :code))}]
    [:p
@@ -118,8 +118,13 @@
     (wait-for #(and (not= old (:stderr @state))
                     (:stderr @state)))))
 
+(defn- txt-for-selector [sel]
+  (-> js/document
+      (.querySelector sel)
+      .-innerText
+      .trim))
+
 (set! cards/test-timeout 8000)
-(. js/document querySelector "#result")
 (cards/deftest repl-evaluation
   (async done
     (async/go
@@ -128,7 +133,8 @@
 
      (testing "evaluation works"
        (type-and-eval "(+ 2 3)")
-       (check (async/<! (txt-in-stdout #"=> 5")) => "=> 5"))
+       (check (async/<! (txt-in-stdout #"=> 5")) => "=> 5")
+       (check (txt-for-selector "#result") => "5"))
 
      (testing "captures STDOUT"
        (type-and-eval "(println :FOOBAR)")
@@ -142,10 +148,10 @@
        (type-and-eval "(do (ns clojure.string)\n(upper-case \"this is upper\"))")
        (check (async/<! (change-stdout)) => #"THIS IS UPPER"))
 
-     (testing "evaluates and presents results (with text or not)"
+     (testing "evaluates and presents big lists"
        (type-and-eval "(range)")
-       (check (async/<! (change-stdout)) => #"\(0 1 2.*\.{3}\)"))
-       ; (check  => ""))
+       (check (async/<! (change-stdout)) => #"\(0 1 2.*\.{3}\)")
+       (check  (txt-for-selector "#result") => "(0 1 2 3 4 5 6 7 8 9 ...)"))
 
      (disconnect!)
      (done))))
