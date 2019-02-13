@@ -22,7 +22,8 @@
 
 (defn- cmds-for [aux primary {:keys [editor-data on-start-eval on-eval]}]
   {:evaluate-selection
-   {:command (fn []
+   {:name "Evaluate Selection"
+    :command (fn []
                (let [{:keys [contents range filename] :as data} (editor-data)
                      [[row col]] range
                      code (helpers/text-in-range contents range)

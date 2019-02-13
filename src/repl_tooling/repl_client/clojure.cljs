@@ -118,7 +118,7 @@
                      %
 
                      (not (coll? %))
-                     (pr-str %)
+                     %
 
                      (and (map? %) (:repl-tooling/... %))
                      (with-meta '... {:get-more (:repl-tooling/... %)})

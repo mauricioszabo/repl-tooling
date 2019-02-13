@@ -8,7 +8,6 @@
             [devcards.core :as cards :include-macros true]
             [clojure.string :as str]
             [repl-tooling.editor-helpers-test]
-
             [repl-tooling.editor-integration.connection :as conn]))
 
 (defonce state (r/atom {:host "localhost"
@@ -31,7 +30,8 @@
          :commands {}))
 
 (defn- res [result]
-  (swap! state assoc :eval-result (render/parse-result (:result result)))
+  (swap! state assoc :eval-result (render/parse-result (-> @state :repls :eval)
+                                                       (:result result)))
   (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
 
 (defn connect! []
@@ -75,9 +75,10 @@
        [:button {:on-click disconnect!} "Disconnect!"]]
       [:button {:on-click connect!} "Connect!"])]
    [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]
-   (when-let [res (:eval-result @state)]
+   [:div {:id "result"}
+    (when-let [res (:eval-result @state)]
       [:div {:class "result"}
-       (render/view-for-result res)])
+       (render/view-for-result res)])]
    (when-let [out (:stdout @state)]
      [:div
       [:h5 "STDOUT"]
@@ -118,6 +119,7 @@
                     (:stderr @state)))))
 
 (set! cards/test-timeout 8000)
+(. js/document querySelector "#result")
 (cards/deftest repl-evaluation
   (async done
     (async/go
@@ -140,9 +142,9 @@
        (type-and-eval "(do (ns clojure.string)\n(upper-case \"this is upper\"))")
        (check (async/<! (change-stdout)) => #"THIS IS UPPER"))
 
-     (testing "evaluates and presents results"
+     (testing "evaluates and presents results (with text or not)"
        (type-and-eval "(range)")
-       (async/<! (change-stdout)))
+       (check (async/<! (change-stdout)) => #"\(0 1 2.*\.{3}\)"))
        ; (check  => ""))
 
      (disconnect!)
