@@ -7,8 +7,9 @@
             [clojure.core.async :as async :include-macros true]
             [devcards.core :as cards :include-macros true]
             [clojure.string :as str]
+            [repl-tooling.editor-integration.connection :as conn]
             [repl-tooling.editor-helpers-test]
-            [repl-tooling.editor-integration.connection :as conn]))
+            [repl-tooling.repl-client.parsing-test]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
