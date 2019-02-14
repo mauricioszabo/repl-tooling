@@ -117,17 +117,14 @@
                      (instance? IncompleteStr %)
                      %
 
-                     (not (coll? %))
-                     %
-
                      (and (map? %) (:repl-tooling/... %))
                      (with-meta '... {:get-more (:repl-tooling/... %)})
 
                      :else
                      %)]
     (if (coll? result)
-      {:as-text (walk/prewalk to-string result)}
-      {:as-text (to-string result)})))
+      {:as-text (pr-str (walk/prewalk to-string result))}
+      {:as-text (pr-str (to-string result))})))
 
 (defn- send-result! [res exception? state]
   (let [parsed (parse-res res)
