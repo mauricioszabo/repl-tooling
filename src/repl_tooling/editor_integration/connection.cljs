@@ -33,8 +33,8 @@
                                                   :row row
                                                   :col col
                                                   :namespace (str namespace)}
-                                #(and on-eval (on-eval %))))
-              :description "Evaluates current editor's selection")}})
+                                #(and on-eval (on-eval %)))))
+    :description "Evaluates current editor's selection"}})
 
 (defn connect-unrepl!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
