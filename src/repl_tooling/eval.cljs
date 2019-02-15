@@ -1,6 +1,15 @@
 (ns repl-tooling.eval
   (:refer-clojure :exclude [eval])
-  (:require [cljs.core.async :refer [<! >! chan] :refer-macros [go go-loop]]))
+  (:require [cljs.core.async :refer [<! >! chan] :refer-macros [go go-loop]]
+            [repl-tooling.editor-helpers :as helpers]))
+
+(defprotocol MoreData
+  (without-ellision [self]
+    "Return the object without the {:repl-tooling/... (more-fn)} key")
+
+  (get-more-fn [self]
+    "Returns a function that'll receive an Evaluator and a callback
+will call the callback with the same kind of object with more data"))
 
 (defprotocol Evaluator
   (evaluate [this command opts callback])
@@ -27,3 +36,26 @@
     (swap! (:pending-cmds evaluator) assoc id callback)
     (go (>! (:in evaluator) [id command]))
     id))
+
+(defn- without-ellision-list [lst]
+  (cond-> lst (-> lst last :repl-tooling/...) butlast))
+
+(defn get-more-fn-list [lst]
+  (when-let [fun (-> lst last :repl-tooling/...)]
+    (fn [repl callback]
+      (evaluate repl fun {:ignore? true}
+                #(let [res (-> % helpers/parse-result)]
+                   (callback (concat (without-ellision lst) (:result res))))))))
+
+(extend-protocol MoreData
+  cljs.core/LazySeq
+  (without-ellision [self] (without-ellision-list self))
+  (get-more-fn [self] (get-more-fn-list self))
+
+  cljs.core/IList
+  (without-ellision [self] (without-ellision-list self))
+  (get-more-fn [self] (get-more-fn-list self))
+
+  default
+  (without-ellision [self] self)
+  (get-more-fn [_] nil))

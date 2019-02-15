@@ -9,11 +9,6 @@
             [repl-tooling.eval-helpers :refer-macros [eval-on-repl eval-and-parse]]
             [repl-tooling.repl-client.clojure :as clj]))
 
-; (defmacro eval-on-repl [code]
-;   `(let [result# (async/promise-chan)]
-;     (eval/evaluate ~'repl ~code {} (fn [res#] (async/>! result# res#)))
-;     (async/<! result#)))
-
 (set! cards/test-timeout 8000)
 (cards/deftest evaluate-ellisions
   (async done
@@ -21,10 +16,14 @@
      (client/disconnect! :clj-ellisions-1)
      (let [repl (clj/repl :clj-ellisions-1 "localhost" 2233 identity)]
        (testing "ellisions on lists"
-         (let [res (eval-and-parse "(range)")]
+         (let [res (eval-and-parse "(range)")
+               ellided (async/promise-chan)
+               ellide-fn (eval/get-more-fn (:result res))]
            (check (:as-text res) => "(0 1 2 3 4 5 6 7 8 9 ...)")
-           (check (:as-text res) => "(0 1 2 3 4 5 6 7 8 9 ...)")))
-       ; (async/<! (async/timeout 1000))
-       ; (check 3 => 2)
+           (check (eval/without-ellision (:result res)) => '(0 1 2 3 4 5 6 7 8 9))
+           (ellide-fn repl #(async/put! ellided %))
+           (check (eval/without-ellision (async/<! ellided)) =>
+                  '(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19))))
+
        (client/disconnect! :clj-ellisions-1)
        (done)))))
