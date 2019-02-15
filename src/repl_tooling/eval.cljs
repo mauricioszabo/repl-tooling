@@ -48,11 +48,20 @@ will call the callback with the same kind of object with more data"))
                    (callback (concat (without-ellision lst) (:result res))))))))
 
 (extend-protocol MoreData
+  cljs.core/PersistentVector
+  (without-ellision [self] (pop self))
+  (get-more-fn [self]
+    (when-let [fun (-> self last :repl-tooling/...)]
+      (fn [repl callback]
+        (evaluate repl fun {:ignore? true}
+                  #(let [res (-> % helpers/parse-result)]
+                     (callback (into (without-ellision self) (:result res))))))))
+
   cljs.core/LazySeq
   (without-ellision [self] (without-ellision-list self))
   (get-more-fn [self] (get-more-fn-list self))
 
-  cljs.core/IList
+  cljs.core/List
   (without-ellision [self] (without-ellision-list self))
   (get-more-fn [self] (get-more-fn-list self))
 

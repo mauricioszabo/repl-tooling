@@ -15,6 +15,12 @@
     (async/go
      (client/disconnect! :clj-ellisions-1)
      (let [repl (clj/repl :clj-ellisions-1 "localhost" 2233 identity)]
+       (testing "objects without get-more"
+         (check (eval/get-more-fn (:result (eval-and-parse "'(1 2 3)"))) => nil)
+         (check (eval/get-more-fn (:result (eval-and-parse "[1 2 3]"))) => nil)
+         (check (eval/get-more-fn (:result (eval-and-parse "20"))) => nil)
+         (check (eval/get-more-fn (:result (eval-and-parse "\"SOME STR\""))) => nil))
+
        (testing "ellisions on lists"
          (let [res (eval-and-parse "(range)")
                ellided (async/promise-chan)
@@ -25,5 +31,17 @@
            (check (eval/without-ellision (async/<! ellided)) =>
                   '(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19))))
 
+       (testing "ellisions on vectors"
+         (let [res (eval-and-parse "(vec (range 100))")
+               ellided (async/promise-chan)
+               ellide-fn (eval/get-more-fn (:result res))]
+           (check (:as-text res) => "[0 1 2 3 4 5 6 7 8 9 ...]")
+           (check (eval/without-ellision (:result res)) => [0 1 2 3 4 5 6 7 8 9])
+           (check (eval/without-ellision (:result res)) => vector?)
+           (ellide-fn repl #(async/put! ellided %))
+           (check (async/<! ellided) => vector?)
+           (check (eval/without-ellision (async/<! ellided)) =>
+                  [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19])))
+       (async/<! (async/timeout 200))
        (client/disconnect! :clj-ellisions-1)
        (done)))))
