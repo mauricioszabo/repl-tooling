@@ -7,4 +7,4 @@
     (async/<! result#)))
 
 (defmacro eval-and-parse [code]
-  `(repl-tooling.editor-helpers/parse-result (eval-on-repl "(range)")))
+  `(repl-tooling.editor-helpers/parse-result (eval-on-repl ~code)))
