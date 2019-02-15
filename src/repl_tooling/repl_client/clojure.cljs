@@ -2,6 +2,7 @@
   (:require-macros [repl-tooling.repl-client.clj-helper :refer [blob-contents]])
   (:require [repl-tooling.repl-client.protocols :as repl]
             [repl-tooling.repl-client :as client]
+            [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [cljs.core.async :as async :refer-macros [go go-loop]]
             [cljs.reader :as reader]
@@ -76,16 +77,8 @@
                             (-> @session :state deref :on-output))]
         (reset! session @(:session evaluator))))))
 
-(deftype TaggedObj [tag obj]
-  IPrintWithWriter
-  (-pr-writer [_ writer opts]
-    (-write writer "#")
-    (-write writer tag)
-    (-write writer " ")
-    (-write writer (pr-str obj))))
-
 (defn- default-tags [tag data]
-  (TaggedObj. tag data))
+  (helpers/WithTag. data tag))
 
 (deftype IncompleteStr [string]
   IPrintWithWriter
@@ -114,8 +107,8 @@
 
 (defn- parse-res [result]
   (let [to-string #(cond
-                     (instance? IncompleteStr %)
-                     %
+                     (and (instance? helpers/WithTag %) (-> % helpers/tag (= "#unrepl/string ")))
+                     (-> % helpers/obj first (str "..."))
 
                      (and (map? %) (:repl-tooling/... %))
                      (with-meta '... {:get-more (:repl-tooling/... %)})

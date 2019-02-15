@@ -65,6 +65,20 @@
            (check (async/<! ellided) => map?)
            (check (-> ellided async/<! eval/without-ellision count) => 20)))
 
-       (async/<! (async/timeout 200))
+       (testing "ellisions on strings"
+         (let [res (eval-and-parse "(apply str (range 100))")
+               ellided (async/promise-chan)
+               ellide-fn (eval/get-more-fn (:result res))]
+           (check (:as-text res) => #"\".*\.{3}\"")
+           (check (count (eval/without-ellision (:result res))) => 80)
+           (ellide-fn repl #(async/put! ellided %))
+           (check (-> ellided async/<! eval/without-ellision count) => 160)
+
+           (testing "incomplete strings ellide to complete strings"
+             (let [ellided-again (async/promise-chan)]
+                ((-> ellided async/<! eval/get-more-fn) repl #(async/put! ellided-again %))
+                (check (-> ellided-again async/<! count) => 190)
+                (check (-> ellided-again async/<! eval/get-more-fn) => nil)))))
+
        (client/disconnect! :clj-ellisions-1)
        (done)))))

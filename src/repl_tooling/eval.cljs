@@ -52,13 +52,22 @@ will call the callback with the same kind of object with more data"))
 
 (defn- get-more-map [self]
     (when-let [fun (get-in self [{:repl-tooling/... nil} :repl-tooling/...])]
-      (prn fun)
       (fn [repl callback]
         (evaluate repl fun {:ignore? true}
                   #(let [res (-> % helpers/parse-result)]
                      (callback (merge self (:result res))))))))
 
 (extend-protocol MoreData
+  helpers/IncompleteStr
+  (without-ellision [self]
+    (helpers/only-str self))
+  (get-more-fn [self]
+    (fn [repl callback]
+      (let [fun (-> self meta :get-more)]
+        (evaluate repl fun {:ignore? true}
+                  #(let [res (-> % helpers/parse-result)]
+                     (callback (helpers/concat-with self (:result res))))))))
+
   cljs.core/PersistentHashMap
   (without-ellision [self] (without-map self))
   (get-more-fn [self] (get-more-map self))
