@@ -48,6 +48,15 @@ will call the callback with the same kind of object with more data"))
                    (callback (concat (without-ellision lst) (:result res))))))))
 
 (extend-protocol MoreData
+  cljs.core/PersistentHashSet
+  (without-ellision [self] (->> self (remove :repl-tooling/...) set))
+  (get-more-fn [self]
+    (when-let [fun (->> self (some :repl-tooling/...))]
+      (fn [repl callback]
+        (evaluate repl fun {:ignore? true}
+                  #(let [res (-> % helpers/parse-result)]
+                     (callback (into (without-ellision self) (:result res))))))))
+
   cljs.core/PersistentVector
   (without-ellision [self] (pop self))
   (get-more-fn [self]

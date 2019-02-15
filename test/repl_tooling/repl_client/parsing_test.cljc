@@ -42,6 +42,18 @@
            (check (async/<! ellided) => vector?)
            (check (eval/without-ellision (async/<! ellided)) =>
                   [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19])))
+
+       (testing "ellisions on sets"
+         (let [res (eval-and-parse "(set (range 100))")
+               ellided (async/promise-chan)
+               ellide-fn (eval/get-more-fn (:result res))]
+           ; (check (:as-text res) => #"#\{.*\.{3}\}")
+           (check (count (eval/without-ellision (:result res))) => 10)
+           (check (eval/without-ellision (:result res)) => set?)
+           (ellide-fn repl #(async/put! ellided %))
+           (check (async/<! ellided) => set?)
+           (check (-> ellided async/<! eval/without-ellision count) => 20)))
+
        (async/<! (async/timeout 200))
        (client/disconnect! :clj-ellisions-1)
        (done)))))
