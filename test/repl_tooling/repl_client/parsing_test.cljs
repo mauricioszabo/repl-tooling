@@ -54,6 +54,17 @@
            (check (async/<! ellided) => set?)
            (check (-> ellided async/<! eval/without-ellision count) => 20)))
 
+       (testing "ellisions on maps"
+         (let [res (eval-and-parse "(into {} (map vector (range 100) (range 100)))")
+               ellided (async/promise-chan)
+               ellide-fn (eval/get-more-fn (:result res))]
+           (check (:as-text res) => #"\{.*\.{3}\}")
+           (check (count (eval/without-ellision (:result res))) => 10)
+           (check (eval/without-ellision (:result res)) => set?)
+           (ellide-fn repl #(async/put! ellided %))
+           (check (async/<! ellided) => set?)
+           (check (-> ellided async/<! eval/without-ellision count) => 20)))
+
        (async/<! (async/timeout 200))
        (client/disconnect! :clj-ellisions-1)
        (done)))))
