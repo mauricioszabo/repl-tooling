@@ -47,7 +47,28 @@ will call the callback with the same kind of object with more data"))
                 #(let [res (-> % helpers/parse-result)]
                    (callback (concat (without-ellision lst) (:result res))))))))
 
+(defn- without-map [self]
+  (dissoc self {:repl-tooling/... nil}))
+
+(defn- get-more-map [self]
+    (when-let [fun (get-in self [{:repl-tooling/... nil} :repl-tooling/...])]
+      (prn fun)
+      (fn [repl callback]
+        (evaluate repl fun {:ignore? true}
+                  #(let [res (-> % helpers/parse-result)]
+                     (callback (merge self (:result res))))))))
+
 (extend-protocol MoreData
+  cljs.core/PersistentHashMap
+  (without-ellision [self] (without-map self))
+  (get-more-fn [self] (get-more-map self))
+  cljs.core/PersistentArrayMap
+  (without-ellision [self] (without-map self))
+  (get-more-fn [self] (get-more-map self))
+  cljs.core/PersistentTreeMap
+  (without-ellision [self] (without-map self))
+  (get-more-fn [self] (get-more-map self))
+
   cljs.core/PersistentHashSet
   (without-ellision [self] (->> self (remove :repl-tooling/...) set))
   (get-more-fn [self]
