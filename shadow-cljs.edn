@@ -1,9 +1,10 @@
-;; shadow-cljs configuration
-{:source-paths ["src" "test"]
+{:source-paths ["src" "test" "resources"]
 
- :lein true
- :dependencies [[org.clojure/core.async "0.4.474"]
-                [check "0.0.2-SNAPSHOT"]]
+ :socket-repl {:port 2233}
+ :dependencies [[org.clojure/core.async "0.4.490"]
+                [check "0.0.3-SNAPSHOT"]
+                [reagent "0.8.1"]
+                [devcards "0.2.5"]]
 
  :builds {:tests {:target :node-test
                   :output-to "target/all_tests.js"
@@ -12,4 +13,5 @@
                         :output-dir "target/integration"
                         :asset-path "target/integration"
                         :modules {:main {:entries [repl-tooling.integration.ui]}}
-                        :compiler-options {:devcards true}}}}
+                        :compiler-options {:devcards true
+                                           :infer-externs :auto}}}}
