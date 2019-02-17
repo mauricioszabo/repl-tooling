@@ -88,7 +88,8 @@ will call the callback with the same kind of object with more data"))
                      (callback (into (without-ellision self) (:result res))))))))
 
   cljs.core/PersistentVector
-  (without-ellision [self] (pop self))
+  (without-ellision [self] (cond-> self
+                                   (-> self last :repl-tooling/...) pop))
   (get-more-fn [self]
     (when-let [fun (-> self last :repl-tooling/...)]
       (fn [repl callback]
