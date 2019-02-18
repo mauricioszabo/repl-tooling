@@ -10,6 +10,19 @@
       a.chevron.opened::after {
         content: "v"
       }
+
+      div#result div {
+        display: flex;
+        flex-direction: row;
+      }
+
+      div#result div.row {
+        flex-direction: column;
+      }
+      div#result div .children {
+        flex-direction: column;
+        padding-left: 1em;
+      }
     </style>
   </head>
   <body>
