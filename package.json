@@ -4,9 +4,11 @@
     "start": "electron integration.js"
   },
   "dependencies": {
-    "electron": "^4.0.4",
     "create-react-class": "^15.6.3",
+    "electron": "^4.0.4",
     "react": "^16.8.1",
-    "react-dom": "^16.8.1"
+    "react-dom": "^16.8.1",
+    "shadow-cljs": "^2.7.36",
+    "showdown": "^1.9.0"
   }
 }
