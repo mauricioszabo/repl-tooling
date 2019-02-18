@@ -38,7 +38,8 @@
     (-write writer "#")
     (-write writer tag)
     (-write writer " ")
-    (-write writer obj))
+    ;TODO: See if this will work
+    (-write writer (pr-str obj)))
 
   Taggable
   (obj [_] obj)
