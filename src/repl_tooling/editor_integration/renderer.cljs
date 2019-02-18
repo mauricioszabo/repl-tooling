@@ -1,83 +1,101 @@
 (ns repl-tooling.editor-integration.renderer
   (:require [reagent.core :as r]
+            [clojure.string :as str]
+            [repl-tooling.eval :as eval]
+            [clojure.walk :as walk]
             [repl-tooling.editor-helpers :as helpers]))
 
 (defprotocol Renderable
-  (tp [this])
-  (ellide-fn [this ratom])
-  (children-fn [this])
-  (as-string [this])
-  (as-html [this ratom]))
+  (as-html [this ratom root?]))
 
-#_
-(type '(1 2))
-#_
-(type [1 2 3 4])
-#_
-(type #{})
-#_
-(type {:a 10 :b 20})
+(defprotocol Parseable
+  (as-renderable [self repl]))
 
-; (defn- coll-object)
+(declare ->indexed)
+(defrecord Indexed [open obj close kind expanded? more-fn repl]
+  Renderable
+  (as-html [_ ratom root?]
+    (let [reset-atom #(let [new-idx (->indexed % repl)]
+                         (reset! ratom (assoc new-idx :expanded? expanded?)))
+          inner-parsed (cond-> (mapv #(as-html (deref %) % false) obj)
+                               more-fn
+                               (conj [:a {:href "#"
+                                          :on-click (fn [e]
+                                                      (.preventDefault e)
+                                                      (more-fn repl reset-atom))}
+                                      "..."]))
+          inner (->> inner-parsed
+                     (interpose [:div {:class "whitespace"} ", "])
+                     (map #(with-meta %2 {:key %1}) (range)))]
 
-(extend-protocol Renderable
-  cljs.core/List
-  (tp [_] "list")
-  (as-string [obj] (pr-str (concat (butlast obj) '(...))))
-  (as-html [obj ratom]
-    [:div
-     [:div {:class "list"}
-      [:span {:class "delim"} "("]
-      (doall (map (fn [e i]
-                    [:<> {:key i}
-                     (as-html e (r/cursor ratom i))
-                     [:span {:class "space"} " "]])
-                  (cond-> obj)
-                          ; (if delim?))
-                  (range)))
-      [:span {:class "delim"} ")"]]])
+      [:div {:class ["row" kind]}
+       [:div {:class ["coll" kind]}
+        (when root?
+          [:a {:class ["chevron" (if expanded? "opened" "closed")] :href "#"
+               :on-click (fn [e]
+                           (.preventDefault e)
+                           (swap! ratom update :expanded? not))}])
+        [:div {:class "delim open"} open]
+        [:div {:class "inner"} inner]
+        [:div {:class "delim close"} close]]
 
-  default
-  (tp [obj] (cond
-              (string? obj) "string"
-              (number? obj) "number"
-              (boolean? obj) "bool"
-              (nil? obj) "nil"
-              :else "other"))
-  (as-string [obj] (pr-str obj))
-  (as-html [obj _]
+       (when (and root? expanded?)
+         [:div {:class "children"}
+          [:<>
+           (cond-> (mapv #(as-html (deref %) % true) obj)
+
+                   more-fn (conj [:a {:href "#"
+                                      :on-click (fn [e]
+                                                  (.preventDefault e)
+                                                  (more-fn repl reset-atom))}
+                                  "..."])
+
+                   :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])])))
+
+(defrecord Leaf [obj]
+  Renderable
+  (as-html [_ _ _]
     (let [tp (cond
                (string? obj) "string"
                (number? obj) "number"
                (boolean? obj) "bool"
                (nil? obj) "nil"
                :else "other")]
-      [:span {:class tp} (pr-str obj)])))
+      [:div {:class tp} (pr-str obj)])))
 
-; (defrecord Literal [obj]
-;   Renderable
-;   (tp [_] (cond
-;             (string? obj) "string"
-;             (number? obj) "number"
-;             (boolean? obj) "bool"
-;             (nil? obj) "nil"
-;             :else "other"))
-;   (as-string [_] (pr-str obj)))
+(defn- ->indexed [obj repl]
+  (let [more-fn (eval/get-more-fn obj)
+        children (mapv #(as-renderable % repl) (eval/without-ellision obj))]
+    (cond
+      (vector? obj) (->Indexed "[" children "]" "vector" false more-fn repl)
+      (set? obj) (->Indexed "#{" (vec children) "}" "set" false more-fn repl)
+      (map? obj) (->Indexed "{" (vec children) "}" "map" false more-fn repl)
+      (seq? obj) (->Indexed "(" children ")" "list" false more-fn repl))))
+
+(extend-protocol Parseable
+  default
+  (as-renderable [obj repl ]
+    (r/atom
+      (cond
+        (vector? obj) (->indexed obj repl)
+        (set? obj) (->indexed obj repl)
+        (map? obj) (->indexed obj repl)
+        (seq? obj) (->indexed obj repl)
+        :else (->Leaf obj)))))
 
 (defn parse-result
   "Will parse a result that comes from the REPL in a r/atom so that
 it'll be suitable to be rendered with `view-for-result`"
-  [evaluator result]
+  [result repl]
   (let [parsed (helpers/parse-result result)
         res (:result parsed)]
     (if res
-      (r/atom res)
-      (with-meta (r/atom (:error result)) {:error true}))))
+      (as-renderable res repl)
+      (with-meta (as-renderable (:error result) repl) {:error true}))))
 
 (defn view-for-result
   "Renders a view for a result. If it's an error, will return a view
 suitable for error backtraces. If it's a success, will return a success
 view. Expects a r/atom that comes from `parse-result`"
-  [state]
-  (as-html @state state))
-  ; [:div {:class (tp @state)} (as-string @state)])
+  [state repl]
+  (as-html @state state true))

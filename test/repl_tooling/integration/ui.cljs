@@ -13,7 +13,8 @@
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
-                        :code "(+ 1 2)"
+                        ; :code "{:foo (range) (range 100) (vec (range 100))}"
+                        :code "(range 100)"
                         :repls {:eval nil
                                 :aux nil}
                         :commands {}
@@ -31,8 +32,7 @@
          :commands {}))
 
 (defn- res [result]
-  (swap! state assoc :eval-result (render/parse-result (-> @state :repls :eval)
-                                                       result))
+  (swap! state assoc :eval-result (render/parse-result result (-> @state :repls :eval)))
   (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
 
 (defn connect! []
@@ -76,10 +76,13 @@
        [:button {:on-click disconnect!} "Disconnect!"]]
       [:button {:on-click connect!} "Connect!"])]
    [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]
-   [:div {:id "result"}
+   [:div
     (when-let [res (:eval-result @state)]
-      [:div {:class "result"}
-       (render/view-for-result res)])]
+      [:div
+       [:h5 "RESULT"]
+       [:pre
+        [:div {:id "result" :class "result"}
+         (render/view-for-result res (-> @state :repls :eval))]]])]
    (when-let [out (:stdout @state)]
      [:div
       [:h5 "STDOUT"]
@@ -120,10 +123,13 @@
                     (:stderr @state)))))
 
 (defn- txt-for-selector [sel]
-  (-> js/document
-      (.querySelector sel)
-      .-innerText
-      .trim))
+  (str (some-> js/document
+               (.querySelector sel)
+               .-innerText
+               .trim)))
+
+(defn- click-selector [sel]
+  (-> js/document (.querySelector sel) .click))
 
 (set! cards/test-timeout 8000)
 (cards/deftest repl-evaluation
@@ -152,7 +158,38 @@
      (testing "evaluates and presents big lists"
        (type-and-eval "(range)")
        (check (async/<! (change-stdout)) => #"\(0 1 2.*\.{3}\)")
-       (check  (txt-for-selector "#result") => "(0 1 2 3 4 5 6 7 8 9 ...)"))
+       (check (txt-for-selector "#result") => "(0 1 2 3 4 5 6 7 8 9 ...)")
+       (click-selector "#result a:nth-child(n+2)")
+       (async/<! (wait-for #(->> "#result" txt-for-selector (re-find #"18"))))
+       (check (txt-for-selector "#result") => "(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 ...)")
+
+       (click-selector "#result a")
+       (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"18"))))
+       (check (txt-for-selector "#result .children") => #"0\n1\n2\n3"))
+
+     (testing "evaluates and presents big vectors"
+       (type-and-eval "(vec (range 100))")
+       (check (async/<! (change-stdout)) => #"\[0 1 2.*\.{3}\]")
+       (check (txt-for-selector "#result") => "[0 1 2 3 4 5 6 7 8 9 ...]")
+       (click-selector "#result a:nth-child(n+2)")
+       (async/<! (wait-for #(->> "#result" txt-for-selector (re-find #"18"))))
+       (check (txt-for-selector "#result") => "[0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 ...]")
+
+       (click-selector "#result a")
+       (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"18"))))
+       (check (txt-for-selector "#result .children") => #"0\n1\n2\n3"))
+
+     (testing "evaluates and presents big sets"
+       (type-and-eval "(set (range 100))")
+       (check (async/<! (change-stdout)) => #"\[0 1 2.*\.{3}\]")
+       (check (txt-for-selector "#result") => "[0 1 2 3 4 5 6 7 8 9 ...]")
+       (click-selector "#result a:nth-child(n+2)")
+       (async/<! (wait-for #(->> "#result" txt-for-selector (re-find #"18"))))
+       (check (txt-for-selector "#result") => "[0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 ...]")
+
+       (click-selector "#result a")
+       (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"18"))))
+       (check (txt-for-selector "#result .children") => #"0\n1\n2\n3"))
 
      (disconnect!)
      (done))))
