@@ -11,12 +11,30 @@
 (defprotocol Parseable
   (as-renderable [self repl]))
 
+#_
+((:more-fn new-idx) (:repl new-idx) prn)
+; (more-fn (:repl new-idx) prn)
+
 (declare ->indexed)
 (defrecord Indexed [open obj close kind expanded? more-fn repl]
   Renderable
   (as-html [_ ratom root?]
+    ; (prn [:MORE more-fn])
+    ; (def more-fn more-fn)
     (let [reset-atom #(let [new-idx (->indexed % repl)]
-                         (reset! ratom (assoc new-idx :expanded? expanded?)))
+                        (def obj obj)
+                        (def repl repl)
+                        (def % %)
+                        (def ratom ratom)
+                        (def new-idx new-idx)
+                        (swap! ratom
+                               (fn [indexed]
+                                 (let [new-obj (vec (concat obj (drop (count obj) (:obj new-idx))))
+                                       new-more (:more-fn new-idx)]
+                                   (assoc indexed
+                                          :obj new-obj
+                                          :more-fn new-more
+                                          :repl (:repl new-idx))))))
           inner-parsed (cond-> (mapv #(as-html (deref %) % false) obj)
                                more-fn
                                (conj [:a {:href "#"
@@ -68,18 +86,18 @@
         children (mapv #(as-renderable % repl) (eval/without-ellision obj))]
     (cond
       (vector? obj) (->Indexed "[" children "]" "vector" false more-fn repl)
-      (set? obj) (->Indexed "#{" (vec children) "}" "set" false more-fn repl)
-      (map? obj) (->Indexed "{" (vec children) "}" "map" false more-fn repl)
+      ; (set? obj) (->Indexed "#{" (vec children) "}" "set" false more-fn repl)
+      ; (map? obj) (->Indexed "{" (vec children) "}" "map" false more-fn repl)
       (seq? obj) (->Indexed "(" children ")" "list" false more-fn repl))))
 
 (extend-protocol Parseable
   default
-  (as-renderable [obj repl ]
+  (as-renderable [obj repl]
     (r/atom
       (cond
         (vector? obj) (->indexed obj repl)
-        (set? obj) (->indexed obj repl)
-        (map? obj) (->indexed obj repl)
+        ; (set? obj) (->indexed obj repl)
+        ; (map? obj) (->indexed obj repl)
         (seq? obj) (->indexed obj repl)
         :else (->Leaf obj)))))
 
