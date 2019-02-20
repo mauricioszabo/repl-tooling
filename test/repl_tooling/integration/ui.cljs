@@ -10,11 +10,12 @@
             [repl-tooling.editor-integration.connection :as conn]
             [repl-tooling.editor-helpers-test]
             [repl-tooling.repl-client.parsing-test]))
-
+; (->> (range 100) (map #(vector % (range %))) (into {}))
 (defonce state (r/atom {:host "localhost"
                         :port 2233
-                        ; :code "{:foo (range) (range 100) (vec (range 100))}"
-                        :code "(range 100)"
+                        :code "(do (->> (range 100) (map #(vector % (range %))) (into {})))"
+                        ; :code "(map range (range))"
+                        ; :code "(range 100)"
                         :repls {:eval nil
                                 :aux nil}
                         :commands {}
@@ -155,6 +156,7 @@
        (type-and-eval "(do (ns clojure.string)\n(upper-case \"this is upper\"))")
        (check (async/<! (change-stdout)) => #"THIS IS UPPER"))
 
+     #_
      (testing "evaluates and presents big lists"
        (type-and-eval "(range)")
        (check (async/<! (change-stdout)) => #"\(0 1 2.*\.{3}\)")
@@ -166,7 +168,7 @@
        (click-selector "#result a")
        (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"18"))))
        (check (txt-for-selector "#result .children") => #"0\n1\n2\n3"))
-
+     #_
      (testing "evaluates and presents big vectors"
        (type-and-eval "(vec (range 100))")
        (check (async/<! (change-stdout)) => #"\[0 1 2.*\.{3}\]")
@@ -179,6 +181,7 @@
        (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"18"))))
        (check (txt-for-selector "#result .children") => #"0\n1\n2\n3"))
 
+     #_
      (testing "evaluates and presents big sets"
        (type-and-eval "(set (range 100))")
        (check (async/<! (change-stdout)) => #"\[0 1 2.*\.{3}\]")
