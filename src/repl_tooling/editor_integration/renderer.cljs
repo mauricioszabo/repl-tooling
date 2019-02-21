@@ -19,28 +19,18 @@
 (defrecord Indexed [open obj close kind expanded? more-fn repl]
   Renderable
   (as-html [_ ratom root?]
-    ; (prn [:MORE more-fn])
-    ; (def more-fn more-fn)
     (let [reset-atom #(let [new-idx (->indexed % repl)]
-                        (def obj obj)
-                        (def repl repl)
-                        (def % %)
-                        (def ratom ratom)
-                        (def new-idx new-idx)
                         (swap! ratom
                                (fn [indexed]
-                                 (let [new-obj (vec (concat obj (drop (count obj) (:obj new-idx))))
-                                       new-more (:more-fn new-idx)]
-                                   (assoc indexed
-                                          :obj new-obj
-                                          :more-fn new-more
-                                          :repl (:repl new-idx))))))
+                                 (assoc indexed
+                                        :obj (vec (concat obj (:obj new-idx)))
+                                        :more-fn (:more-fn new-idx)))))
           inner-parsed (cond-> (mapv #(as-html (deref %) % false) obj)
                                more-fn
                                (conj [:a {:href "#"
                                           :on-click (fn [e]
                                                       (.preventDefault e)
-                                                      (more-fn repl reset-atom))}
+                                                      (more-fn repl false reset-atom))}
                                       "..."]))
           inner (->> inner-parsed
                      (interpose [:div {:class "whitespace"} ", "])
@@ -65,7 +55,7 @@
                    more-fn (conj [:a {:href "#"
                                       :on-click (fn [e]
                                                   (.preventDefault e)
-                                                  (more-fn repl reset-atom))}
+                                                  (more-fn repl false reset-atom))}
                                   "..."])
 
                    :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])])))

@@ -42,31 +42,40 @@ will call the callback with the same kind of object with more data"))
 
 (defn get-more-fn-list [lst]
   (when-let [fun (-> lst last :repl-tooling/...)]
-    (fn [repl callback]
-      (evaluate repl fun {:ignore? true}
-                #(let [res (-> % helpers/parse-result)]
-                   (callback (concat (without-ellision lst) (:result res))))))))
+    (fn more
+      ([repl callback] (more repl true callback))
+      ([repl combine? callback]
+       (evaluate repl fun {:ignore? true}
+                 #(let [res (-> % helpers/parse-result)]
+                    (callback (cond->> (:result res)
+                                       combine? (concat (without-ellision lst))))))))))
 
 (defn- without-map [self]
   (dissoc self {:repl-tooling/... nil}))
 
 (defn- get-more-map [self]
     (when-let [fun (get-in self [{:repl-tooling/... nil} :repl-tooling/...])]
-      (fn [repl callback]
-        (evaluate repl fun {:ignore? true}
-                  #(let [res (-> % helpers/parse-result)]
-                     (callback (merge self (:result res))))))))
+      (fn more
+        ([repl callback] (more repl true callback))
+        ([repl combine? callback]
+         (evaluate repl fun {:ignore? true}
+                   #(let [res (-> % helpers/parse-result)]
+                      (callback (cond->> (:result res)
+                                         combine? (merge self)))))))))
 
 (extend-protocol MoreData
   helpers/IncompleteStr
   (without-ellision [self]
     (helpers/only-str self))
   (get-more-fn [self]
-    (fn [repl callback]
-      (let [fun (-> self meta :get-more)]
-        (evaluate repl fun {:ignore? true}
-                  #(let [res (-> % helpers/parse-result)]
-                     (callback (helpers/concat-with self (:result res))))))))
+    (fn more
+      ([repl callback] (more repl true callback))
+      ([repl combine? callback]
+       (let [fun (-> self meta :get-more)]
+         (evaluate repl fun {:ignore? true}
+                   #(let [res (-> % helpers/parse-result)]
+                      (callback (cond->> (:result res)
+                                         combine? (helpers/concat-with self)))))))))
 
   cljs.core/PersistentHashMap
   (without-ellision [self] (without-map self))
@@ -82,20 +91,26 @@ will call the callback with the same kind of object with more data"))
   (without-ellision [self] (->> self (remove :repl-tooling/...) set))
   (get-more-fn [self]
     (when-let [fun (->> self (some :repl-tooling/...))]
-      (fn [repl callback]
-        (evaluate repl fun {:ignore? true}
-                  #(let [res (-> % helpers/parse-result)]
-                     (callback (into (without-ellision self) (:result res))))))))
+      (fn more
+        ([repl callback] (more repl true callback))
+        ([repl combine? callback]
+         (evaluate repl fun {:ignore? true}
+                   #(let [res (-> % helpers/parse-result)]
+                      (callback (cond->> (:result res)
+                                         combine? (into (without-ellision self))))))))))
 
   cljs.core/PersistentVector
   (without-ellision [self] (cond-> self
                                    (-> self last :repl-tooling/...) pop))
   (get-more-fn [self]
     (when-let [fun (-> self last :repl-tooling/...)]
-      (fn [repl callback]
-        (evaluate repl fun {:ignore? true}
-                  #(let [res (-> % helpers/parse-result)]
-                     (callback (into (without-ellision self) (:result res))))))))
+      (fn more
+        ([repl callback] (more repl true callback))
+        ([repl combine? callback]
+         (evaluate repl fun {:ignore? true}
+                   #(let [res (-> % helpers/parse-result)]
+                      (callback (cond->> (:result res)
+                                         combine? (into (without-ellision self))))))))))
 
   cljs.core/LazySeq
   (without-ellision [self] (without-ellision-list self))
