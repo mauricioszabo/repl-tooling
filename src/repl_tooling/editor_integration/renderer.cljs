@@ -12,36 +12,39 @@
   (as-renderable [self repl]))
 
 (declare ->indexed)
+(defn- parse-inner-root [objs more-fn a-for-more]
+  (let [inner (cond-> (mapv #(as-html (deref %) % false) objs)
+                      more-fn (conj a-for-more))]
+    (->> inner
+         (interpose [:div {:class "whitespace"} " "])
+         (map #(with-meta %2 {:key %1}) (range)))))
+
+(defn parse-inner-for-map [objs more-fn a-for-more]
+  (let [sep (cycle [[:div {:class "whitespace"} " "]
+                    [:div {:class "coll whitespace"} ", "]])
+        inner (->> objs
+                   (mapcat #(-> % deref :obj))
+                   (map #(as-html (deref %) % false)))]
+    (-> inner
+        (interleave sep)
+        butlast
+        (cond-> more-fn (conj (second sep) a-for-more))
+        (->> (map #(with-meta %2 {:key %1}) (range))))))
+
 (defrecord Indexed [open obj close kind expanded? more-fn repl]
   Renderable
   (as-html [_ ratom root?]
-    (def kind kind)
-    (def obj obj)
     (let [reset-atom #(let [new-idx (->indexed % repl)]
                         (swap! ratom
                                (fn [indexed]
                                  (assoc indexed
                                         :obj (vec (concat obj (:obj new-idx)))
                                         :more-fn (:more-fn new-idx)))))
-          inner-parsed (cond-> (mapv #(as-html (deref %) % false) obj)
-                               more-fn
-                               (conj [:a {:href "#"
-                                          :on-click (fn [e]
-                                                      (.preventDefault e)
-                                                      (more-fn repl false reset-atom))}
-                                      "..."]))
-          inner (->> inner-parsed
-                     (interpose [:div {:class "whitespace"} " "])
-                     (map #(with-meta %2 {:key %1}) (range)))
-          inner (cond->> inner (= kind "map") (map (fn [e] (-> e
-                                                               (update 2 #(->> % (drop 4)
-                                                                               butlast))))))]
-      ; (def inner-parsed inner-parsed)
-      ;
-      ; (first inner-parsed)
-      ; (-> inner-parsed
-      ;     first
-      ;     (update 2 #(drop 1 %)))
+          a-for-more [:a {:href "#"
+                          :on-click (fn [e]
+                                      (.preventDefault e)
+                                      (more-fn repl false reset-atom))}
+                      "..."]]
 
       [:div {:class ["row" kind]}
        [:div {:class ["coll" kind]}
@@ -51,19 +54,16 @@
                            (.preventDefault e)
                            (swap! ratom update :expanded? not))}])
         [:div {:class "delim open"} open]
-        [:div {:class "inner"} inner]
+        [:div {:class "inner"} (if (= kind "map")
+                                 (parse-inner-for-map obj false a-for-more)
+                                 (parse-inner-root obj more-fn a-for-more))]
         [:div {:class "delim close"} close]]
 
        (when (and root? expanded?)
          [:div {:class "children"}
           [:<>
            (cond-> (mapv #(as-html (deref %) % true) obj)
-
-                   more-fn (conj [:a {:href "#"
-                                      :on-click (fn [e]
-                                                  (.preventDefault e)
-                                                  (more-fn repl false reset-atom))}
-                                  "..."])
+                   more-fn (conj a-for-more)
 
                    :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])])))
 
