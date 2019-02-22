@@ -13,7 +13,11 @@
 ; (->> (range 100) (map #(vector % (range %))) (into {}))
 (defonce state (r/atom {:host "localhost"
                         :port 2233
-                        :code "(do (->> (range 100) (map #(vector % (range %))) (into {})))"
+                        :code "(do
+  (->> (range 100)
+ (map #(vector % (range %)))
+ (into {})))
+ "
                         ; :code "(map range (range))"
                         ; :code "(range 100)"
                         :repls {:eval nil
