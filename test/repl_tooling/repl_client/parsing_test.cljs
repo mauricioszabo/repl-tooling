@@ -80,5 +80,11 @@
                 (check (-> ellided-again async/<! count) => 190)
                 (check (-> ellided-again async/<! eval/get-more-fn) => nil)))))
 
+       (testing "expand ellisions till some function is true"
+         (let [res (eval-and-parse "(range)")
+               ellided (async/promise-chan)]
+           (eval/more-until res #(some #{31} %) #(async/put! ellided %))
+           (check (async/<! ellided) => #(-> % count (= 40)))))
+
        (client/disconnect! :clj-ellisions-1)
        (done)))))
