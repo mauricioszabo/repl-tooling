@@ -1,6 +1,6 @@
 (ns repl-tooling.eval
   (:refer-clojure :exclude [eval])
-  (:require [cljs.core.async :refer [<! >! chan] :refer-macros [go go-loop]]
+  (:require [cljs.core.async :refer [put! <! >! chan] :refer-macros [go go-loop]]
             [repl-tooling.editor-helpers :as helpers]))
 
 (defprotocol MoreData
@@ -10,6 +10,23 @@
   (get-more-fn [self]
     "Returns a function that'll receive an Evaluator and a callback
 will call the callback with the same kind of object with more data"))
+
+(defn more-until
+  ([repl obj fun callback] (more-until repl obj 100 fun callback))
+  ([repl obj max-expansions fun callback]
+   (let [c (chan)]
+     (go-loop [obj obj
+               n 0]
+       (if (fun obj)
+         (callback obj)
+         (if (= n max-expansions)
+           (callback obj)
+           (if-let [more (get-more-fn obj)]
+             (do
+               (more repl #(put! c %))
+               (recur (<! c) (inc n)))
+             (callback obj))))))))
+
 
 (defprotocol Evaluator
   (evaluate [this command opts callback])
@@ -64,6 +81,17 @@ will call the callback with the same kind of object with more data"))
                                          combine? (merge self)))))))))
 
 (extend-protocol MoreData
+  helpers/WithTag
+  (without-ellision [self]
+    (helpers/WithTag. (without-ellision (helpers/obj self))
+                      (helpers/tag self)))
+  (get-more-fn [self]
+    (when-let [fun (get-more-fn (helpers/obj self))]
+      (fn more
+        ([repl callback] (more repl true callback))
+        ([repl combine? callback]
+         (fun repl combine? #(helpers/WithTag. % (helpers/tag self)))))))
+
   helpers/IncompleteStr
   (without-ellision [self]
     (helpers/only-str self))

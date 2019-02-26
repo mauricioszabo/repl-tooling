@@ -80,11 +80,29 @@
                 (check (-> ellided-again async/<! count) => 190)
                 (check (-> ellided-again async/<! eval/get-more-fn) => nil)))))
 
+       (testing "no ellisions on taggable code"
+         (let [code  "(do
+                        (deftype Ball [a])
+                        (defmethod print-method Ball [d ^java.io.Writer w]
+                          (.write w \"#BAR 'FOOBAR\"))
+                        (Ball. 102030))"
+               not-ellided (:result (eval-and-parse code))]
+           (check (eval/get-more-fn not-ellided) => nil)))
+
+       (testing "ellisions on taggable code"
+         (let [ellided (-> "(do (defrecord Foo [a b]) (->Foo (range 20) 20))"
+                           eval-and-parse :result)
+               more-data (async/promise-chan)]
+           (check (-> ellided helpers/obj :a count) => 11)))
+           ; ; (check (-> ellided eval/without-ellision helpers/obj :a count) => 10)))
+           ; ((eval/get-more-fn ellided) repl #(async/put! more-data %))
+           ; (check (-> more-data async/<! helpers/obj :a count) => 21)))
+
        (testing "expand ellisions till some function is true"
          (let [res (eval-and-parse "(range)")
                ellided (async/promise-chan)]
-           (eval/more-until res #(some #{31} %) #(async/put! ellided %))
-           (check (async/<! ellided) => #(-> % count (= 40)))))
+           (eval/more-until repl (:result res) #(some #{31} %) #(async/put! ellided %))
+           (check (count (async/<! ellided)) => 41)))
 
        (client/disconnect! :clj-ellisions-1)
        (done)))))
