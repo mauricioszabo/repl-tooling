@@ -93,7 +93,7 @@
     (let [more-fn (eval/get-more-fn obj)
           children (mapv #(as-renderable % repl)
                          (helpers/obj (eval/without-ellision obj)))]
-      (r/atom (->Indexed (str (helpers/tag obj) " {") (vec children) "}" "map" false more-fn repl))))
+      (r/atom (->Indexed (str (helpers/tag obj) " {") (vec children) "}" "record" false more-fn repl))))
 
   default
   (as-renderable [obj repl]
