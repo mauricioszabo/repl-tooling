@@ -13,12 +13,12 @@
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
-                        :code "(do
-  (->> (range 100)
- (map #(vector % (range %)))
- (into {})))
- "
-                        ; :code "(map range (range))"
+ ;                        :code "(do
+ ;  (->> (range 100)
+ ; (map #(vector % (range %)))
+ ; (into {})))
+ ; "
+                        :code "(do (defrecord Foo [a b]) (->Foo (range 20) 20))"
                         ; :code "(range 100)"
                         :repls {:eval nil
                                 :aux nil}
@@ -186,7 +186,6 @@
        (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"18"))))
        (check (txt-for-selector "#result .children") => #"0\n1\n2\n3"))
 
-
      (testing "evaluates and presents big sets"
        (type-and-eval "(set (range 100))")
        (async/<! (change-stdout))
@@ -208,6 +207,11 @@
        (click-selector "#result a")
        (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"90"))))
        (check (txt-for-selector "#result .children .row:nth-child(2)") => "[\n:b\n90\n]"))
+
+     (testing "evaluates and presents taggable objects"
+       (type-and-eval "(do (defrecord Foo [a b]) (->Foo (range 20) 20))")
+       (check (async/<! (change-stdout)) => #"(?m)#.*Foo \{:a")
+       (check (txt-for-selector "#result") => #"#clojure.string.Foo "))
      (disconnect!)
      (done))))
 
