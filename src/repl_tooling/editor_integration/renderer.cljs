@@ -88,14 +88,18 @@
       (seq? obj) (->Indexed "(" children ")" "list" false more-fn repl))))
 
 (extend-protocol Parseable
+  helpers/WithTag
+  (as-renderable [obj repl]
+    (let [more-fn (eval/get-more-fn obj)
+          children (mapv #(as-renderable % repl)
+                         (helpers/obj (eval/without-ellision obj)))]
+      (r/atom (->Indexed (str (helpers/tag obj) " {") (vec children) "}" "map" false more-fn repl))))
+
   default
   (as-renderable [obj repl]
     (r/atom
       (cond
-        (vector? obj) (->indexed obj repl)
-        (set? obj) (->indexed obj repl)
-        (map? obj) (->indexed obj repl)
-        (seq? obj) (->indexed obj repl)
+        (coll? obj) (->indexed obj repl)
         :else (->Leaf obj)))))
 
 (defn parse-result
