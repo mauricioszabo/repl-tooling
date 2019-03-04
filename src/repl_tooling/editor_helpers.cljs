@@ -76,8 +76,10 @@
                                    'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
                                    'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
                                    'unrepl.java/class (fn [k] (WithTag. k "class"))
+                                   ; FIXME: solve in the future this object
+                                   'unrepl/browsable (fn [[o]] o)
                                    'repl-tooling/literal-render #(LiteralRender. %)}
-                         :default default-tag} res)
+                         :default default-tag res})
     (catch :default _
       (symbol res))))
 

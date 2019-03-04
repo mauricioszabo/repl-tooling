@@ -9,8 +9,8 @@
 
 (defn evaluate-code [in pending command opts callback]
   (let [id (gensym)
-        code (str "(cljs.core/pr-str (try (clojure.core/let [res\n" command
-                  "\n] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
+        code (str "(cljs.core/pr-str (try (clojure.core/let [res\n(do\n" command
+                  "\n)] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
                   "['" id " :error (cljs.core/pr-str {:obj (cljs.core/pr-str e) :type (.-type e) "
                   ":message (.-message e) :trace (.-stack e)})])))\n")]
     (swap! pending assoc id {:callback callback :ignore (:ignore opts)})
