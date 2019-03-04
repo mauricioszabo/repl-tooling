@@ -90,7 +90,9 @@ will call the callback with the same kind of object with more data"))
       (fn more
         ([repl callback] (more repl true callback))
         ([repl combine? callback]
-         (fun repl combine? #(helpers/WithTag. % (helpers/tag self)))))))
+         (fun repl combine? #(do
+                               (prn combine? %)
+                               (helpers/WithTag. % (helpers/tag self))))))))
 
   helpers/IncompleteStr
   (without-ellision [self]
