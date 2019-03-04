@@ -31,6 +31,28 @@
         (cond-> more-fn (conj (second sep) a-for-more))
         (->> (map #(with-meta %2 {:key %1}) (range))))))
 
+(defrecord ObjWithMore [obj-atom more-fn attributes-atom expanded? repl]
+  Renderable
+  (as-html [_ ratom root?]
+    [:div {:class ["browseable"]}
+     [:div {:class ["object"]}
+      (as-html @obj-atom obj-atom root?)
+      (when more-fn
+        [:a {:href "#"
+             :on-click (fn [e]
+                         (.preventDefault e)
+                         ; (prn (deref (as-renderable % repl)))
+                         (more-fn repl #(do (prn %)
+                                          (swap! ratom assoc
+                                                 :more-fn nil
+                                                 :expanded? true
+                                                 :attributes-atom (as-renderable (:attributes %) repl)))))}
+         ; (reset! ratom (deref (as-renderable % repl))))))}
+         (when root? "...")])]
+     (when (and root? expanded?)
+       [:div {:class "row children"}
+        (as-html @attributes-atom attributes-atom true)])]))
+
 (defrecord Indexed [open obj close kind expanded? more-fn repl]
   Renderable
   (as-html [_ ratom root?]
@@ -87,6 +109,15 @@
       (seq? obj) (->Indexed "(" children ")" "list" false more-fn repl))))
 
 (extend-protocol Parseable
+  helpers/Browseable
+  (as-renderable [self repl]
+    (let [{:keys [object attributes]} self]
+      (r/atom (->ObjWithMore (as-renderable object repl)
+                             (eval/get-more-fn self)
+                             (as-renderable attributes repl)
+                             false
+                             repl))))
+
   helpers/WithTag
   (as-renderable [self repl]
     (let [tag (helpers/tag self)

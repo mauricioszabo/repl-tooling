@@ -86,18 +86,17 @@ will call the callback with the same kind of object with more data"))
     (:object self))
 
   (get-more-fn [self]
-    (when-let [fun (:more-fn self)]
+    (when-let [fun (or (:more-fn self) (get-more-fn (:attributes self)))]
       (fn more
         ([repl callback] (more repl true callback))
         ([repl combine? callback]
-         (let [call #(let [not-ellided (without-ellision %)
-                           more-fn (get-more-fn %)]
-                       (callback (cond->> not-ellided
+         (let [call #(let [not-ellided (without-ellision %)]
+                       (callback (cond->> %
                                           combine? (assoc self
-                                                          :more-fn more-fn
+                                                          :more-fn nil
                                                           :attributes))))]
            (if (coll? fun)
-             (evaluate repl fun {:ignore? true} #(call (-> % helpers/parse-result :result)))
+             (evaluate repl fun {:ignore? true} #(call (-> % ((fn [e] (prn e) e)) helpers/parse-result :result)))
              (fun repl call)))))))
 
   helpers/WithTag
