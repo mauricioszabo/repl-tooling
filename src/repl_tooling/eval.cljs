@@ -96,7 +96,7 @@ will call the callback with the same kind of object with more data"))
                                                           :more-fn nil
                                                           :attributes))))]
            (if (coll? fun)
-             (evaluate repl fun {:ignore? true} #(call (-> % ((fn [e] (prn e) e)) helpers/parse-result :result)))
+             (evaluate repl fun {:ignore? true} #(-> % helpers/parse-result :result call))
              (fun repl call)))))))
 
   helpers/WithTag

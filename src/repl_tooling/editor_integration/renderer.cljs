@@ -41,12 +41,10 @@
         [:a {:href "#"
              :on-click (fn [e]
                          (.preventDefault e)
-                         ; (prn (deref (as-renderable % repl)))
-                         (more-fn repl #(do (prn %)
-                                          (swap! ratom assoc
-                                                 :more-fn nil
-                                                 :expanded? true
-                                                 :attributes-atom (as-renderable (:attributes %) repl)))))}
+                         (more-fn repl #(swap! ratom assoc
+                                               :more-fn nil
+                                               :expanded? true
+                                               :attributes-atom (as-renderable (:attributes %) repl))))}
          ; (reset! ratom (deref (as-renderable % repl))))))}
          (when root? "...")])]
      (when (and root? expanded?)

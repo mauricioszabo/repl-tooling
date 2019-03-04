@@ -45,35 +45,43 @@
   (obj [_] obj)
   (tag [_] (str "#" tag " ")))
 
-(declare read-result)
-(defn- as-obj [data]
-  (let [params (last data)
-        parse-obj (fn [[class obj-id repr]]
-                    (WithTag. (merge (:bean params)
-                                     {:class class
-                                      :object-id obj-id
-                                      :repr repr})
-                              "object"))]
-
-    (if-let [as-str (:pr-str params)]
-      (if (or (instance? IncompleteStr as-str)
-              (str/starts-with? (str as-str) "#object["))
-        (parse-obj data)
-        (read-result as-str))
-      (parse-obj data))))
-
-(defn- default-tag [tag data]
-  (case (str tag)
-    "clojure/var" (->> data (str "#'") symbol)
-    "unrepl/object" (as-obj data)
-    (WithTag. data tag)))
-
 (defrecord Browseable [object more-fn attributes])
 
 (defn- ->browseable [object additional-data]
   (if (and (instance? WithTag object) (= "#class " (tag object)))
     (let [[f s] (obj object)] (->Browseable f (:repl-tooling/... s) nil))
     (->Browseable object (:repl-tooling/... additional-data) nil)))
+
+(declare read-result)
+(defn- as-obj [data]
+  (let [params (last data)
+        [class pr-str obj-id repr] data
+        add-params (fn []
+                     (merge (:bean params)
+                            {:class class
+                             :object-id obj-id
+                             :repr repr}))
+        parse-obj (fn []
+                    (WithTag. (merge (:bean params)
+                                     {:class class
+                                      :object-id obj-id
+                                      :repr repr})
+                              "object"))]
+
+    (if-let [as-str (second data)]
+      (if (or (instance? IncompleteStr as-str)
+              (str/starts-with? (str as-str) "#object["))
+        (->browseable (symbol repr)
+                      (get (:bean params) {:repl-tooling/... nil}))
+        (->browseable (read-result as-str)
+                      (get (:bean params) {:repl-tooling/... nil})))
+      (parse-obj))))
+
+(defn- default-tag [tag data]
+  (case (str tag)
+    "clojure/var" (->> data (str "#'") symbol)
+    "unrepl/object" (as-obj data)
+    (WithTag. data tag)))
 
 (defn read-result [res]
   (try
