@@ -156,7 +156,6 @@
   (-> js/document (.querySelector sel) .click))
 
 (set! cards/test-timeout 8000)
-#_
 (cards/deftest repl-evaluation
   (async done
     (async/go
