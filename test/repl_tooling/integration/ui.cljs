@@ -1,5 +1,6 @@
 (ns repl-tooling.integration.ui
   (:require [reagent.core :as r]
+            [clojure.walk :as walk]
             [repl-tooling.integration.ui-macros :as ui :include-macros true]
             [repl-tooling.editor-integration.renderer :as render]
             [clojure.test :refer [async testing is] :include-macros true]
@@ -26,19 +27,20 @@
                         :commands {}
                         :stdout nil
                         :stderr nil
-                        :eval-result nil}))
+                        :eval-result (r/atom nil)}))
 
 (defn disconnect! []
   (conn/disconnect!))
 
 (defn handle-disconnect []
+  (reset! (:eval-result @state) nil)
   (swap! state assoc
          :repls {:eval nil :aux nil}
-         :stdout nil :stderr nil :eval-result nil
+         :stdout nil :stderr nil
          :commands {}))
 
 (defn- res [result]
-  (swap! state assoc :eval-result (render/parse-result result (-> @state :repls :eval)))
+  (reset! (:eval-result @state) (render/parse-result result (-> @state :repls :eval)))
   (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
 
 (defn connect! []
@@ -83,7 +85,7 @@
       [:button {:on-click connect!} "Connect!"])]
    [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]
    [:div
-    (when-let [res (:eval-result @state)]
+    (when-let [res @(:eval-result @state)]
       [:div
        [:h5 "RESULT"]
        [:pre
@@ -97,6 +99,18 @@
      [:div
       [:h5 "STDERR"]
       [:pre out]])])
+
+(cards/defcard-rg rendered-result
+  (fn [result]
+    [:div
+     (pr-str
+      (walk/prewalk
+       #(if (satisfies? IDeref %)
+          (cond-> @% (map? @%) (dissoc :repl))
+          %)
+       @result))])
+  (:eval-result @state)
+  {:watch-atom true})
 
 (cards/defcard-rg fake-editor
   fake-editor
@@ -142,6 +156,7 @@
   (-> js/document (.querySelector sel) .click))
 
 (set! cards/test-timeout 8000)
+#_
 (cards/deftest repl-evaluation
   (async done
     (async/go
