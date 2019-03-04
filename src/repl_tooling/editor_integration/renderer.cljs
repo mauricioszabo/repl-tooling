@@ -54,7 +54,7 @@
                            (.preventDefault e)
                            (swap! ratom update :expanded? not))}])
         [:div {:class "delim open"} open]
-        [:div {:class "inner"} (if (= kind "map")
+        [:div {:class "inner"} (if (#{"map"} kind)
                                  (parse-inner-for-map obj false a-for-more)
                                  (parse-inner-root obj more-fn a-for-more))]
         [:div {:class "delim close"} close]]
@@ -64,7 +64,6 @@
           [:<>
            (cond-> (mapv #(as-html (deref %) % true) obj)
                    more-fn (conj a-for-more)
-
                    :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])])))
 
 (defrecord Leaf [obj]
@@ -89,12 +88,14 @@
 
 (extend-protocol Parseable
   helpers/WithTag
-  (as-renderable [obj repl]
-    (let [more-fn (eval/get-more-fn obj)
-          children (mapv #(as-renderable % repl)
-                         (helpers/obj (eval/without-ellision obj)))]
-      (r/atom (->Indexed (str (helpers/tag obj) " {") (vec children) "}" "record" 
-                         false more-fn repl))))
+  (as-renderable [self repl]
+    (let [tag (helpers/tag self)
+          subelement (-> self helpers/obj (as-renderable repl))]
+      (r/atom
+        (reify Renderable
+          (as-html [_ ratom root?]
+            [:div {:class "tagged"} [:span {:class "tag"} tag]
+             (as-html @subelement subelement root?)])))))
 
   default
   (as-renderable [obj repl]
