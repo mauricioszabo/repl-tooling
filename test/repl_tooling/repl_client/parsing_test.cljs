@@ -98,6 +98,18 @@
            ; ((eval/get-more-fn ellided) repl #(async/put! more-data %))
            ; (check (-> more-data async/<! helpers/obj :a count) => 21)))
 
+       (testing "ellisions on browseable"
+         (let [res (-> "java.util.List" eval-and-parse :result)
+               more-data (async/promise-chan)
+               even-more-data (async/promise-chan)
+               ellide-fn (eval/get-more-fn res)]
+           (check (eval/without-ellision res) => 'java.util.List)
+           (ellide-fn repl #(async/put! more-data %))
+           (check (-> more-data async/<! :attributes count) => 10)
+
+           ((-> more-data async/<! eval/get-more-fn) repl #(async/put! even-more-data %))
+           (check (-> even-more-data async/<! :attributes count) => 20)))
+
        (testing "expand ellisions till some function is true"
          (let [res (eval-and-parse "(range)")
                ellided (async/promise-chan)]

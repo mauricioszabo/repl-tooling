@@ -81,6 +81,25 @@ will call the callback with the same kind of object with more data"))
                                          combine? (merge self)))))))))
 
 (extend-protocol MoreData
+  helpers/Browseable
+  (without-ellision [self]
+    (:object self))
+
+  (get-more-fn [self]
+    (when-let [fun (:more-fn self)]
+      (fn more
+        ([repl callback] (more repl true callback))
+        ([repl combine? callback]
+         (let [call #(let [not-ellided (without-ellision %)
+                           more-fn (get-more-fn %)]
+                       (callback (cond->> not-ellided
+                                          combine? (assoc self
+                                                          :more-fn more-fn
+                                                          :attributes))))]
+           (if (coll? fun)
+             (evaluate repl fun {:ignore? true} #(call (-> % helpers/parse-result :result)))
+             (fun repl call)))))))
+
   helpers/WithTag
   (without-ellision [self]
     (helpers/WithTag. (without-ellision (helpers/obj self))
@@ -90,9 +109,7 @@ will call the callback with the same kind of object with more data"))
       (fn more
         ([repl callback] (more repl true callback))
         ([repl combine? callback]
-         (fun repl combine? #(do
-                               (prn combine? %)
-                               (helpers/WithTag. % (helpers/tag self))))))))
+         (fun repl combine? #(helpers/WithTag. % (helpers/tag self)))))))
 
   helpers/IncompleteStr
   (without-ellision [self]

@@ -204,6 +204,12 @@
        (ui/click-nth-link-and-assert-children
         "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 ) ] [ :b 20 ]" 1))
 
+     (testing "evaluates and presents classes"
+       (ui/assert-out "java.lang.Object ..."
+                      "Object"))
+
+
+     #_
      (testing "evaluates and presents taggable objects"
        (ui/assert-out #"java\.lang\.Object@[\da-f]+ \.\.\."
                       "(Object.)"))

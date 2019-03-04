@@ -68,6 +68,13 @@
     "unrepl/object" (as-obj data)
     (WithTag. data tag)))
 
+(defrecord Browseable [object more-fn attributes])
+
+(defn- ->browseable [object additional-data]
+  (if (and (instance? WithTag object) (= "#class " (tag object)))
+    (let [[f s] (obj object)] (->Browseable f (:repl-tooling/... s) nil))
+    (->Browseable object (:repl-tooling/... additional-data) nil)))
+
 (defn read-result [res]
   (try
     (reader/read-string {:readers {'unrepl/string #(IncompleteStr. %)
@@ -77,9 +84,11 @@
                                    'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
                                    'unrepl.java/class (fn [k] (WithTag. k "class"))
                                    ; FIXME: solve in the future this object
-                                   'unrepl/browsable (fn [[o]] o)
+                                   'unrepl/browsable (fn [[a b]]
+                                                       (->browseable a b))
                                    'repl-tooling/literal-render #(LiteralRender. %)}
-                         :default default-tag res})
+                         :default default-tag}
+                        res)
     (catch :default _
       (symbol res))))
 
