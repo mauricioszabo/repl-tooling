@@ -75,8 +75,7 @@
                                    'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
                                    'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
                                    'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
-                                   'unrepl.java/class (fn [k]
-                                                        (WithTag. k "class"))
+                                   'unrepl.java/class (fn [k] (WithTag. k "class"))
                                    'repl-tooling/literal-render #(LiteralRender. %)}
                          :default default-tag} res)
     (catch :default _

@@ -1,5 +1,6 @@
 (ns repl-tooling.integration.ui
   (:require [reagent.core :as r]
+            [repl-tooling.integration.ui-macros :as ui :include-macros true]
             [repl-tooling.editor-integration.renderer :as render]
             [clojure.test :refer [async testing is] :include-macros true]
             [check.core :refer-macros [check]]
@@ -132,6 +133,10 @@
                (.querySelector sel)
                .-innerText
                .trim)))
+(defn- change-result []
+  (let [old (txt-for-selector "#result")]
+    (wait-for #(and (not= old (txt-for-selector "#result"))
+                    (txt-for-selector "#result")))))
 
 (defn- click-selector [sel]
   (-> js/document (.querySelector sel) .click))
@@ -161,57 +166,48 @@
        (check (async/<! (change-stdout)) => #"THIS IS UPPER"))
 
      (testing "evaluates and presents big lists"
-       (type-and-eval "(range)")
-       (check (async/<! (change-stdout)) => #"\(0 1 2.*\.{3}\)")
-       (check (txt-for-selector "#result") => "(\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n...\n)")
-       (click-selector "#result a:nth-child(n+2)")
-       (async/<! (wait-for #(->> "#result" txt-for-selector (re-find #"18"))))
-       (check (txt-for-selector "#result") =>
-              "(\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n...\n)")
-
-       (click-selector "#result a")
-       (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"18"))))
-       (check (txt-for-selector "#result .children") => #"0\n1\n2\n3"))
+       (ui/assert-out "( 0 1 2 3 4 5 6 7 8 9 ... )" "(range)")
+       (ui/click-nth-link-and-assert
+        "( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 ... )" 2)
+       (ui/click-nth-link-and-assert-children
+        "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 ..." 1)
+       (testing "toggle off"
+         (ui/click-nth-link-and-assert-children "" 1)))
 
      (testing "evaluates and presents big vectors"
-       (type-and-eval "(vec (range 100))")
-       (check (async/<! (change-stdout)) => #"\[0 1 2.*\.{3}\]")
-       (check (txt-for-selector "#result") => "[\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n...\n]")
-       (click-selector "#result a:nth-child(n+2)")
-       (async/<! (wait-for #(->> "#result" txt-for-selector (re-find #"18"))))
-       (check (txt-for-selector "#result") =>
-              "[\n0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n...\n]")
-
-       (click-selector "#result a")
-       (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"18"))))
-       (check (txt-for-selector "#result .children") => #"0\n1\n2\n3"))
+       (ui/assert-out "[ 0 1 2 3 4 5 6 7 8 9 ... ]" "(vec (range 14))")
+       (ui/click-nth-link-and-assert
+        "[ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 ]" 2)
+       (ui/click-nth-link-and-assert-children
+        "0 1 2 3 4 5 6 7 8 9 10 11 12 13" 1))
 
      (testing "evaluates and presents big sets"
-       (type-and-eval "(set (range 100))")
-       (async/<! (change-stdout))
-       ; (check (async/<! (change-stdout)) => #"#\{0.*\.{3}\}"))
-       (check (txt-for-selector "#result") => #"#\{(.|\n)+\.{3}\n\}"))
-       ; (click-selector "#result a:nth-child(n+2)"))
-       ; (async/<! (wait-for #(->> "#result" txt-for-selector (re-find #"18"))))
-       ; (check (txt-for-selector "#result") => "[0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 ...]"))
-       ;
-       ; (click-selector "#result a")
-       ; (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"18"))))
-       ; (check (txt-for-selector "#result .children") => #"0\n1\n2\n3"))
+       (ui/assert-out "#{ 0 1 2 3 4 5 6 7 8 9 ... }" "(apply sorted-set (range 14))")
+       (ui/click-nth-link-and-assert
+        "#{ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 }" 2)
+       (ui/click-nth-link-and-assert-children
+        "0 1 2 3 4 5 6 7 8 9 10 11 12 13" 1))
 
      (testing "evaluates and presents maps"
-       (type-and-eval "(sorted-map :a [1 2 3] :b 90)")
-       (async/<! (change-stdout))
-       ; (check (async/<! (change-stdout)) => #"#\{0.*\.{3}\}"))
-       (check (txt-for-selector "#result") => #"\{\n:a\n\[\n1\n2\n3\n\]\n, \n:b\n90\n\}")
-       (click-selector "#result a")
-       (async/<! (wait-for #(->> "#result .children" txt-for-selector (re-find #"90"))))
-       (check (txt-for-selector "#result .children .row:nth-child(2)") => "[\n:b\n90\n]"))
+       (ui/assert-out "{ :a ( 0 1 2 3 4 5 6 7 8 9 ... ) ,  :b 90 }"
+                      "(sorted-map :a (range 12) :b 90)")
+       (ui/click-nth-link-and-assert
+        "{ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 ) ,  :b 90 }" 2)
+       (ui/click-nth-link-and-assert-children
+        "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 ) ] [ :b 90 ]" 1))
 
      (testing "evaluates and presents taggable objects"
-       (type-and-eval "(do (defrecord Foo [a b]) (->Foo (range 20) 20))")
-       (check (async/<! (change-stdout)) => #"(?m)#.*Foo \{:a")
-       (check (txt-for-selector "#result") => #"#clojure.string.Foo "))
+       (ui/assert-out #"#.+Foo  \{ :a \( 0 1 2 3 4 5 6 7 8 9 ... \) ,  :b 20 \}"
+                      "(do (defrecord Foo [a b]) (->Foo (range 15) 20))")
+       (ui/click-nth-link-and-assert
+        #"#.+Foo  \{ :a \( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 \) ,  :b 20 \}" 2)
+       (ui/click-nth-link-and-assert-children
+        "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 ) ] [ :b 20 ]" 1))
+
+     (testing "evaluates and presents taggable objects"
+       (ui/assert-out #"java\.lang\.Object@[\da-f]+ \.\.\."
+                      "(Object.)"))
+
      (disconnect!)
      (done))))
 
