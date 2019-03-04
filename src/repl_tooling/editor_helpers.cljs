@@ -56,11 +56,6 @@
 (defn- as-obj [data]
   (let [params (last data)
         [class pr-str obj-id repr] data
-        add-params (fn []
-                     (merge (:bean params)
-                            {:class class
-                             :object-id obj-id
-                             :repr repr}))
         parse-obj (fn []
                     (WithTag. (merge (:bean params)
                                      {:class class
