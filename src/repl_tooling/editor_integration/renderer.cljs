@@ -16,12 +16,12 @@
   (let [inner (cond-> (mapv #(as-html (deref %) % false) objs)
                       more-fn (conj a-for-more))]
     (->> inner
-         (interpose [:div {:class "whitespace"} " "])
+         (interpose [:span {:class "whitespace"} " "])
          (map #(with-meta %2 {:key %1}) (range)))))
 
 (defn parse-inner-for-map [objs more-fn a-for-more]
-  (let [sep (cycle [[:div {:class "whitespace"} " "]
-                    [:div {:class "coll whitespace"} ", "]])
+  (let [sep (cycle [[:span {:class "whitespace"} " "]
+                    [:span {:class "coll whitespace"} ", "]])
         inner (->> objs
                    (mapcat #(-> % deref :obj))
                    (map #(as-html (deref %) % false)))]
@@ -73,11 +73,11 @@
                :on-click (fn [e]
                            (.preventDefault e)
                            (swap! ratom update :expanded? not))}])
-        [:div {:class "delim open"} open]
+        [:div {:class "delim opening"} open]
         [:div {:class "inner"} (if (#{"map"} kind)
                                  (parse-inner-for-map obj false a-for-more)
                                  (parse-inner-root obj more-fn a-for-more))]
-        [:div {:class "delim close"} close]]
+        [:div {:class "delim closing"} close]]
 
        (when (and root? expanded?)
          [:div {:class "children"}
@@ -148,4 +148,4 @@ it'll be suitable to be rendered with `view-for-result`"
 suitable for error backtraces. If it's a success, will return a success
 view. Expects a r/atom that comes from `parse-result`"
   [state repl]
-  (as-html @state state true))
+  [as-html @state state true])
