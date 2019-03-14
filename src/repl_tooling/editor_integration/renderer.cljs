@@ -137,10 +137,9 @@
   "Will parse a result that comes from the REPL in a r/atom so that
 it'll be suitable to be rendered with `view-for-result`"
   [result repl]
-  (let [parsed (helpers/parse-result result)
-        res (:result parsed)]
-    (if res
-      (as-renderable res repl)
+  (let [parsed (helpers/parse-result result)]
+    (if (contains? parsed :result)
+      (as-renderable (:result parsed) repl)
       (with-meta (as-renderable (:error result) repl) {:error true}))))
 
 (defn view-for-result

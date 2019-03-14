@@ -167,6 +167,11 @@
        (check (async/<! (txt-in-stdout #"=> 5")) => "=> 5")
        (check (txt-for-selector "#result") => "5"))
 
+     (testing "displays booleans"
+       (ui/assert-out "true" "true")
+       (ui/assert-out "false" "false")
+       (ui/assert-out "nil" "nil"))
+
      (testing "captures STDOUT"
        (type-and-eval "(println :FOOBAR)")
        (check (async/<! (change-stdout)) => #":FOOBAR"))
