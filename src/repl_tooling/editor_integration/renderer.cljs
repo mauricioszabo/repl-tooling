@@ -11,7 +11,6 @@
 (defprotocol Parseable
   (as-renderable [self repl]))
 
-(declare ->indexed)
 (defn- parse-inner-root [objs more-fn a-for-more]
   (let [inner (cond-> (mapv #(as-html (deref %) % false) objs)
                       more-fn (conj a-for-more))]
@@ -51,6 +50,7 @@
        [:div {:class "row children"}
         (as-html @attributes-atom attributes-atom true)])]))
 
+(declare ->indexed)
 (defrecord Indexed [open obj close kind expanded? more-fn repl]
   Renderable
   (as-html [_ ratom root?]
@@ -106,7 +106,30 @@
       (map? obj) (->Indexed "{" (vec children) "}" "map" false more-fn repl)
       (seq? obj) (->Indexed "(" children ")" "list" false more-fn repl))))
 
+(defrecord IncompleteStr [string repl]
+  Renderable
+  (as-html [_ ratom root?]
+    [:div {:class "string big"}
+     (-> string eval/without-ellision pr-str (str/replace #"\"$" ""))
+     (when-let [get-more (eval/get-more-fn string)]
+       [:a {:href "#"
+            :on-click (fn [e]
+                        (.preventDefault e)
+                        (get-more repl #(swap! ratom assoc :string %)))}
+         "..."])
+     "\""]))
+
+(defrecord Tagged [tag subelement]
+  Renderable
+  (as-html [_ ratom root?]
+    [:div {:class "tagged"} [:span {:class "tag"} tag]
+     (as-html @subelement subelement root?)]))
+
 (extend-protocol Parseable
+  helpers/IncompleteStr
+  (as-renderable [self repl]
+    (r/atom (->IncompleteStr self repl)))
+
   helpers/Browseable
   (as-renderable [self repl]
     (let [{:keys [object attributes]} self]
@@ -120,11 +143,7 @@
   (as-renderable [self repl]
     (let [tag (helpers/tag self)
           subelement (-> self helpers/obj (as-renderable repl))]
-      (r/atom
-        (reify Renderable
-          (as-html [_ ratom root?]
-            [:div {:class "tagged"} [:span {:class "tag"} tag]
-             (as-html @subelement subelement root?)])))))
+      (r/atom (->Tagged tag subelement))))
 
   default
   (as-renderable [obj repl]
