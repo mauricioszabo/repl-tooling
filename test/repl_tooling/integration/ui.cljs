@@ -184,6 +184,16 @@
        (type-and-eval "(do (ns clojure.string)\n(upper-case \"this is upper\"))")
        (check (async/<! (change-stdout)) => #"THIS IS UPPER"))
 
+     (testing "evaluates and presents big strings"
+       (ui/assert-out (str "\"01234567891011121314151617181920212223242526272829"
+                           "303132333435363738394041424344 ... \"")
+                      "(apply str (range 100))")
+       (ui/click-nth-link-and-assert
+        (str "\"0123456789101112131415161718192021222324252627282930313233343"
+             "536373839404142434445464748495051525354555657585960616263646566"
+             "676869707172737475767778798081828384 ... \"")
+        1))
+
      (testing "evaluates and presents big lists"
        (ui/assert-out "( 0 1 2 3 4 5 6 7 8 9 ... )" "(range)")
        (ui/click-nth-link-and-assert
@@ -208,25 +218,24 @@
         "0 1 2 3 4 5 6 7 8 9 10 11 12 13" 1))
 
      (testing "evaluates and presents maps"
-       (ui/assert-out "{ :a ( 0 1 2 3 4 5 6 7 8 9 ... ) ,  :b 90 }"
+       (ui/assert-out "{ :a ( 0 1 2 3 4 5 6 7 8 9 ... ) , :b 90 }"
                       "(sorted-map :a (range 12) :b 90)")
        (ui/click-nth-link-and-assert
-        "{ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 ) ,  :b 90 }" 2)
+        "{ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 ) , :b 90 }" 2)
        (ui/click-nth-link-and-assert-children
         "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 ) ] [ :b 90 ]" 1))
 
      (testing "evaluates and presents taggable objects"
-       (ui/assert-out #"#.+Foo  \{ :a \( 0 1 2 3 4 5 6 7 8 9 ... \) ,  :b 20 \}"
+       (ui/assert-out #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 ... \) , :b 20 \}"
                       "(do (defrecord Foo [a b]) (->Foo (range 15) 20))")
        (ui/click-nth-link-and-assert
-        #"#.+Foo  \{ :a \( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 \) ,  :b 20 \}" 2)
+        #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 \) , :b 20 \}" 2)
        (ui/click-nth-link-and-assert-children
         "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 ) ] [ :b 20 ]" 1))
 
      (testing "evaluates and presents classes"
        (ui/assert-out "java.lang.Object ..."
                       "Object"))
-
 
      #_
      (testing "evaluates and presents taggable objects"

@@ -12,18 +12,18 @@
   `(do
      (~'type-and-eval ~cmd)
      (async/<! (~'change-stdout))
-     (~'check (str/replace (~'txt-for-selector "#result") #"\n" " ") ~'=> ~representation)))
+     (~'check (str/replace (~'txt-for-selector "#result") #"(\n|\s+)+" " ") ~'=> ~representation)))
 
 (defmacro click-nth-link-and-assert [representation nth]
   `(do
      (~'click-selector ~(str "#result a:nth-child(n+" nth ")"))
      (async/<! (~'change-result))
-     (~'check (str/replace (~'txt-for-selector "#result") #"\n" " ")
+     (~'check (str/replace (~'txt-for-selector "#result") #"(\n|\s+)+" " ")
        ~'=> ~representation)))
 
 (defmacro click-nth-link-and-assert-children [representation nth]
   `(do
      (~'click-selector ~(str "#result a:nth-child(n+" nth ")"))
      (async/<! (~'change-result))
-     (~'check (str/replace (~'txt-for-selector "#result .children") #"\n" " ")
+     (~'check (str/replace (~'txt-for-selector "#result .children") #"(\n|\s+)+" " ")
        ~'=> ~representation)))
