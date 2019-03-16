@@ -55,22 +55,10 @@
 (declare read-result)
 (defn- as-obj [data]
   (let [params (last data)
-        [class pr-str obj-id repr] data
-        parse-obj (fn []
-                    (WithTag. (merge (:bean params)
-                                     {:class class
-                                      :object-id obj-id
-                                      :repr repr})
-                              "object"))]
-
-    (if-let [as-str (second data)]
-      (if (or (instance? IncompleteStr as-str)
-              (str/starts-with? (str as-str) "#object["))
-        (->browseable (symbol repr)
-                      (get (:bean params) {:repl-tooling/... nil}))
-        (->browseable (read-result as-str)
-                      (get (:bean params) {:repl-tooling/... nil})))
-      (parse-obj))))
+        [browseable pr-str-obj obj-id repr] data]
+    (if pr-str-obj
+      (->browseable pr-str-obj (get (:bean params) {:repl-tooling/... nil}))
+      (->browseable (str (:object browseable) "@" obj-id) (get (:bean params) {:repl-tooling/... nil})))))
 
 (defn- default-tag [tag data]
   (case (str tag)
