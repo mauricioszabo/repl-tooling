@@ -1,6 +1,8 @@
 (ns repl-tooling.editor-helpers
   (:require [clojure.string :as str]
-            [cljs.reader :as reader]))
+            [cljs.reader :as edn]
+            [clojure.tools.reader.reader-types :as reader-types]
+            [clojure.tools.reader :as reader]))
 
 (deftype LiteralRender [string]
   IPrintWithWriter
@@ -80,18 +82,18 @@
 
 (defn read-result [res]
   (try
-    (reader/read-string {:readers {'unrepl/string #(IncompleteStr. %)
-                                   'unrepl/bad-keyword (fn [[ns name]] (keyword ns name))
-                                   'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
-                                   'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
-                                   'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
-                                   'unrepl.java/class (fn [k] (WithTag. k "class"))
-                                   ; FIXME: solve in the future this object
-                                   'unrepl/browsable (fn [[a b]]
-                                                       (->browseable a b))
-                                   'repl-tooling/literal-render #(LiteralRender. %)}
-                         :default default-tag}
-                        res)
+    (edn/read-string {:readers {'unrepl/string #(IncompleteStr. %)
+                                'unrepl/bad-keyword (fn [[ns name]] (keyword ns name))
+                                'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
+                                'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
+                                'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
+                                'unrepl.java/class (fn [k] (WithTag. k "class"))
+                                ; FIXME: solve in the future this object
+                                'unrepl/browsable (fn [[a b]]
+                                                    (->browseable a b))
+                                'repl-tooling/literal-render #(LiteralRender. %)}
+                      :default default-tag}
+                     res)
     (catch :default _
       (symbol res))))
 
@@ -115,41 +117,6 @@
              "[" "]"
              "{" "}"})
 
-(defn- next-pos [row col text]
-  (if (>= col (-> text (get row) count dec))
-    (if (>= row (dec (count text)))
-      nil
-      [(inc row) 0])
-    [row (inc col)]))
-
-(defn top-levels [text]
-  (let [text (-> text strip-comments str/split-lines)]
-    (loop [forms []
-           {:keys [current close depth start] :as state} nil
-           [row col] [0 0]]
-
-      (let [char (get-in text [row col])
-            next (next-pos row col text)]
-        (cond
-          (nil? row)
-          forms
-
-          (and (nil? current) (delim char))
-          (recur forms {:current char :close (closes char) :depth 0 :start [row col]}
-            next)
-
-          (= current char)
-          (recur forms (update state :depth inc) next)
-
-          (and (zero? depth) (= close char))
-          (recur (conj forms [start [row col]]) nil next)
-
-          (= close char)
-          (recur forms (update state :depth dec) next)
-
-          :else
-          (recur forms  state next))))))
-
 (defn text-in-range [text [[row1 col1] [row2 col2]]]
   (let [lines (str/split-lines text)]
     (-> lines
@@ -159,24 +126,101 @@
         (->> (str/join "\n")))))
 
 (defn- simple-read [str]
-  (reader/read-string {:default (fn [_ res] res)} str))
+  (edn/read-string {:default (fn [_ res] res)} str))
+
+; (defn current-top-block [text row col]
+;   (let [levels (top-levels text)]))
+
+(defn position
+  "Returns the zero-indexed position in a code string given line and column."
+  [code-str row col]
+  (->> code-str
+       str/split-lines
+       (take (dec row))
+       (str/join)
+       count
+       (+ col (dec row)) ;; `(dec row)` to include for newlines
+       dec
+       (max 0)))
+
+(defn search-start
+  "Find the place to start reading from. Search backwards from the starting
+  point, looking for a '[', '{', or '('. If none can be found, search from
+  the beginning of `code-str`."
+  ([code-str start-row start-col]
+   (search-start code-str (position code-str start-row start-col)))
+  ([code-str start-position]
+   (let [openers #{\[ \( \{}]
+     (if (contains? openers (nth code-str start-position))
+       start-position
+       (let [code-str-prefix (subs code-str 0 start-position)]
+         (->> openers
+              (map #(str/last-index-of code-str-prefix %))
+              (remove nil?)
+              (apply max 0)))))))
+
+(defn read-next
+  "Reads the next expression from some code. Uses an `indexing-pushback-reader`
+  to determine how much was read, and return that substring of the original
+  `code-str`, rather than what was actually read by the reader."
+  ([code-str start-row start-col]
+   (let [code-str (subs code-str (search-start code-str start-row start-col))
+         rdr (reader-types/indexing-push-back-reader code-str)]
+     ;; Read a form, but discard it, as we want the original string.
+     (reader/read rdr)
+     (subs code-str
+           0
+           ;; Even though this returns the position *after* the read, this works
+           ;; because subs is end point exclusive.
+           (position code-str
+                     (reader-types/get-line-number rdr)
+                     (reader-types/get-column-number rdr)))))
+  ([code-str start-position]
+   (let [code-str (subs code-str (search-start code-str start-position))
+         rdr (reader-types/indexing-push-back-reader code-str)]
+     ;; Read a form, but discard it, as we want the original string.
+     (reader/read rdr)
+     (subs code-str
+           0
+           ;; Even though this returns the position *after* the read, this works
+           ;; because subs is end point exclusive.
+           (position code-str
+                     (reader-types/get-line-number rdr)
+                     (reader-types/get-column-number rdr))))))
+
+(defn top-levels [text]
+  (let [size (count text)]
+    (loop [curr-pos 0
+           row 0
+           col 0
+           tops []]
+
+      (cond
+        (>= curr-pos size) tops
+        (re-find #"\n" (nth text curr-pos)) (recur (inc curr-pos) (inc row) 0 tops)
+        (re-find #"\s" (nth text curr-pos)) (recur (inc curr-pos) row (inc col) tops)
+        :else (let [nxt (read-next text curr-pos)
+                    last-row (->> nxt (re-seq #"\n") count (+ row))
+                    last-col (-> nxt str/split-lines last count (+ col))]
+                (recur
+                  (+ (count nxt) curr-pos)
+                  last-row
+                  last-col
+                  (conj tops [[[row col]
+                               [last-row (dec last-col)]]
+                              nxt])))))))
 
 (defn ns-range-for [code [[row col]]]
   (let [levels (top-levels code)
-        before-selection? (fn [[[_ _] [erow ecol]]]
+        before-selection? (fn [[[[_ _] [erow ecol]] _]]
                             (or (and (= erow row) (<= col ecol))
                                 (< erow row)))
-        read-str #(simple-read (text-in-range code %))
         is-ns? #(and (list? %) (some-> % first (= 'ns)))]
 
     (->> levels
          (take-while before-selection?)
          reverse
-         (filter #(-> % read-str is-ns?))
+         (map #(update % 1 simple-read))
+         (filter #(-> % peek is-ns?))
+         (map #(update % 1 second))
          first)))
-
-(defn ns-name-for [code range]
-  (some->> (ns-range-for code range) (text-in-range code) simple-read second))
-
-(defn current-top-block [text row col]
-  (let [levels (top-levels text)]))

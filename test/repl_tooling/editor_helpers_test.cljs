@@ -5,6 +5,7 @@
             [repl-tooling.editor-helpers :as editor]
             [repl-tooling.editor-helpers :as helpers]))
 
+#_
 (deftest parsing-data
   (testing "parses taggable object"
     (let [tag (:result (helpers/parse-result {:result "#some/tag {:foo 10, :bar 20}"}))]
@@ -54,6 +55,13 @@
 
 (def algo 10)")
 
+(def clj-with-strings "
+(str 10 (+ 20
+  35) \"(+ 20
+      999)\"
+90)
+")
+
 (deftest stripping-comments
   (testing "simple comments"
     (check (editor/strip-comments "(+ ; foobar)") => "(+ "))
@@ -63,23 +71,24 @@
 
 (deftest toplevel-forms
   (testing "gets top-level forms"
-    (check (map #(editor/text-in-range simple-clj %) (editor/top-levels simple-clj)) =>
-           ["(+ 1 2)"
-            "(+ (3) 4)"
-            "[1 2\n3]"]))
+    (check (editor/top-levels simple-clj) =>
+           [[[[0 0] [0 6]] "(+ 1 2)"]
+            [[[0 8] [0 16]] "(+ (3) 4)"]
+            [[[1 0] [2 1]] "[1 2\n3]"]]))
+
 
   (testing "gets top-level forms in complex CLJ code"
-    (check (editor/top-levels some-clj) => [[[1 0] [1 10]]
-                                            [[3 0] [7 20]]
-                                            [[9 0] [9 10]]
-                                            [[11 0] [11 12]]])))
+    (check (editor/top-levels some-clj)
+           => [[[[1 0] [1 10]] "(ns foobar)"]
+               [[[3 0] [7 20]] "(defn foo [a b c]\n  (+ 1 2) ; ))\n\n (defn bar [x y z]\n   {:a x :b y :c z}))"]
+               [[[9 0] [9 10]] "(ns barbaz)"]
+               [[[11 0] [11 12]] "(def algo 10)"]])))
 
 (def ns-code "(ns foobar)\n(def foo 10)\n(ns barbaz)\n(def wow 1)\n\n")
 (deftest getting-ns
   (testing "getting NS top-level"
-    (check (editor/ns-range-for ns-code [[1 2]]) => [[0 0] [0 10]])
-    (check (editor/ns-range-for ns-code [[1 2]]) => [[0 0] [0 10]]))
+    (check (editor/ns-range-for ns-code [[1 2]]) => [[[0 0] [0 10]] 'foobar])
+    (check (editor/ns-range-for ns-code [[1 2]]) => [[[0 0] [0 10]] 'foobar]))
 
   (testing "getting second NS in form"
-    (check (editor/ns-range-for ns-code [[3 4]]) => [[2 0] [2 10]])
-    (check (editor/ns-name-for ns-code [[3 4]]) => 'barbaz)))
+    (check (editor/ns-range-for ns-code [[3 4]]) => [[[2 0] [2 10]] 'barbaz])))
