@@ -1,6 +1,7 @@
 (defproject repl-tooling "0.0.1"
   :dependencies [[org.clojure/clojurescript "1.10.520"]
-                 [org.clojure/core.async "0.4.490"]]
+                 [org.clojure/core.async "0.4.490"]
+                 [org.clojure/tools.reader "1.3.2"]]
 
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-figwheel "0.5.16"]]
