@@ -27,7 +27,7 @@
                (let [{:keys [contents range filename] :as data} (editor-data)
                      [[row col]] range
                      code (helpers/text-in-range contents range)
-                     namespace (helpers/ns-name-for contents range)]
+                     namespace (peek (helpers/ns-range-for contents range))]
                  (and on-start-eval (on-start-eval data))
                  (eval/evaluate primary contents {:filename filename
                                                   :row row
