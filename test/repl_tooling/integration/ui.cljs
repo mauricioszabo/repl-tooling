@@ -11,7 +11,8 @@
             [clojure.string :as str]
             [repl-tooling.editor-integration.connection :as conn]
             [repl-tooling.editor-helpers-test]
-            [repl-tooling.repl-client.parsing-test]))
+            [repl-tooling.repl-client.parsing-test]
+            [repl-tooling.repl-client.textual-representation-test]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
@@ -90,7 +91,7 @@
        [:h5 "RESULT"]
        [:pre
         [:div {:id "result" :class "result"}
-         (render/view-for-result res (-> @state :repls :eval))]]])]
+         (render/view-for-result res)]]])]
    (when-let [out (:stdout @state)]
      [:div
       [:h5 "STDOUT"]
