@@ -6,7 +6,8 @@
             [repl-tooling.editor-helpers :as helpers]))
 
 (defprotocol Renderable
-  (as-html [this ratom root?]))
+  (as-html [this ratom root?])
+  (as-text [this ratom root?]))
 
 (defprotocol Parseable
   (as-renderable [self repl]))
@@ -95,7 +96,9 @@
                (boolean? obj) "bool"
                (nil? obj) "nil"
                :else "other")]
-      [:div {:class tp} (pr-str obj)])))
+      [:div {:class tp} (pr-str obj)]))
+  (as-text [_ _ _]
+    [:text (pr-str obj)]))
 
 (defn- ->indexed [obj repl]
   (let [more-fn (eval/get-more-fn obj)
@@ -117,7 +120,17 @@
                         (.preventDefault e)
                         (get-more repl #(swap! ratom assoc :string %)))}
          "..."])
-     "\""]))
+     "\""])
+  (as-text [_ ratom root?]
+    [:row
+     [:text (-> string eval/without-ellision pr-str (str/replace #"\"$" ""))]
+     [:button "..." #(let [f (eval/get-more-fn string)]
+                       (f repl (fn [obj]
+                                 (if (string? obj)
+                                   (reset! ratom (->Leaf obj))
+                                   (swap! ratom assoc :string obj))
+                                 (%))))]
+     [:text "\""]]))
 
 (defrecord Tagged [tag subelement]
   Renderable
@@ -165,5 +178,28 @@ it'll be suitable to be rendered with `view-for-result`"
   "Renders a view for a result. If it's an error, will return a view
 suitable for error backtraces. If it's a success, will return a success
 view. Expects a r/atom that comes from `parse-result`"
-  [state repl]
+  [state]
   [as-html @state state true])
+
+(defn txt-for-result
+  "Renders a view for a result, but in textual format. This view will be
+in a pseudo-hiccup format, like so:
+[:row [:expand \"+\" some-fn]
+      [:text \"(1 2 3 4 5 6\"]
+      [:button \"...\" some-funcion]
+      [:text \")\"]]
+
+Where :row defines a row of text, :text a fragment, :button a text that's
+associated with some data (to be able to ellide things) and :expand is to
+make a placeholder that we can expand (+) or collapse (-) the structure"
+  [state]
+  (def state state)
+  (let [txt (as-text @state state true)]
+    (if (-> txt first (= :row))
+      txt
+      [:row txt])))
+
+; (def a (txt-for-result state))
+;
+; (def repl (-> @repl-tooling.integration.ui/state :repls :eval))
+; ((get-in a [2 2]) repl #(prn (type %)))
