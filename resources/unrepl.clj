@@ -1,7 +1,7 @@
 (clojure.core/let [nop (clojure.core/constantly nil)
 done (promise)
 e (clojure.core/atom eval)]
-(-> (create-ns 'unrepl.repl$4XrM6vwicCm3usV2s0OfuJxL8z8)
+(-> (create-ns 'unrepl.repl$LCGtW9Cgr88YHErE3u8GL_79IP4)
 (intern '-init-done)
 (alter-var-root
 (fn [v]
@@ -28,7 +28,7 @@ done))))
 *string-length* Long/MAX_VALUE]
 (write x)))
 (declare ^:once ^:dynamic read ^:once ^:dynamic print ^:once ^:dynamic eval)(ns
-unrepl.printer$3rQXgIxTSvZCR7vd3vSBh9n1KKw
+unrepl.printer$jCMA$egbRLynqAGdd96gTkVQswU
 (:require
 [clojure.string :as str]
 [clojure.edn :as edn]
@@ -316,6 +316,32 @@ m)))
 (if (neg? (compare (mapv *clojure-version* [:major :minor]) [1 9]))
 Throwable->map'
 Throwable->map))
+#_
+(let [l (java.util.LinkedList.)]
+(doseq [n (range 100)] (.add l {:taggable n}))
+l)
+#_
+(let [l (java.util.LinkedList.)]
+(doseq [n (range 1)] (.add l (java.util.UUID/randomUUID)))
+l
+(println
+(full-edn-str l)))
+#_
+(doto (java.util.LinkedList.)
+(.add 10)
+(.add 10)
+(.add 10)
+(.add 10)
+(.add 10)
+(.add 10)
+(.add 10)
+(.add 10)
+(.add 10)
+(.add 10)
+(.add 10)
+(.add 10))
+#_
+(println (edn-str (Object.)))
 (extend-protocol MachinePrintable
 clojure.lang.TaggedLiteral
 (-print-on [x write rem-depth]
@@ -406,6 +432,7 @@ rest (subs x i)]
 (write open)
 (print-vs write x rem-depth)
 (write close))
+(declare full-edn-str)
 (extend-protocol MachinePrintable
 nil
 (-print-on [_ write _] (write "nil"))
@@ -428,12 +455,18 @@ Object
 (seq? x) (print-coll "(" ")" write x rem-depth)
 (set? x) (print-coll "#{" "}" write x rem-depth)
 :else
+(let [repr (binding [*print-length* Long/MAX_VALUE
+*print-level* Long/MAX_VALUE
+unrepl/*string-length* Integer/MAX_VALUE]
+(as-str x))]
 (print-trusted-tag-lit-on write "unrepl/object"
-[(class x) (pr-str x)
+[(class x)
+(try
+(edn/read-string {:default tagged-literal} repr)
+(catch Throwable _ nil))
 (format "0x%x" (System/identityHashCode x)) (object-representation x)
-{:bean {unreachable (tagged-literal 'unrepl/... (*elide* (ElidedKVs. (bean x))))}
-:pr-str (pr-str x)}]
-(sat-inc rem-depth)))))
+{:bean {unreachable (tagged-literal 'unrepl/... (*elide* (ElidedKVs. (bean x))))}}]
+(sat-inc rem-depth))))))
 (defn edn-str [x]
 (let [out (java.io.StringWriter.)
 write (fn [^String s] (.write out s))
@@ -447,11 +480,11 @@ bindings (select-keys (get-thread-bindings) [#'*print-length* #'*print-level* #'
 unrepl/*string-length* Integer/MAX_VALUE]
 (edn-str x)))
 (ns
-unrepl.repl$4XrM6vwicCm3usV2s0OfuJxL8z8
+unrepl.repl$LCGtW9Cgr88YHErE3u8GL_79IP4
 (:require
 [clojure.main :as m]
 [unrepl.core :as unrepl]
-[unrepl.printer$3rQXgIxTSvZCR7vd3vSBh9n1KKw :as p]
+[unrepl.printer$jCMA$egbRLynqAGdd96gTkVQswU :as p]
 [clojure.edn :as edn]
 [clojure.java.io :as io]))
 (defn classloader
@@ -611,12 +644,12 @@ ref (java.lang.ref.SoftReference. x refq)]
 (defonce ^:private elision-store (soft-store #(list `fetch %)))
 (defn fetch [id]
 (if-some [[session-id x] ((:get elision-store) id)]
-(unrepl.printer$3rQXgIxTSvZCR7vd3vSBh9n1KKw.WithBindings.
+(unrepl.printer$jCMA$egbRLynqAGdd96gTkVQswU.WithBindings.
 (select-keys (some-> session-id session :bindings) [#'*print-length* #'*print-level* #'unrepl/*string-length* #'p/*elide*])
 (cond
-(instance? unrepl.printer$3rQXgIxTSvZCR7vd3vSBh9n1KKw.ElidedKVs x) x
+(instance? unrepl.printer$jCMA$egbRLynqAGdd96gTkVQswU.ElidedKVs x) x
 (string? x) x
-(instance? unrepl.printer$3rQXgIxTSvZCR7vd3vSBh9n1KKw.MimeContent x) x
+(instance? unrepl.printer$jCMA$egbRLynqAGdd96gTkVQswU.MimeContent x) x
 :else (seq x)))
 p/unreachable))
 (defn interrupt! [session-id eval]
@@ -862,5 +895,5 @@ interrupted? #(.peek actions-queue)]
 ~expr))
 <<<FIN
 (clojure.core/ns user)
-(unrepl.repl$4XrM6vwicCm3usV2s0OfuJxL8z8/start (clojure.edn/read {:default tagged-literal} *in*))
+(unrepl.repl$LCGtW9Cgr88YHErE3u8GL_79IP4/start (clojure.edn/read {:default tagged-literal} *in*))
 {}
