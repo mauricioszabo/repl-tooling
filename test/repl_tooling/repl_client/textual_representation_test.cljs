@@ -27,13 +27,14 @@
        (testing "rendering big strings"
          (let [after-more (async/promise-chan)
                parsed (render/parse-result (eval-and-parse "(apply str (range 80))") repl)
-               [root txt [btn txt2 more-fn] txt3] (render/txt-for-result parsed)]
+               [root txt [btn txt2 more-fn] txt3] (render/txt-for-result parsed)
+               big-str (str "\"01234567891011121314151617181920212223242526272829"
+                            "303132333435363738394041424344")]
            (check root => :row)
-           (check txt =>
-                  [:text (str "\"01234567891011121314151617181920212223242526272829"
-                              "303132333435363738394041424344")])
+           (check txt => [:text big-str])
            (check txt2 => "...")
            (check txt3 => [:text "\""])
+           (check (render/as-text @parsed parsed false) => [:text (str big-str "...\"")])
 
            (more-fn #(async/put! after-more parsed))
            (check (render/txt-for-result (async/<! after-more)) =>
@@ -48,9 +49,9 @@
            (check row => :row)
            (check (take 2 expand) => [:expand "+"])
            (check text => [:text "[1 2]"])
-           ((last expand))
 
-           (testing "expanding vectors"
+           (testing "expanding"
+             ((last expand))
              (let [[row expand text row1 row2] (render/txt-for-result parsed)]
                (check row => :row)
                (check (take 2 expand) => [:expand "-"])
@@ -58,7 +59,36 @@
                (check row1 => [:row [:text "1"]])
                (check row2 => [:row [:text "2"]])))))
 
+       (testing "rendering nested vectors"
+         (let [parsed (render/parse-result (eval-and-parse "[[1] [2]]") repl)
+               [row expand text] (render/txt-for-result parsed)]
+           (check row => :row)
+           (check (take 2 expand) => [:expand "+"])
+           (check text => [:text "[[1] [2]]"])))
+
+       (testing "rendering maps"
+         (let [parsed (render/parse-result (eval-and-parse "{:foo 1 :bar 2}") repl)
+               [row expand text] (render/txt-for-result parsed)]
+           (check row => :row)
+           (check (take 2 expand) => [:expand "+"])
+           (check text => [:text "{:foo 1, :bar 2}"])
+           (testing "expanding"
+             ((last expand))
+             (let [[row expand text [_ _ row1] [_ _ row2]] (render/txt-for-result parsed)]
+               (check row => :row)
+               (check (take 2 expand) => [:expand "-"])
+               (check text => [:text "{:foo 1, :bar 2}"])
+               (check row1 => [:text "[:foo 1]"])
+               (check row2 => [:text "[:bar 2]"])))))
+
+       ; (testing "rendering ellisions"
+       ;   (map))
+
+
        (async/<! (async/timeout 1000))
 
        (client/disconnect! :clj-ellisions-1)
        (done)))))
+
+; (->> (range 100) (map #(vector % [%])) (into (sorted-map)))
+(sorted-map :a 10 :b 20)
