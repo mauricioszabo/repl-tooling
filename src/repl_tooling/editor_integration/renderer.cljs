@@ -45,11 +45,19 @@
                                                :more-fn nil
                                                :expanded? true
                                                :attributes-atom (as-renderable (:attributes %) repl))))}
-         ; (reset! ratom (deref (as-renderable % repl))))))}
          (when root? "...")])]
      (when (and root? expanded?)
        [:div {:class "row children"}
         (as-html @attributes-atom attributes-atom true)])]))
+
+(defn- combine-txts [text-nodes]
+  (let [texts (map second text-nodes)]
+    (str/join " " texts)))
+
+(defn- assert-root [txt]
+  (if (-> txt first (= :row))
+    txt
+    [:row txt]))
 
 (declare ->indexed)
 (defrecord Indexed [open obj close kind expanded? more-fn repl]
@@ -76,6 +84,7 @@
                            (swap! ratom update :expanded? not))}])
         [:div {:class "delim opening"} open]
         [:div {:class "inner"} (if (#{"map"} kind)
+                                 ; FIXME: false?
                                  (parse-inner-for-map obj false a-for-more)
                                  (parse-inner-root obj more-fn a-for-more))]
         [:div {:class "delim closing"} close]]
@@ -85,7 +94,18 @@
           [:<>
            (cond-> (mapv #(as-html (deref %) % true) obj)
                    more-fn (conj a-for-more)
-                   :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])])))
+                   :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])]))
+
+  (as-text [_ ratom root?]
+    (let [children (map #(as-text @% % false) obj)
+          toggle #(swap! ratom update :expanded? not)
+          rows [:row
+                [:expand (if expanded? "-" "+") toggle]
+                [:text (str open (combine-txts children) close)]]]
+      (if expanded?
+        (apply conj rows (map #(assert-root (as-text @% % true)) obj))
+        rows))))
+
 
 (defrecord Leaf [obj]
   Renderable
@@ -186,7 +206,7 @@ view. Expects a r/atom that comes from `parse-result`"
 in a pseudo-hiccup format, like so:
 [:row [:expand \"+\" some-fn]
       [:text \"(1 2 3 4 5 6\"]
-      [:button \"...\" some-funcion]
+      [:button \"...\" some-fn]
       [:text \")\"]]
 
 Where :row defines a row of text, :text a fragment, :button a text that's
@@ -194,10 +214,7 @@ associated with some data (to be able to ellide things) and :expand is to
 make a placeholder that we can expand (+) or collapse (-) the structure"
   [state]
   (def state state)
-  (let [txt (as-text @state state true)]
-    (if (-> txt first (= :row))
-      txt
-      [:row txt])))
+  (assert-root (as-text @state state true)))
 
 ; (def a (txt-for-result state))
 ;

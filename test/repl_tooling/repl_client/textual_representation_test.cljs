@@ -41,9 +41,22 @@
                                     "82930313233343536373839404142434445464748495051"
                                     "525354555657585960616263646566676869707172737475"
                                     "76777879\"")]])))
-                  ; [:row
-                  ;  [:button "..." #()]
-                  ;  [:text "\""]])))
+
+       (testing "rendering simple vectors"
+         (let [parsed (render/parse-result (eval-and-parse "[1 2]") repl)
+               [row expand text] (render/txt-for-result parsed)]
+           (check row => :row)
+           (check (take 2 expand) => [:expand "+"])
+           (check text => [:text "[1 2]"])
+           ((last expand))
+
+           (testing "expanding vectors"
+             (let [[row expand text row1 row2] (render/txt-for-result parsed)]
+               (check row => :row)
+               (check (take 2 expand) => [:expand "-"])
+               (check text => [:text "[1 2]"])
+               (check row1 => [:row [:text "1"]])
+               (check row2 => [:row [:text "2"]])))))
 
        (async/<! (async/timeout 1000))
 
