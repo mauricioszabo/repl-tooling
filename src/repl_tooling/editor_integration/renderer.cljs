@@ -28,6 +28,7 @@
     (-> inner
         (interleave sep)
         butlast
+        vec
         (cond-> more-fn (conj (second sep) a-for-more))
         (->> (map #(with-meta %2 {:key %1}) (range))))))
 
@@ -48,11 +49,7 @@
          (when root? "...")])]
      (when (and root? expanded?)
        [:div {:class "row children"}
-        (as-html @attributes-atom attributes-atom true)])]))
-
-(defn- combine-txts [text-nodes]
-  (let [texts (map second text-nodes)]
-    (str/join " " texts)))
+        [as-html @attributes-atom attributes-atom true]])]))
 
 (defn- assert-root [txt]
   (if (-> txt first (= :row))
@@ -84,8 +81,7 @@
                            (swap! ratom update :expanded? not))}])
         [:div {:class "delim opening"} open]
         [:div {:class "inner"} (if (#{"map"} kind)
-                                 ; FIXME: false?
-                                 (parse-inner-for-map obj false a-for-more)
+                                 (parse-inner-for-map obj more-fn a-for-more)
                                  (parse-inner-root obj more-fn a-for-more))]
         [:div {:class "delim closing"} close]]
 
@@ -99,13 +95,19 @@
   (as-text [_ ratom root?]
     (let [children (map #(as-text @% % false) obj)
           toggle #(swap! ratom update :expanded? not)
-          rows [:row
-                [:expand (if expanded? "-" "+") toggle]
-                [:text (str open (combine-txts children) close)]]]
+          extract-map #(-> % second (str/replace #"^\[" "") (str/replace #"\]$" ""))
+          txt (if (= "map" kind)
+                [:text (->> obj
+                            (map #(extract-map (as-text @% % false)))
+                            (str/join ", ")
+                            (#(str open % close)))]
+               [:text (str open (->> children (map second) (str/join " ")) close)])
+          rows (if root?
+                 [:row [:expand (if expanded? "-" "+") toggle] txt]
+                 txt)]
       (if expanded?
         (apply conj rows (map #(assert-root (as-text @% % true)) obj))
         rows))))
-
 
 (defrecord Leaf [obj]
   Renderable
@@ -133,30 +135,32 @@
   Renderable
   (as-html [_ ratom root?]
     [:div {:class "string big"}
-     (-> string eval/without-ellision pr-str (str/replace #"\"$" ""))
+     [:span (-> string eval/without-ellision pr-str (str/replace #"\"$" ""))]
      (when-let [get-more (eval/get-more-fn string)]
        [:a {:href "#"
             :on-click (fn [e]
                         (.preventDefault e)
-                        (get-more repl #(swap! ratom assoc :string %)))}
+                        (get-more repl #(prn (swap! ratom assoc :string %))))}
          "..."])
      "\""])
   (as-text [_ ratom root?]
-    [:row
-     [:text (-> string eval/without-ellision pr-str (str/replace #"\"$" ""))]
-     [:button "..." #(let [f (eval/get-more-fn string)]
-                       (f repl (fn [obj]
-                                 (if (string? obj)
-                                   (reset! ratom (->Leaf obj))
-                                   (swap! ratom assoc :string obj))
-                                 (%))))]
-     [:text "\""]]))
+    (if root?
+      [:row
+       [:text (-> string eval/without-ellision pr-str (str/replace #"\"$" ""))]
+       [:button "..." #(let [f (eval/get-more-fn string)]
+                         (f repl (fn [obj]
+                                   (if (string? obj)
+                                     (reset! ratom (->Leaf obj))
+                                     (swap! ratom assoc :string obj))
+                                   (%))))]
+       [:text "\""]]
+      [:text (pr-str string)])))
 
 (defrecord Tagged [tag subelement]
   Renderable
   (as-html [_ ratom root?]
     [:div {:class "tagged"} [:span {:class "tag"} tag]
-     (as-html @subelement subelement root?)]))
+     [as-html @subelement subelement root?]]))
 
 (extend-protocol Parseable
   helpers/IncompleteStr
