@@ -18,8 +18,8 @@
 (cards/deftest evaluate-to-text
   (async done
     (async/go
-     (client/disconnect! :clj-ellisions-1)
-     (let [repl (clj/repl :clj-ellisions-1 "localhost" 2233 identity)]
+     (client/disconnect! :clj-text-1)
+     (let [repl (clj/repl :clj-text-1 "localhost" 2233 identity)]
 
        (testing "rendering leafs"
          (check (as-txt (eval-and-parse "10") repl) => [:row [:text "10"]]))
@@ -81,13 +81,26 @@
                (check row1 => [:text "[:foo 1]"])
                (check row2 => [:text "[:bar 2]"])))))
 
-       ; (testing "rendering ellisions"
-       ;   (map))
+       (testing "rendering ellisions on lists"
+         (let [parsed (render/parse-result (eval-and-parse "(range 20)") repl)
+               [row expand text ellision end] (render/txt-for-result parsed)]
+           (check row => :row)
+           (check text => [:text "(0 1 2 3 4 5 6 7 8 9"])
+           (check (take 2 ellision) => [:button "..."])
+           (check end => [:text ")"])
+           (testing "clicking on button"
+             (let [wait (async/promise-chan)
+                   more-fn (last ellision)]
+               (more-fn #(async/put! wait :done))
+               (async/<! wait)
+              (check (last (render/txt-for-result parsed)) =>
+                     [:text "(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19)"])))))
+
 
 
        (async/<! (async/timeout 1000))
 
-       (client/disconnect! :clj-ellisions-1)
+       (client/disconnect! :clj-text-1)
        (done)))))
 
 ; (->> (range 100) (map #(vector % [%])) (into (sorted-map)))

@@ -57,57 +57,69 @@
     [:row txt]))
 
 (declare ->indexed)
+(defn- reset-atom [repl ratom obj result]
+  (let [new-idx (->indexed result repl)]
+    (swap! ratom
+           (fn [indexed]
+             (assoc indexed
+                    :obj (vec (concat obj (:obj new-idx)))
+                    :more-fn (:more-fn new-idx))))))
+
 (defrecord Indexed [open obj close kind expanded? more-fn repl]
   Renderable
   (as-html [_ ratom root?]
-    (let [reset-atom #(let [new-idx (->indexed % repl)]
-                        (swap! ratom
-                               (fn [indexed]
-                                 (assoc indexed
-                                        :obj (vec (concat obj (:obj new-idx)))
-                                        :more-fn (:more-fn new-idx)))))
-          a-for-more [:a {:href "#"
-                          :on-click (fn [e]
-                                      (.preventDefault e)
-                                      (more-fn repl false reset-atom))}
-                      "..."]]
+           (let [a-for-more [:a {:href "#"
+                                 :on-click (fn [e]
+                                             (.preventDefault e)
+                                             (more-fn repl false #(reset-atom repl ratom obj %)))}
+                             "..."]]
 
-      [:div {:class ["row" kind]}
-       [:div {:class ["coll" kind]}
-        (when root?
-          [:a {:class ["chevron" (if expanded? "opened" "closed")] :href "#"
-               :on-click (fn [e]
-                           (.preventDefault e)
-                           (swap! ratom update :expanded? not))}])
-        [:div {:class "delim opening"} open]
-        [:div {:class "inner"} (if (#{"map"} kind)
-                                 (parse-inner-for-map obj more-fn a-for-more)
-                                 (parse-inner-root obj more-fn a-for-more))]
-        [:div {:class "delim closing"} close]]
+             [:div {:class ["row" kind]}
+              [:div {:class ["coll" kind]}
+               (when root?
+                 [:a {:class ["chevron" (if expanded? "opened" "closed")] :href "#"
+                      :on-click (fn [e]
+                                  (.preventDefault e)
+                                  (swap! ratom update :expanded? not))}])
+               [:div {:class "delim opening"} open]
+               [:div {:class "inner"} (if (#{"map"} kind)
+                                        (parse-inner-for-map obj more-fn a-for-more)
+                                        (parse-inner-root obj more-fn a-for-more))]
+               [:div {:class "delim closing"} close]]
 
-       (when (and root? expanded?)
-         [:div {:class "children"}
-          [:<>
-           (cond-> (mapv #(as-html (deref %) % true) obj)
-                   more-fn (conj a-for-more)
-                   :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])]))
+              (when (and root? expanded?)
+                [:div {:class "children"}
+                 [:<>
+                  (cond-> (mapv #(as-html (deref %) % true) obj)
+                          more-fn (conj a-for-more)
+                          :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])]))
 
   (as-text [_ ratom root?]
-    (let [children (map #(as-text @% % false) obj)
-          toggle #(swap! ratom update :expanded? not)
-          extract-map #(-> % second (str/replace #"^\[" "") (str/replace #"\]$" ""))
-          txt (if (= "map" kind)
-                [:text (->> obj
-                            (map #(extract-map (as-text @% % false)))
-                            (str/join ", ")
-                            (#(str open % close)))]
-               [:text (str open (->> children (map second) (str/join " ")) close)])
-          rows (if root?
-                 [:row [:expand (if expanded? "-" "+") toggle] txt]
-                 txt)]
-      (if expanded?
-        (apply conj rows (map #(assert-root (as-text @% % true)) obj))
-        rows))))
+           (let [children (map #(as-text @% % false) obj)
+                 toggle #(swap! ratom update :expanded? not)
+                 extract-map #(-> % second (str/replace #"^\[" "") (str/replace #"\]$" ""))
+                 txt (if (= "map" kind)
+                       [:text (->> obj
+                                   (map #(extract-map (as-text @% % false)))
+                                   (str/join ", "))]
+                       [:text (->> children (map second) (str/join " "))])
+                 complete-txt (delay (update txt 1 #(str open % close)))
+                 root-part (delay [:expand (if expanded? "-" "+") toggle])
+                 rows (cond
+                        (not root?) @complete-txt
+                        more-fn [:row
+                                 @root-part
+                                 (update txt 1 #(str open %))
+                                 [:button "..." (fn [callback]
+                                                  (more-fn repl false
+                                                           #(do
+                                                              (reset-atom repl ratom obj %)
+                                                              (callback))))]
+                                 [:text close]]
+                        :else [:row @root-part @complete-txt])]
+             (if expanded?
+               (apply conj rows (map #(assert-root (as-text @% % true)) obj))
+               rows))))
 
 (defrecord Leaf [obj]
   Renderable
