@@ -236,21 +236,22 @@ make a placeholder that we can expand (+) or collapse (-) the structure"
 (defn- parse-funs [funs last-elem curr-text elem]
   (let [txt-size (-> elem (nth 1) count)
         curr-row (count curr-text)
-        factor (if (-> elem first (= :expand)) 0 1)
         fun (peek elem)]
     (reduce (fn [funs col] (assoc funs [last-elem col] fun))
-            funs (range (+ factor curr-row) (+ curr-row txt-size factor)))))
+            funs (range curr-row (+ curr-row txt-size)))))
 
 (defn- parse-elem [position lines funs depth]
   (let [[elem text function] position
         last-elem (-> lines count dec)
         indent (->> depth (* 2) range (map (constantly " ")) (apply str) delay)
         last-line (peek lines)
-        curr-text (cond-> last-line (empty? last-line) (str @indent))]
+        curr-text (if (empty? last-line)
+                    @indent
+                    (str last-line " "))]
     (case elem
       :row (recur (rest position) (conj lines "") funs (inc depth))
       :text [(assoc lines last-elem (str curr-text text)) funs]
-      :button [(assoc lines last-elem (str curr-text " " text " "))
+      :button [(assoc lines last-elem (str curr-text text))
                (parse-funs funs last-elem curr-text position)]
       :expand [(assoc lines last-elem (str curr-text text " "))
                (parse-funs funs last-elem curr-text position)]

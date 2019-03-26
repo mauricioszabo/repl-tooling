@@ -24,10 +24,10 @@
        (testing "textual representation to pure text"
          (check (render/repr->lines [:row [:text "foobar"]]) => [["foobar"] {}])
          (check (render/repr->lines [:row [:text "foobar"] [:button "..." :f]])
-                => [["foobar ... "] {[0 7] :f [0 8] :f [0 9] :f}])
+                => [["foobar ..."] {[0 7] :f [0 8] :f [0 9] :f}])
 
          (check (render/repr->lines [:row [:text "foobar"]
-                                     [:row [:expand "+" :e] [:text "Sub"]]])
+                                     [:row [:button "+" :e] [:text "Sub"]]])
                 => [["foobar" "  + Sub"] {[1 2] :e}]))
 
        (testing "rendering leafs"
@@ -111,8 +111,6 @@
                (async/<! wait)
               (check (last (render/txt-for-result parsed)) =>
                      [:text "(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19)"])))))
-
-
 
        (async/<! (async/timeout 1000))
 
