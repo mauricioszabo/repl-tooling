@@ -21,6 +21,15 @@
      (client/disconnect! :clj-text-1)
      (let [repl (clj/repl :clj-text-1 "localhost" 2233 identity)]
 
+       (testing "textual representation to pure text"
+         (check (render/repr->lines [:row [:text "foobar"]]) => [["foobar"] {}])
+         (check (render/repr->lines [:row [:text "foobar"] [:button "..." :f]])
+                => [["foobar ... "] {[0 7] :f [0 8] :f [0 9] :f}])
+
+         (check (render/repr->lines [:row [:text "foobar"]
+                                     [:row [:expand "+" :e] [:text "Sub"]]])
+                => [["foobar" "  + Sub"] {[1 2] :e}]))
+
        (testing "rendering leafs"
          (check (as-txt (eval-and-parse "10") repl) => [:row [:text "10"]]))
 
@@ -51,7 +60,7 @@
            (check text => [:text "[1 2]"])
 
            (testing "expanding"
-             ((last expand))
+             ((last expand) identity)
              (let [[row expand text row1 row2] (render/txt-for-result parsed)]
                (check row => :row)
                (check (take 2 expand) => [:expand "-"])
@@ -73,7 +82,7 @@
            (check (take 2 expand) => [:expand "+"])
            (check text => [:text "{:foo 1, :bar 2}"])
            (testing "expanding"
-             ((last expand))
+             ((last expand) identity)
              (let [[row expand text [_ _ row1] [_ _ row2]] (render/txt-for-result parsed)]
                (check row => :row)
                (check (take 2 expand) => [:expand "-"])
@@ -88,7 +97,14 @@
            (check text => [:text "(0 1 2 3 4 5 6 7 8 9"])
            (check (take 2 ellision) => [:button "..."])
            (check end => [:text ")"])
+           (testing "expanding"
+             ((last expand) identity)
+             ; (prn (->> parsed render/txt-for-result last last (take 2)))
+             (check (->> parsed render/txt-for-result last last (take 2)) =>
+                    [:button "..."]))
+
            (testing "clicking on button"
+             ((last expand) identity)
              (let [wait (async/promise-chan)
                    more-fn (last ellision)]
                (more-fn #(async/put! wait :done))
@@ -102,6 +118,3 @@
 
        (client/disconnect! :clj-text-1)
        (done)))))
-
-; (->> (range 100) (map #(vector % [%])) (into (sorted-map)))
-(sorted-map :a 10 :b 20)

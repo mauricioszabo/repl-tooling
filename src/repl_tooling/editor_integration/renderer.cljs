@@ -103,6 +103,11 @@
                                    (map #(extract-map (as-text @% % false)))
                                    (str/join ", "))]
                        [:text (->> children (map second) (str/join " "))])
+                 more-callback (fn [callback]
+                                 (more-fn repl false
+                                          #(do
+                                             (reset-atom repl ratom obj %)
+                                             (callback))))
                  complete-txt (delay (update txt 1 #(str open % close)))
                  root-part (delay [:expand (if expanded? "-" "+") toggle])
                  rows (cond
@@ -110,15 +115,12 @@
                         more-fn [:row
                                  @root-part
                                  (update txt 1 #(str open %))
-                                 [:button "..." (fn [callback]
-                                                  (more-fn repl false
-                                                           #(do
-                                                              (reset-atom repl ratom obj %)
-                                                              (callback))))]
+                                 [:button "..." more-callback]
                                  [:text close]]
                         :else [:row @root-part @complete-txt])]
              (if expanded?
-               (apply conj rows (map #(assert-root (as-text @% % true)) obj))
+               (cond-> (apply conj rows (map #(assert-root (as-text @% % true)) obj))
+                       more-fn (conj [:row [:button "..." more-callback]]))
                rows))))
 
 (defrecord Leaf [obj]
@@ -229,10 +231,31 @@ Where :row defines a row of text, :text a fragment, :button a text that's
 associated with some data (to be able to ellide things) and :expand is to
 make a placeholder that we can expand (+) or collapse (-) the structure"
   [state]
-  (def state state)
   (assert-root (as-text @state state true)))
 
-; (def a (txt-for-result state))
-;
-; (def repl (-> @repl-tooling.integration.ui/state :repls :eval))
-; ((get-in a [2 2]) repl #(prn (type %)))
+(defn- parse-funs [funs last-elem curr-text elem]
+  (let [txt-size (-> elem (nth 1) count)
+        curr-row (count curr-text)
+        factor (if (-> elem first (= :expand)) 0 1)
+        fun (peek elem)]
+    (reduce (fn [funs col] (assoc funs [last-elem col] fun))
+            funs (range (+ factor curr-row) (+ curr-row txt-size factor)))))
+
+(defn- parse-elem [position lines funs depth]
+  (let [[elem text function] position
+        last-elem (-> lines count dec)
+        indent (->> depth (* 2) range (map (constantly " ")) (apply str) delay)
+        last-line (peek lines)
+        curr-text (cond-> last-line (empty? last-line) (str @indent))]
+    (case elem
+      :row (recur (rest position) (conj lines "") funs (inc depth))
+      :text [(assoc lines last-elem (str curr-text text)) funs]
+      :button [(assoc lines last-elem (str curr-text " " text " "))
+               (parse-funs funs last-elem curr-text position)]
+      :expand [(assoc lines last-elem (str curr-text text " "))
+               (parse-funs funs last-elem curr-text position)]
+      (reduce (fn [[lines funs] position] (parse-elem position lines funs depth))
+              [lines funs] position))))
+
+(defn repr->lines [repr]
+  (parse-elem repr [] {} -1))
