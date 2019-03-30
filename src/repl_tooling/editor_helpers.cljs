@@ -203,7 +203,7 @@
 (defn ns-range-for
   "Gets the current NS range (and ns name) for the current code, considering
 that the cursor is in row and col (0-based)"
-  [code [[row col]]]
+  [code [row col]]
   (let [levels (top-levels code)
         before-selection? (fn [[[[_ _] [erow ecol]] _]]
                             (or (and (= erow row) (<= col ecol))

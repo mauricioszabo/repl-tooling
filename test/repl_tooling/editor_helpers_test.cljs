@@ -62,8 +62,8 @@
 (def ns-code "(ns foobar)\n(def foo 10)\n(ns barbaz)\n(def wow 1)\n\n")
 (deftest getting-ns
   (testing "getting NS top-level"
-    (check (editor/ns-range-for ns-code [[1 2]]) => [[[0 0] [0 10]] 'foobar])
-    (check (editor/ns-range-for ns-code [[1 2]]) => [[[0 0] [0 10]] 'foobar]))
+    (check (editor/ns-range-for ns-code [1 2]) => [[[0 0] [0 10]] 'foobar])
+    (check (editor/ns-range-for ns-code [1 2]) => [[[0 0] [0 10]] 'foobar]))
 
   (testing "getting second NS in form"
-    (check (editor/ns-range-for ns-code [[3 4]]) => [[[2 0] [2 10]] 'barbaz])))
+    (check (editor/ns-range-for ns-code [3 4]) => [[[2 0] [2 10]] 'barbaz])))

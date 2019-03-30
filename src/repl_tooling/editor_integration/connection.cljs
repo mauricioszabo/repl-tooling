@@ -20,6 +20,27 @@
   (when (or (:result output) (:error output))
     (and on-result (on-result (helpers/parse-result output)))))
 
+(defn- ensure-data [data-or-promise call]
+  (if (instance? js/Promise data-or-promise)
+    (. data-or-promise then #(call %))
+    (call data-or-promise)))
+
+(defn- eval-block [repl data on-start-eval on-eval]
+  (ensure-data data
+               (fn [{:keys [contents range filename] :as data}]
+                 (let [[[row col]] range
+                       code (helpers/read-next contents (inc row) (inc col))
+                       [_ namespace] (helpers/ns-range-for code [row col])
+                       id (atom nil)]
+                   (reset! id (eval/evaluate repl
+                                             contents
+                                             {:filename filename
+                                              :row row
+                                              :col col
+                                              :namespace (str namespace)}
+                                             #(and on-eval (on-eval % @id))))
+                  (and on-start-eval (on-start-eval @id))))))
+
 (defn- cmds-for [aux primary {:keys [editor-data on-start-eval on-eval]}]
   {:evaluate-selection
    {:name "Evaluate Selection"
@@ -27,7 +48,7 @@
                (let [{:keys [contents range filename] :as data} (editor-data)
                      [[row col]] range
                      code (helpers/text-in-range contents range)
-                     namespace (peek (helpers/ns-range-for contents range))]
+                     namespace (peek (helpers/ns-range-for contents (first range)))]
                  (and on-start-eval (on-start-eval data))
                  (eval/evaluate primary contents {:filename filename
                                                   :row row
