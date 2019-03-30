@@ -176,7 +176,9 @@
                      (reader-types/get-line-number rdr)
                      (reader-types/get-column-number rdr))))))
 
-(defn top-levels [text]
+(defn top-levels
+  "Gets all top-level ranges for the current code"
+  [text]
   (let [size (count text)]
     (loop [curr-pos 0
            row 0
@@ -198,7 +200,10 @@
                                [last-row (dec last-col)]]
                               nxt])))))))
 
-(defn ns-range-for [code [[row col]]]
+(defn ns-range-for
+  "Gets the current NS range (and ns name) for the current code, considering
+that the cursor is in row and col (0-based)"
+  [code [[row col]]]
   (let [levels (top-levels code)
         before-selection? (fn [[[[_ _] [erow ecol]] _]]
                             (or (and (= erow row) (<= col ecol))
@@ -212,3 +217,13 @@
          (filter #(-> % peek is-ns?))
          (map #(update % 1 second))
          first)))
+
+(defn top-block-for
+  "Gets the top-level from the code (a string) to the current row and col (0-based)"
+  [code [row col]]
+  (let [tops (top-levels code)
+        in-range? (fn [[[[b-row b-col] [e-row e-col]]]]
+                    (or (and (<= b-row row) (< row e-row))
+                        (and (<= b-row row e-row)
+                             (<= b-col col e-col))))]
+    (->> tops (filter in-range?) first)))
