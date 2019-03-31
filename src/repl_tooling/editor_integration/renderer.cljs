@@ -96,7 +96,7 @@
 
   (as-text [_ ratom root?]
            (let [children (map #(as-text @% % false) obj)
-                 toggle #(swap! ratom update :expanded? not)
+                 toggle #(do (swap! ratom update :expanded? not) (%))
                  extract-map #(-> % second (str/replace #"^\[" "") (str/replace #"\]$" ""))
                  txt (if (= "map" kind)
                        [:text (->> obj
