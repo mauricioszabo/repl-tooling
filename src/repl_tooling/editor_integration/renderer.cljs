@@ -154,7 +154,7 @@
        [:a {:href "#"
             :on-click (fn [e]
                         (.preventDefault e)
-                        (get-more repl #(prn (swap! ratom assoc :string %))))}
+                        (get-more repl #(swap! ratom assoc :string %)))}
          "..."])
      "\""])
   (as-text [_ ratom root?]
