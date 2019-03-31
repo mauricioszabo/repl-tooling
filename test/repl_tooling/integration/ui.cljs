@@ -65,7 +65,7 @@
                      :stdout "" :stderr ""))))))
 
 (defn- evaluate []
-  (let [lines (-> @state str/split-lines)
+  (let [lines (-> @state :code str/split-lines)
         eval-sel (-> @state :commands :evaluate-selection :command)]
     (swap! state assoc :range [[0 0] [(-> lines count dec) (-> lines last count dec)]])
     (eval-sel)))

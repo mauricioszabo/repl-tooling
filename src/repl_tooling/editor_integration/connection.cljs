@@ -25,23 +25,27 @@
     (. data-or-promise then #(call %))
     (call data-or-promise)))
 
+(defn- eval-cmd [repl code range filename row col namespace on-eval on-start]
+  (let [id (atom nil)]
+    (reset! id (eval/evaluate repl
+                              code
+                              {:filename filename
+                               :row row
+                               :col col
+                               :namespace (str namespace)}
+                              ;FIXME: It's not this range!
+                              #(and on-eval (on-eval % @id range))))
+    (and on-start (on-start @id range))))
+
 (defn- eval-block [repl data on-start-eval on-eval]
   (ensure-data data
                (fn [{:keys [contents range filename] :as data}]
                  (let [[[row col]] range
                        code (helpers/read-next contents (inc row) (inc col))
-                       [_ namespace] (helpers/ns-range-for code [row col])
-                       id (atom nil)]
-                   (reset! id (eval/evaluate repl
-                                             code
-                                             {:filename filename
-                                              :row row
-                                              :col col
-                                              :namespace (str namespace)}
-                                              ;FIXME: It's not this range!
-                                             #(and on-eval (on-eval % @id range))))
-                  ;FIXME: It's not this range!
-                  (and on-start-eval (on-start-eval @id range))))))
+                       [_ namespace] (helpers/ns-range-for code [row col])]
+                   ;FIXME: It's not this range!
+                   (eval-cmd repl code filename row col namespace range
+                             on-eval on-start-eval)))))
 
 (defn- eval-top-block [repl data on-start-eval on-eval]
   (ensure-data data
@@ -49,36 +53,29 @@
                  (let [[start] range
                        [eval-range code] (helpers/top-block-for contents start)
                        [[s-row s-col]] eval-range
-                       [_ namespace] (helpers/ns-range-for code [s-row s-col])
-                       id (atom nil)]
-                   (reset! id (eval/evaluate repl
-                                             code
-                                             {:filename filename
-                                              :row s-row
-                                              :col s-col
-                                              :namespace (str namespace)}
-                                             #(and on-eval (on-eval % @id eval-range))))
-                  (and on-start-eval (on-start-eval @id eval-range))))))
+                       [_ namespace] (helpers/ns-range-for code [s-row s-col])]
+                   (eval-cmd repl code filename s-row s-col namespace eval-range
+                             on-eval on-start-eval)))))
+
+(defn- eval-selection [repl data on-start-eval on-eval]
+  (ensure-data data
+               (fn [{:keys [contents range filename] :as data}]
+                 (let [[[row col]] range
+                       code (helpers/text-in-range contents range)
+                       [_ namespace] (helpers/ns-range-for code [row col])]
+                   (eval-cmd repl code filename row col namespace range
+                             on-eval on-start-eval)))))
 
 (defn- cmds-for [aux primary {:keys [editor-data on-start-eval on-eval]}]
-  {:evaluate-top-block {:name "Evaluate top block"
+  {:evaluate-top-block {:name "Evaluate Top Block"
+                        :description "Evaluates top block block on current editor's selection"
                         :command #(eval-top-block primary (editor-data) on-start-eval on-eval)}
-   :evaluate-block {:name "Evaluate block of code"
+   :evaluate-block {:name "Evaluate Block"
+                    :description "Evaluates current block on editor's selection"
                     :command #(eval-block primary (editor-data) on-start-eval on-eval)}
-   :evaluate-selection
-   {:name "Evaluate Selection"
-    :command (fn []
-               (let [{:keys [contents range filename] :as data} (editor-data)
-                     [[row col]] range
-                     code (helpers/text-in-range contents range)
-                     namespace (peek (helpers/ns-range-for contents (first range)))]
-                 (and on-start-eval (on-start-eval data))
-                 (eval/evaluate primary contents {:filename filename
-                                                  :row row
-                                                  :col col
-                                                  :namespace (str namespace)}
-                                #(and on-eval (on-eval %)))))
-    :description "Evaluates current editor's selection"}})
+   :evaluate-selection {:name "Evaluate Selection"
+                        :description "Evaluates current editor's selection"
+                        :command #(eval-selection primary (editor-data) on-start-eval on-eval)}})
 
 (defn connect-unrepl!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
