@@ -77,7 +77,10 @@
                     :command #(eval-block primary (editor-data) on-start-eval on-eval)}
    :evaluate-selection {:name "Evaluate Selection"
                         :description "Evaluates current editor's selection"
-                        :command #(eval-selection primary (editor-data) on-start-eval on-eval)}})
+                        :command #(eval-selection primary (editor-data) on-start-eval on-eval)}
+   :disconnect {:name "Disconnect REPLs"
+                :description "Disconnect all current connected REPLs"
+                :command disconnect!}})
 
 (defn connect-unrepl!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
