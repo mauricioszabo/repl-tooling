@@ -62,7 +62,7 @@ will call the callback with the same kind of object with more data"))
     (fn more
       ([repl callback] (more repl true callback))
       ([repl combine? callback]
-       (evaluate repl fun {:ignore? true}
+       (evaluate repl fun {:ignore true}
                  #(let [res (-> % helpers/parse-result)]
                     (callback (cond->> (:result res)
                                        combine? (concat (without-ellision lst))))))))))
@@ -75,7 +75,7 @@ will call the callback with the same kind of object with more data"))
       (fn more
         ([repl callback] (more repl true callback))
         ([repl combine? callback]
-         (evaluate repl fun {:ignore? true}
+         (evaluate repl fun {:ignore true}
                    #(let [res (-> % helpers/parse-result)]
                       (callback (cond->> (:result res)
                                          combine? (merge self)))))))))
@@ -96,7 +96,7 @@ will call the callback with the same kind of object with more data"))
                                                           :more-fn nil
                                                           :attributes))))]
            (if (coll? fun)
-             (evaluate repl fun {:ignore? true} #(-> % helpers/parse-result :result call))
+             (evaluate repl fun {:ignore true} #(-> % helpers/parse-result :result call))
              (fun repl call)))))))
 
   helpers/WithTag
@@ -118,7 +118,7 @@ will call the callback with the same kind of object with more data"))
       ([repl callback] (more repl true callback))
       ([repl combine? callback]
        (let [fun (-> self meta :get-more)]
-         (evaluate repl fun {:ignore? true}
+         (evaluate repl fun {:ignore true}
                    #(let [res (-> % helpers/parse-result)]
                       (callback (cond->> (:result res)
                                          combine? (helpers/concat-with self)))))))))
@@ -140,7 +140,7 @@ will call the callback with the same kind of object with more data"))
       (fn more
         ([repl callback] (more repl true callback))
         ([repl combine? callback]
-         (evaluate repl fun {:ignore? true}
+         (evaluate repl fun {:ignore true}
                    #(let [res (-> % helpers/parse-result)]
                       (callback (cond->> (:result res)
                                          combine? (into (without-ellision self))))))))))
@@ -153,7 +153,7 @@ will call the callback with the same kind of object with more data"))
       (fn more
         ([repl callback] (more repl true callback))
         ([repl combine? callback]
-         (evaluate repl fun {:ignore? true}
+         (evaluate repl fun {:ignore true}
                    #(let [res (-> % helpers/parse-result)]
                       (callback (cond->> (:result res)
                                          combine? (into (without-ellision self))))))))))
