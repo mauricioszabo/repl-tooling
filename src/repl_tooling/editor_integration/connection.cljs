@@ -26,16 +26,17 @@
     (call data-or-promise)))
 
 (defn- eval-cmd [repl code range filename row col namespace on-eval on-start]
-  (let [id (atom nil)]
-    (reset! id (eval/evaluate repl
-                              code
-                              {:filename filename
-                               :row row
-                               :col col
-                               :namespace (str namespace)}
-                              ;FIXME: It's not this range!
-                              #(and on-eval (on-eval % @id range))))
-    (and on-start (on-start @id range))))
+  (when code
+    (let [id (atom nil)]
+      (reset! id (eval/evaluate repl
+                                code
+                                {:filename filename
+                                 :row row
+                                 :col col
+                                 :namespace (str namespace)}
+                                ;FIXME: It's not this range!
+                                #(and on-eval (on-eval % @id range))))
+      (and on-start (on-start @id range)))))
 
 (defn- eval-block [repl data on-start-eval on-eval]
   (ensure-data data
