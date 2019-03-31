@@ -208,12 +208,13 @@ that the cursor is in row and col (0-based)"
         before-selection? (fn [[[[_ _] [erow ecol]] _]]
                             (or (and (= erow row) (<= col ecol))
                                 (< erow row)))
-        is-ns? #(and (list? %) (some-> % first (= 'ns)))]
+        is-ns? #(and (list? %) (some-> % first (= 'ns)))
+        read #(try (simple-read %) (catch :default _ nil))]
 
     (->> levels
          (take-while before-selection?)
          reverse
-         (map #(update % 1 simple-read))
+         (map #(update % 1 read))
          (filter #(-> % peek is-ns?))
          (map #(update % 1 second))
          first)))
