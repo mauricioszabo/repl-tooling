@@ -99,7 +99,6 @@
            (check end => [:text ")"])
            (testing "expanding"
              ((last expand) identity)
-             ; (prn (->> parsed render/txt-for-result last last (take 2)))
              (check (->> parsed render/txt-for-result last last (take 2)) =>
                     [:button "..."]))
 
@@ -111,6 +110,11 @@
                (async/<! wait)
               (check (last (render/txt-for-result parsed)) =>
                      [:text "(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19)"])))))
+
+       (testing "rendering ellisions on lists of lists"
+         (let [parsed (render/parse-result (eval-and-parse "[(range)]") repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+           (check txt => ["+  [(0 1 2 3 4 5 6 7 8 9 ...)]"])))
 
        (async/<! (async/timeout 1000))
 
