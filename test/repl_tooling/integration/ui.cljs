@@ -28,6 +28,7 @@
                         :commands {}
                         :stdout nil
                         :stderr nil
+                        :range [[0 0]]
                         :eval-result (r/atom nil)}))
 
 (defn disconnect! []
@@ -56,8 +57,7 @@
                                           lines (str/split-lines code)]
                                       {:contents code
                                        :filename "foo.clj"
-                                       :range [[0 0]
-                                               [(-> lines count dec) (-> lines last count dec)]]})})
+                                       :range (:range @state)})})
       (then (fn [res]
               (swap! state assoc :repls {:eval (:clj/repl res)
                                          :aux (:clj/aux res)}
@@ -65,7 +65,10 @@
                      :stdout "" :stderr ""))))))
 
 (defn- evaluate []
-  ((-> @state :commands :evaluate-selection :command)))
+  (let [lines (-> @state str/split-lines)
+        eval-sel (-> @state :commands :evaluate-selection :command)]
+    (swap! state assoc :range [[0 0] [(-> lines count dec) (-> lines last count dec)]])
+    (eval-sel)))
 
 (defn fake-editor [state]
   [:div
@@ -167,6 +170,22 @@
        (type-and-eval "(+ 2 3)")
        (check (async/<! (txt-in-stdout #"=> 5")) => "=> 5")
        (check (txt-for-selector "#result") => "5"))
+
+     (testing "evaluate blocks"
+       (swap! state assoc
+              :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
+              :range [[3 3]])
+       ((-> @state :commands :evaluate-block :command))
+       (async/<! (change-stdout))
+       (check (txt-for-selector "#result") => "7"))
+
+     (testing "evaluate top blocks"
+       (swap! state assoc
+              :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
+              :range [[3 3]])
+       ((-> @state :commands :evaluate-top-block :command))
+       (async/<! (change-stdout))
+       (check (txt-for-selector "#result") => "9"))
 
      (testing "displays booleans"
        (ui/assert-out "true" "true")

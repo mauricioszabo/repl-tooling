@@ -33,16 +33,39 @@
                        [_ namespace] (helpers/ns-range-for code [row col])
                        id (atom nil)]
                    (reset! id (eval/evaluate repl
-                                             contents
+                                             code
                                              {:filename filename
                                               :row row
                                               :col col
                                               :namespace (str namespace)}
-                                             #(and on-eval (on-eval % @id))))
-                  (and on-start-eval (on-start-eval @id))))))
+                                              ;FIXME: It's not this range!
+                                             #(and on-eval (on-eval % @id range))))
+                  ;FIXME: It's not this range!
+                  (and on-start-eval (on-start-eval @id range))))))
+
+(defn- eval-top-block [repl data on-start-eval on-eval]
+  (ensure-data data
+               (fn [{:keys [contents range filename] :as data}]
+                 (let [[start] range
+                       [eval-range code] (helpers/top-block-for contents start)
+                       [[s-row s-col]] eval-range
+                       [_ namespace] (helpers/ns-range-for code [s-row s-col])
+                       id (atom nil)]
+                   (reset! id (eval/evaluate repl
+                                             code
+                                             {:filename filename
+                                              :row s-row
+                                              :col s-col
+                                              :namespace (str namespace)}
+                                             #(and on-eval (on-eval % @id eval-range))))
+                  (and on-start-eval (on-start-eval @id eval-range))))))
 
 (defn- cmds-for [aux primary {:keys [editor-data on-start-eval on-eval]}]
-  {:evaluate-selection
+  {:evaluate-top-block {:name "Evaluate top block"
+                        :command #(eval-top-block primary (editor-data) on-start-eval on-eval)}
+   :evaluate-block {:name "Evaluate block of code"
+                    :command #(eval-block primary (editor-data) on-start-eval on-eval)}
+   :evaluate-selection
    {:name "Evaluate Selection"
     :command (fn []
                (let [{:keys [contents range filename] :as data} (editor-data)
