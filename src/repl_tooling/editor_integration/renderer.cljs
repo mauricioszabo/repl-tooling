@@ -108,7 +108,9 @@
                                           #(do
                                              (reset-atom repl ratom obj %)
                                              (callback))))
-                 complete-txt (delay (update txt 1 #(str open % close)))
+                 complete-txt (delay (if more-fn
+                                       (update txt 1 #(str open % " ..." close))
+                                       (update txt 1 #(str open % close))))
                  root-part (delay [:expand (if expanded? "-" "+") toggle])
                  rows (cond
                         (not root?) @complete-txt
