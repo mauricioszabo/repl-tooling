@@ -34,8 +34,9 @@
                                  :row row
                                  :col col
                                  :namespace (str namespace)}
-                                ;FIXME: It's not this range!
-                                #(and on-eval (on-eval % @id range))))
+                                #(and on-eval (on-eval (helpers/parse-result %)
+                                                       @id
+                                                       range))))
       (and on-start (on-start @id range)))))
 
 (defn- eval-block [repl data on-start-eval on-eval]
@@ -43,7 +44,7 @@
                (fn [{:keys [contents range filename] :as data}]
                  (let [[[row col]] range
                        code (helpers/read-next contents (inc row) (inc col))
-                       [_ namespace] (helpers/ns-range-for code [row col])]
+                       [_ namespace] (helpers/ns-range-for contents [row col])]
                    ;FIXME: It's not this range!
                    (eval-cmd repl code filename row col namespace range
                              on-eval on-start-eval)))))
@@ -54,7 +55,7 @@
                  (let [[start] range
                        [eval-range code] (helpers/top-block-for contents start)
                        [[s-row s-col]] eval-range
-                       [_ namespace] (helpers/ns-range-for code [s-row s-col])]
+                       [_ namespace] (helpers/ns-range-for contents [s-row s-col])]
                    (eval-cmd repl code filename s-row s-col namespace eval-range
                              on-eval on-start-eval)))))
 
@@ -63,7 +64,7 @@
                (fn [{:keys [contents range filename] :as data}]
                  (let [[[row col]] range
                        code (helpers/text-in-range contents range)
-                       [_ namespace] (helpers/ns-range-for code [row col])]
+                       [_ namespace] (helpers/ns-range-for contents [row col])]
                    (eval-cmd repl code filename row col namespace range
                              on-eval on-start-eval)))))
 
