@@ -47,15 +47,30 @@
   (obj [_] obj)
   (tag [_] (str "#" tag " ")))
 
+(edn/read-string "((99 99) \"0x19f09740\" \"[99, 99]\" {:bean {{:repl-tooling/... nil} {:repl-tooling/... (unrepl.repl$LCGtW9Cgr88YHErE3u8GL_79IP4/fetch :G__202400)}}})")
+
 (defrecord Browseable [object more-fn attributes])
+(defrecord IncompleteObj [more-fn])
 
 (defn- ->browseable [object additional-data]
-  (if (and (instance? WithTag object) (= "#class " (tag object)))
+  (def object object)
+  (println)
+  (prn object)
+  (prn additional-data)
+  (cond
+    (and (instance? WithTag object) (= "#class " (tag object)))
     (let [[f s] (obj object)] (->Browseable f (:repl-tooling/... s) nil))
+
+    (and (map? object) (-> object keys (= [:repl-tooling/...])))
+    (->IncompleteObj (:repl-tooling/... object))
+
+    :else
     (->Browseable object (:repl-tooling/... additional-data) nil)))
 
 (declare read-result)
 (defn- as-obj [data]
+  (prn :DATA)
+  (prn data)
   (let [params (last data)
         [browseable pr-str-obj obj-id repr] data]
     (if pr-str-obj
@@ -76,10 +91,11 @@
                                 'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
                                 'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
                                 'unrepl.java/class (fn [k] (WithTag. k "class"))
-                                ; FIXME: solve in the future this object
                                 'unrepl/browsable (fn [[a b]]
                                                     (->browseable a b))
-                                'repl-tooling/literal-render #(LiteralRender. %)}
+                                'repl-tooling/literal-render #(LiteralRender. %)
+                                'clojure/var #(->> % (str "#'") symbol)
+                                'unrepl/object as-obj}
                       :default default-tag}
                      res)
     (catch :default _
