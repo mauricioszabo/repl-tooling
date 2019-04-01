@@ -187,7 +187,10 @@
                                 (eval/evaluate repl
                                                more-fn
                                                {:ignore true}
-                                               #(prn %)))}
+                                               #(let [parsed (helpers/parse-result %)
+                                                      obj (:result parsed)
+                                                      browsable (helpers/as-obj (cons nil obj))]
+                                                  (reset! ratom @(as-renderable browsable repl)))))}
       "..."]]))
 
 (extend-protocol Parseable

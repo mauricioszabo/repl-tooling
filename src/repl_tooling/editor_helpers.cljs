@@ -68,7 +68,7 @@
     (->Browseable object (:repl-tooling/... additional-data) nil)))
 
 (declare read-result)
-(defn- as-obj [data]
+(defn as-obj [data]
   (prn :DATA)
   (prn data)
   (let [params (last data)
