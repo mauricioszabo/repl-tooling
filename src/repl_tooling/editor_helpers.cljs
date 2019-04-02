@@ -53,10 +53,6 @@
 (defrecord IncompleteObj [more-fn])
 
 (defn- ->browseable [object additional-data]
-  (def object object)
-  (println)
-  (prn object)
-  (prn additional-data)
   (cond
     (and (instance? WithTag object) (= "#class " (tag object)))
     (let [[f s] (obj object)] (->Browseable f (:repl-tooling/... s) nil))
@@ -69,8 +65,6 @@
 
 (declare read-result)
 (defn as-obj [data]
-  (prn :DATA)
-  (prn data)
   (let [params (last data)
         [browseable pr-str-obj obj-id repr] data]
     (if pr-str-obj
