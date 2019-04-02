@@ -178,25 +178,20 @@
     [:div {:class "tagged"} [:span {:class "tag"} tag]
      [as-html @subelement subelement root?]]))
 
-(defrecord IncompleteObj [more-fn repl]
+(defrecord IncompleteObj [incomplete repl]
   Renderable
   (as-html [_ ratom root?]
-    [:div {:class "incomplete-obj"}
-     [:a {:href "#" :on-click (fn [e]
-                                (.preventDefault e)
-                                (eval/evaluate repl
-                                               more-fn
-                                               {:ignore true}
-                                               #(let [parsed (helpers/parse-result %)
-                                                      obj (:result parsed)
-                                                      browsable (helpers/as-obj (cons nil obj))]
-                                                  (reset! ratom @(as-renderable browsable repl)))))}
-      "..."]]))
+    (let [more (eval/get-more-fn incomplete)]
+      [:div {:class "incomplete-obj"}
+       [:a {:href "#" :on-click (fn [e]
+                                  (.preventDefault e)
+                                  (more repl #(reset! ratom @(as-renderable % repl))))}
+        "..."]])))
 
 (extend-protocol Parseable
   helpers/IncompleteObj
   (as-renderable [self repl]
-    (r/atom (->IncompleteObj (:more-fn self) repl)))
+    (r/atom (->IncompleteObj self repl)))
 
   helpers/IncompleteStr
   (as-renderable [self repl]

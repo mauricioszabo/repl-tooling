@@ -81,6 +81,19 @@ will call the callback with the same kind of object with more data"))
                                          combine? (merge self)))))))))
 
 (extend-protocol MoreData
+  helpers/IncompleteObj
+  (without-ellision [_] nil)
+  (get-more-fn [self] nil
+    (fn more
+      ([repl callback] (more repl true callback))
+      ([repl _ callback]
+       (evaluate repl
+                 (:more-fn self)
+                 {:ignore true}
+                 #(let [parsed (helpers/parse-result %)
+                        obj (:result parsed)
+                        browsable (helpers/as-obj (cons nil obj))]
+                    (callback browsable))))))
   helpers/Browseable
   (without-ellision [self]
     (:object self))
