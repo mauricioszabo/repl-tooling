@@ -281,10 +281,12 @@
        (check (str/replace (txt-for-selector "#result .children") #"(\n|\s+)+" " ")
               => #"#foobar.baz/lolnein \( 99 99 \) \.\.\."))
 
+     (testing "division by zero renders an exception"
+       (ui/assert-out #"java.lang.ArithmeticException: \"Divide by zero\""
+                      "(/ 10 0)"))
+
      (disconnect!)
      (done))))
 
 (defn main [])
 (cards/start-devcard-ui!)
-
-(txt-for-selector "#result .children .row:nth-child(2)")

@@ -47,10 +47,15 @@
   (obj [_] obj)
   (tag [_] (str "#" tag " ")))
 
-(edn/read-string "((99 99) \"0x19f09740\" \"[99, 99]\" {:bean {{:repl-tooling/... nil} {:repl-tooling/... (unrepl.repl$LCGtW9Cgr88YHErE3u8GL_79IP4/fetch :G__202400)}}})")
-
 (defrecord Browseable [object more-fn attributes])
 (defrecord IncompleteObj [more-fn])
+
+(defrecord StackTrace [class method file row])
+(defrecord Error [type message trace])
+(defn- parse-strack [{:keys [via trace cause]}]
+  (let [{:keys [type message at]} (first via)
+        trace (map)]
+    (->Error type (or cause message))))
 
 (defn- ->browseable [object additional-data]
   (cond
