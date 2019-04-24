@@ -11,6 +11,7 @@
 - Add support for more than one form eval on Clojure REPL
 
 ## Next Version
+- Renderer for results and errors
 - Autocomplete for clj with compliment
 - Autocomplete for CLJS (only functions)
 - Clojure socket REPL with UnREPL
