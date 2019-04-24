@@ -124,9 +124,6 @@
 (defn- simple-read [str]
   (edn/read-string {:default (fn [_ res] res)} str))
 
-; (defn current-top-block [text row col]
-;   (let [levels (top-levels text)]))
-
 (defn position
   "Returns the zero-indexed position in a code string given line and column."
   [code-str row col]
