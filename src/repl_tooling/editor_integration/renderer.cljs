@@ -188,8 +188,35 @@
                                   (more repl #(reset! ratom @(as-renderable % repl))))}
         "..."]])))
 
+(defn- replace-part [repl ratom path file]
+  (let [f #(js/Promise. (fn [r]
+                          (eval/evaluate repl % {:ignore true}
+                                         (fn [res] (r (helpers/parse-result res))))))
+        more (eval/get-more-fn file)]
+
+    (cond
+      (instance? helpers/IncompleteStr file)
+      [:span (str (eval/without-ellision file))
+       [:a {:href "#" :on-click (fn [e]
+                                  (.preventDefault e)
+                                  (more repl #(js/setTimeout
+                                               (fn [] (swap! ratom assoc-in path %))
+                                               200)))}
+        "..."]])))
+
 (defn- to-trace-row [repl ratom idx [class method file row]]
   (let [clj-file? (re-find #"\.clj?$" (str file))]
+    ; (replace-part repl ratom [:obj :trace idx 2] file)
+    ; (when-not (string? file)
+    ;   (when-let [more (eval/get-more-fn file)]
+    ;     (prn :LOL file (type file) more)
+    ;     (js/setTimeout (fn []
+    ;                      (more repl false #(let [s (cond-> file (instance? helpers/IncompleteStr file)
+    ;                                                        helpers/only-str)]
+    ;                                          (prn :RES s (type s))
+    ;                                          (swap! ratom assoc-in [:obj :trace idx 2]
+    ;                                                 (str s %))))))))
+
     (cond
       (:repl-tooling/... class)
       [:div {:key idx :class "row"}
@@ -212,7 +239,12 @@
        [:div
         [:span {:class "class"} (cond-> (str class) clj-file? demunge)]
         (when-not clj-file? [:span {:class "method"} "." method])
-        [:span {:class "file"} " (" file ":" row ")"]]])))
+        [:span {:class "file"}
+         " ("
+         (if (string? file)
+           file
+           (replace-part repl ratom [:obj :trace idx 2] file))
+         ":" row ")"]]])))
 
 (defrecord ExceptionObj [obj add-data repl]
   Renderable
@@ -226,22 +258,21 @@
           [as-html @add-data add-data root?]])
        (when root?
          [:div {:class "children"}
-          [:<>
-           (map (partial to-trace-row repl ratom)
-                (range)
-                (eval/without-ellision trace))
-           (when-let [more (eval/get-more-fn trace)]
-             [:a {:href "#" :on-click (fn [e]
-                                        (.preventDefault e)
-                                        (more repl #(swap! ratom assoc-in [:obj :trace] %)))}
-              "..."])]])])))
+          (doall
+            (map (partial to-trace-row repl ratom)
+                 (range)
+                 (eval/without-ellision trace)))
+          (when-let [more (eval/get-more-fn trace)]
+            [:a {:href "#" :on-click (fn [e]
+                                       (.preventDefault e)
+                                       (more repl #(swap! ratom assoc-in [:obj :trace] %)))}
+             "..."])])])))
 
 (extend-protocol Parseable
   helpers/Error
   (as-renderable [self repl]
-    (r/atom (->ExceptionObj self
-                            (some-> self :add-data not-empty (as-renderable repl))
-                            repl)))
+    (let [add-data (some-> self :add-data not-empty (as-renderable repl))]
+      (r/atom (->ExceptionObj self add-data repl))))
 
   helpers/IncompleteObj
   (as-renderable [self repl]
