@@ -240,7 +240,7 @@
   helpers/Error
   (as-renderable [self repl]
     (r/atom (->ExceptionObj self
-                            (some-> self :add-data (as-renderable repl))
+                            (some-> self :add-data not-empty (as-renderable repl))
                             repl)))
 
   helpers/IncompleteObj
@@ -280,7 +280,7 @@ it'll be suitable to be rendered with `view-for-result`"
   (let [parsed (helpers/parse-result result)]
     (if (contains? parsed :result)
       (as-renderable (:result parsed) repl)
-      (let [error (:error result)
+      (let [error (:error parsed)
             ex (cond-> error
                        (:ex error) :ex
                        (->> error :ex (instance? helpers/Browseable)) :object)]
