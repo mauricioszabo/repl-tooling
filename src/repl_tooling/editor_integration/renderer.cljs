@@ -188,35 +188,31 @@
                                   (more repl #(reset! ratom @(as-renderable % repl))))}
         "..."]])))
 
-(defn- replace-part [repl ratom path file]
+(defn- replace-part [repl ratom]
   (let [f #(js/Promise. (fn [r]
                           (eval/evaluate repl % {:ignore true}
                                          (fn [res] (r (helpers/parse-result res))))))
-        more (eval/get-more-fn file)]
+        file @ratom
+        more (eval/get-more-fn @ratom)]
 
-    (cond
-      (instance? helpers/IncompleteStr file)
-      [:span (str (eval/without-ellision file))
-       [:a {:href "#" :on-click (fn [e]
-                                  (.preventDefault e)
-                                  (more repl #(js/setTimeout
-                                               (fn [] (swap! ratom assoc-in path %))
-                                               200)))}
-        "..."]])))
+    [:span
+     (cond
+       (string? file)
+       [:span file]
+
+       (instance? helpers/IncompleteStr @ratom)
+       [:<>
+        [:span (str (eval/without-ellision file))]
+        [:a {:href "#" :on-click (fn [e]
+                                   (.preventDefault e)
+                                   (more repl #(js/setTimeout
+                                                (fn []
+                                                  (reset! ratom %))
+                                                200)))}
+         "..."]])]))
 
 (defn- to-trace-row [repl ratom idx [class method file row]]
   (let [clj-file? (re-find #"\.clj?$" (str file))]
-    ; (replace-part repl ratom [:obj :trace idx 2] file)
-    ; (when-not (string? file)
-    ;   (when-let [more (eval/get-more-fn file)]
-    ;     (prn :LOL file (type file) more)
-    ;     (js/setTimeout (fn []
-    ;                      (more repl false #(let [s (cond-> file (instance? helpers/IncompleteStr file)
-    ;                                                        helpers/only-str)]
-    ;                                          (prn :RES s (type s))
-    ;                                          (swap! ratom assoc-in [:obj :trace idx 2]
-    ;                                                 (str s %))))))))
-
     (cond
       (:repl-tooling/... class)
       [:div {:key idx :class "row"}
@@ -229,7 +225,7 @@
                                                        helpers/parse-result
                                                        :result
                                                        vec
-                                                       (swap! ratom
+                                                       (swap!  ratom
                                                               assoc-in
                                                               [:obj :trace idx]))))}
         "..."]]
@@ -241,9 +237,9 @@
         (when-not clj-file? [:span {:class "method"} "." method])
         [:span {:class "file"}
          " ("
-         (if (string? file)
-           file
-           (replace-part repl ratom [:obj :trace idx 2] file))
+         ; (if (string? file)
+         ;   [:<> file]
+         (replace-part repl (r/cursor ratom [:obj :trace idx 2]))
          ":" row ")"]]])))
 
 (defrecord ExceptionObj [obj add-data repl]
