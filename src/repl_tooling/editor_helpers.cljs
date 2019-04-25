@@ -50,12 +50,10 @@
 (defrecord Browseable [object more-fn attributes])
 (defrecord IncompleteObj [more-fn])
 
-(defrecord StackTrace [class method file row])
-(defrecord Error [type message trace])
-(defn- parse-strack [{:keys [via trace cause]}]
-  (let [{:keys [type message at]} (first via)
-        trace (map)]
-    (->Error type (or cause message))))
+(defrecord Error [type message add-data trace])
+(defn- parse-error [{:keys [via trace cause]}]
+  (let [{:keys [type message]} (first via)]
+    (->Error type (or cause message) (dissoc (first via) :type :message :at) trace)))
 
 (defn- ->browseable [object additional-data]
   (cond
@@ -76,12 +74,6 @@
       (->browseable pr-str-obj (get (:bean params) {:repl-tooling/... nil}))
       (->browseable (str (:object browseable) "@" obj-id) (get (:bean params) {:repl-tooling/... nil})))))
 
-(defn- default-tag [tag data]
-  (case (str tag)
-    "clojure/var" (->> data (str "#'") symbol)
-    "unrepl/object" (as-obj data)
-    (WithTag. data tag)))
-
 (defn read-result [res]
   (try
     (edn/read-string {:readers {'unrepl/string #(IncompleteStr. %)
@@ -94,8 +86,9 @@
                                                     (->browseable a b))
                                 'repl-tooling/literal-render #(LiteralRender. %)
                                 'clojure/var #(->> % (str "#'") symbol)
+                                'error parse-error
                                 'unrepl/object as-obj}
-                      :default default-tag}
+                      :default #(WithTag. %2 %1)}
                      res)
     (catch :default _
       (symbol res))))
@@ -130,9 +123,6 @@
 
 (defn- simple-read [str]
   (edn/read-string {:default (fn [_ res] res)} str))
-
-; (defn current-top-block [text row col]
-;   (let [levels (top-levels text)]))
 
 (defn position
   "Returns the zero-indexed position in a code string given line and column."

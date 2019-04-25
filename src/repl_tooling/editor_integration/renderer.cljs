@@ -188,7 +188,92 @@
                                   (more repl #(reset! ratom @(as-renderable % repl))))}
         "..."]])))
 
+(defn- replace-part [repl ratom path file]
+  (let [f #(js/Promise. (fn [r]
+                          (eval/evaluate repl % {:ignore true}
+                                         (fn [res] (r (helpers/parse-result res))))))
+        more (eval/get-more-fn file)]
+
+    (cond
+      (instance? helpers/IncompleteStr file)
+      [:span (str (eval/without-ellision file))
+       [:a {:href "#" :on-click (fn [e]
+                                  (.preventDefault e)
+                                  (more repl #(js/setTimeout
+                                               (fn [] (swap! ratom assoc-in path %))
+                                               200)))}
+        "..."]])))
+
+(defn- to-trace-row [repl ratom idx [class method file row]]
+  (let [clj-file? (re-find #"\.clj?$" (str file))]
+    ; (replace-part repl ratom [:obj :trace idx 2] file)
+    ; (when-not (string? file)
+    ;   (when-let [more (eval/get-more-fn file)]
+    ;     (prn :LOL file (type file) more)
+    ;     (js/setTimeout (fn []
+    ;                      (more repl false #(let [s (cond-> file (instance? helpers/IncompleteStr file)
+    ;                                                        helpers/only-str)]
+    ;                                          (prn :RES s (type s))
+    ;                                          (swap! ratom assoc-in [:obj :trace idx 2]
+    ;                                                 (str s %))))))))
+
+    (cond
+      (:repl-tooling/... class)
+      [:div {:key idx :class "row"}
+       [:a {:href "#" :on-click (fn [e]
+                                  (.preventDefault e)
+                                  (eval/evaluate repl
+                                                 (:repl-tooling/... class)
+                                                 {:ignore true}
+                                                 #(->> %
+                                                       helpers/parse-result
+                                                       :result
+                                                       vec
+                                                       (swap! ratom
+                                                              assoc-in
+                                                              [:obj :trace idx]))))}
+        "..."]]
+
+      (not= -1 row)
+      [:div {:key idx :class "row"}
+       [:div
+        [:span {:class "class"} (cond-> (str class) clj-file? demunge)]
+        (when-not clj-file? [:span {:class "method"} "." method])
+        [:span {:class "file"}
+         " ("
+         (if (string? file)
+           file
+           (replace-part repl ratom [:obj :trace idx 2] file))
+         ":" row ")"]]])))
+
+(defrecord ExceptionObj [obj add-data repl]
+  Renderable
+  (as-html [_ ratom root?]
+    (let [{:keys [type message trace]} obj]
+      [:div {:class "exception row"}
+       [:div
+        [:span {:class "ex-kind"} (str type)] ": " [:span {:class "ex-message"} message]]
+       (when add-data
+         [:div {:class "children"}
+          [as-html @add-data add-data root?]])
+       (when root?
+         [:div {:class "children"}
+          (doall
+            (map (partial to-trace-row repl ratom)
+                 (range)
+                 (eval/without-ellision trace)))
+          (when-let [more (eval/get-more-fn trace)]
+            [:a {:href "#" :on-click (fn [e]
+                                       (.preventDefault e)
+                                       (more repl #(swap! ratom assoc-in [:obj :trace] %)))}
+             "..."])])])))
+
 (extend-protocol Parseable
+  helpers/Error
+  (as-renderable [self repl]
+    (let [add-data (some-> self :add-data not-empty (as-renderable repl))]
+      (r/atom (->ExceptionObj self add-data repl))))
+
   helpers/IncompleteObj
   (as-renderable [self repl]
     (r/atom (->IncompleteObj self repl)))
@@ -226,7 +311,11 @@ it'll be suitable to be rendered with `view-for-result`"
   (let [parsed (helpers/parse-result result)]
     (if (contains? parsed :result)
       (as-renderable (:result parsed) repl)
-      (with-meta (as-renderable (:error result) repl) {:error true}))))
+      (let [error (:error parsed)
+            ex (cond-> error
+                       (:ex error) :ex
+                       (->> error :ex (instance? helpers/Browseable)) :object)]
+        (with-meta (as-renderable ex repl) {:error true})))))
 
 (defn view-for-result
   "Renders a view for a result. If it's an error, will return a view
