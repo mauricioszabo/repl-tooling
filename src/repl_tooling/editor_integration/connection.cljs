@@ -100,6 +100,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
      (let [callback (partial callback on-stdout on-stderr on-result on-disconnect)
            aux (clj-repl/repl :clj-aux host port callback)
            primary (delay (clj-repl/repl :clj-eval host port callback))
+           state (atom nil)
            connect-primary (fn []
                              (eval/evaluate aux
                                             (clj-repl/unrepl-cmd (-> aux :session deref :state)
@@ -111,9 +112,11 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                                             identity)
 
                              (eval/evaluate @primary ":primary-connected" {:ignore true}
-                                            (fn [] (resolve {:clj/aux aux
-                                                             :clj/repl @primary
-                                                             :editor/commands (cmds-for aux @primary opts)}))))]
+                                (fn []
+                                  (reset! state {:clj/aux aux
+                                                 :clj/repl @primary
+                                                 :editor/commands (cmds-for aux @primary opts)})
+                                  (resolve @state))))]
 
        (eval/evaluate aux ":aux-connected" {:ignore true}
                       #(connect-primary))))))
@@ -130,5 +133,5 @@ than once
 Returns a promise that will resolve to a map with two repls: :clj/aux will be used
 to autocomplete/etc, :clj/repl will be used to evaluate code."
   [host port {:keys [on-stdout on-stderr on-result on-disconnect
-                     editor-data on-start-eval on-eval] :as opts}]
+                     editor-data on-start-eval on-eval cljs?] :as opts}]
   (connect-unrepl! host port opts))
