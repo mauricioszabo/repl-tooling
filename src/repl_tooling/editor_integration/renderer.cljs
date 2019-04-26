@@ -188,69 +188,48 @@
                                   (more repl #(reset! ratom @(as-renderable % repl))))}
         "..."]])))
 
-(defn- replace-part [repl ratom]
-  (let [f #(js/Promise. (fn [r]
-                          (eval/evaluate repl % {:ignore true}
-                                         (fn [res] (r (helpers/parse-result res))))))
-        file @ratom
-        more (eval/get-more-fn @ratom)]
+(defn- link-for-more-trace [repl ratom more-trace more-str]
+  (cond
+    more-trace
+    (fn [e]
+      (.preventDefault e)
+      (more-trace repl #(reset! ratom %)))
 
-    [:span
-     (cond
-       (string? file)
-       [:span file]
+    more-str
+    (fn [e]
+      (.preventDefault e)
+      (more-str repl #(swap! ratom assoc 2 %)))))
 
-       (instance? helpers/IncompleteStr @ratom)
-       [:<>
-        [:span (str (eval/without-ellision file))]
-        [:a {:href "#" :on-click (fn [e]
-                                   (.preventDefault e)
-                                   (more repl #(js/setTimeout
-                                                (fn []
-                                                  (reset! ratom %))
-                                                200)))}
-         "..."]])]))
-
-(defn- to-trace-row [repl ratom idx [class method file row]]
-  (let [clj-file? (re-find #"\.clj?$" (str file))]
+(defn- to-trace-row [repl ratom idx trace]
+  (let [[class method file row] trace
+        link-for-more (link-for-more-trace repl
+                                           (r/cursor ratom [:obj :trace idx])
+                                           (eval/get-more-fn trace)
+                                           (eval/get-more-fn file))
+        clj-file? (re-find #"\.clj?$" (str file))]
     (cond
-      (:repl-tooling/... class)
-      [:div {:key idx :class "row"}
-       [:a {:href "#" :on-click (fn [e]
-                                  (.preventDefault e)
-                                  (eval/evaluate repl
-                                                 (:repl-tooling/... class)
-                                                 {:ignore true}
-                                                 #(->> %
-                                                       helpers/parse-result
-                                                       :result
-                                                       vec
-                                                       (swap!  ratom
-                                                              assoc-in
-                                                              [:obj :trace idx]))))}
-        "..."]]
+      link-for-more
+      [:div {:key idx :class ["row" "incomplete"]}
+       [:div "in " [:a {:href "#" :on-click link-for-more} "..."]]]
 
       (not= -1 row)
-      [:div {:key idx :class "row"}
+      [:div {:key idx :class ["row" (if clj-file? "clj-stack" "stack")]}
        [:div
+        "in "
         [:span {:class "class"} (cond-> (str class) clj-file? demunge)]
-        (when-not clj-file? [:span {:class "method"} "." method])
-        [:span {:class "file"}
-         " ("
-         ; (if (string? file)
-         ;   [:<> file]
-         (replace-part repl (r/cursor ratom [:obj :trace idx 2]))
-         ":" row ")"]]])))
+        (when-not clj-file? [:span {:class "method"} "."
+                             method])
+        [:span {:class "file"} " (" file ":" row ")"]]])))
 
 (defrecord ExceptionObj [obj add-data repl]
   Renderable
   (as-html [_ ratom root?]
     (let [{:keys [type message trace]} obj]
       [:div {:class "exception row"}
-       [:div
+       [:div {:class "description"}
         [:span {:class "ex-kind"} (str type)] ": " [:span {:class "ex-message"} message]]
        (when add-data
-         [:div {:class "children"}
+         [:div {:class "children additional"}
           [as-html @add-data add-data root?]])
        (when root?
          [:div {:class "children"}
