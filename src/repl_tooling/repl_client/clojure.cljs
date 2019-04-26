@@ -192,7 +192,7 @@
           in (-> evaluator :session deref :state deref :channel-in)
           code (str "(cljs.core/pr-str (try (clojure.core/let [res\n" command
                     "\n] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
-                    "['" id " :error (cljs.core/pr-str {:obj (cljs.core/pr-str e) :type (.-type e) "
+                    "['" id " :error (cljs.core/pr-str {:ex (cljs.core/pr-str e) :type (.-type e) "
                     ":message (.-message e) :trace (.-stack e)})])))\n")]
 
       (swap! pending assoc id {:callback callback :ignore (:ignore opts)
