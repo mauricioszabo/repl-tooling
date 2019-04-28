@@ -88,12 +88,12 @@
 (defn repl [session-name host port on-output]
   (let [[in out] (client/socket! session-name host port)
         pending-cmds (atom {})]
-    (prn blob)
-    (async/put! in blob)
     (async/go-loop []
       (if-let [output (async/<! out)]
         (do
           (pending-evals pending-cmds on-output output)
           (recur))
         (on-output nil)))
-    (->Evaluator in pending-cmds (atom {}))))
+    (let [evaluator (->Evaluator in pending-cmds (atom {}))]
+      (eval/evaluate evaluator blob {} #(prn :EVAL-RES %))
+      evaluator)))
