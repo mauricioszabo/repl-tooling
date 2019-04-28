@@ -54,7 +54,7 @@
 (defn- parse-error [{:keys [via trace cause] :as error}]
   (let [info (or (first via) error)
         {:keys [type message]} info]
-    (->Error type (or cause message) (dissoc info :type :message :at) trace)))
+    (->Error type (or cause message) (dissoc info :type :message :at :trace) trace)))
 
 (defn- ->browseable [object additional-data]
   (cond
