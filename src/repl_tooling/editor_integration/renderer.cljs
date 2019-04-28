@@ -208,6 +208,10 @@
                                            (eval/get-more-fn file))
         clj-file? (re-find #"\.clj?$" (str file))]
     (cond
+      (string? trace)
+      [:div {:key idx :class ["row" "clj-stack"]}
+        [:span {:class "stack-line"} trace]]
+
       link-for-more
       [:div {:key idx :class ["row" "incomplete"]}
        [:div "in " [:a {:href "#" :on-click link-for-more} "..."]]]
