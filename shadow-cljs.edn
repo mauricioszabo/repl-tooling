@@ -8,10 +8,6 @@
                 [nubank/matcher-combinators "0.9.0"]
                 [org.clojure/tools.reader "1.3.2"]]
 
- :jvm-opts ["-Xtune:virtualized"
-            "-Xquickstart"
-            "-Xshareclasses"]
-
  :builds {;:tests {:target :node-test
         ;          :output-to "target/all_tests.js"
       ;            :autorun true
