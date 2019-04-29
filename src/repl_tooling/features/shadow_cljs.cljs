@@ -3,9 +3,9 @@
             ["fs" :as fs]
             ["path" :as path]))
 
-(def ^private fs (js/require "fs"))
-(def ^private exists-sync (.-existsSync fs))
-(def ^private read-file (.-readFileSync fs))
+(def ^private fs ^js (js/require "fs"))
+(def ^private exists-sync ^js (.-existsSync fs))
+(def ^private read-file ^js (.-readFileSync fs))
 
 (defn- readfile [shadow-path]
   (-> shadow-path read-file str edn/read-string
