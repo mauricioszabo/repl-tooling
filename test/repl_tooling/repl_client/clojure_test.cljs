@@ -74,5 +74,3 @@
 
         (eval/evaluate repl (-> r :as-text meta :get-more) {} res)
         (check (pr-str (:as-text (await! out))) => #"^\s?\d+.*\.\.\.")))))
-;
-; (run-tests)

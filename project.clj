@@ -1,16 +1,18 @@
 (defproject repl-tooling "0.0.1"
-  :dependencies [[org.clojure/clojurescript "1.10.339"]
-                 [org.clojure/core.async "0.4.474"]]
+  :dependencies [[org.clojure/clojurescript "1.10.520"]
+                 [org.clojure/core.async "0.4.490"]
+                 [org.clojure/tools.reader "1.3.2"]]
 
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-figwheel "0.5.16"]]
 
   :jvm-opts ["-Dclojure.server.repl={:port 2233 :accept clojure.core.server/repl}"]
 
-  :profiles {:dev {:dependencies [[org.clojure/clojure "1.9.0"]
-                                  [org.clojure/core.async "0.4.490"]
+  :profiles {:dev {:dependencies [[org.clojure/clojure "1.10.0"]
                                   [check "0.0.3-SNAPSHOT"]
-                                  [thheller/shadow-cljs "2.6.6"]]
+                                  [devcards "0.2.5"]
+                                  [reagent "0.8.1"]
+                                  [thheller/shadow-cljs "2.7.36"]]
                    :source-paths ["src" "test"]}}
 
   :source-paths ["src"])

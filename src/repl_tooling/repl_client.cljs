@@ -4,7 +4,7 @@
             [clojure.string :as str]))
 
 (def ^:private net (js/require "net"))
-(def ^:private sessions (atom {}))
+(defonce ^:private sessions (atom {}))
 
 (defn disconnect! [session-name]
   (when-let [socket (get @sessions session-name)]

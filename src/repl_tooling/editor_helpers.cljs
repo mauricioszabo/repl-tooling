@@ -1,6 +1,8 @@
 (ns repl-tooling.editor-helpers
   (:require [clojure.string :as str]
-            [cljs.reader :as reader]))
+            [cljs.reader :as edn]
+            [clojure.tools.reader.reader-types :as reader-types]
+            [clojure.tools.reader :as reader]))
 
 (deftype LiteralRender [string]
   IPrintWithWriter
@@ -38,48 +40,57 @@
     (-write writer "#")
     (-write writer tag)
     (-write writer " ")
-    (-write writer obj))
+    ;TODO: See if this will work
+    (-write writer (pr-str obj)))
 
   Taggable
   (obj [_] obj)
   (tag [_] (str "#" tag " ")))
 
+(defrecord Browseable [object more-fn attributes])
+(defrecord IncompleteObj [more-fn])
+
+(defrecord Error [type message add-data trace])
+(defn- parse-error [{:keys [via trace cause] :as error}]
+  (let [info (or (first via) error)
+        {:keys [type message]} info]
+    (->Error type (or cause message) (dissoc info :type :message :at :trace) trace)))
+
+(defn- ->browseable [object additional-data]
+  (cond
+    (and (instance? WithTag object) (= "#class " (tag object)))
+    (let [[f s] (obj object)] (->Browseable f (:repl-tooling/... s) nil))
+
+    (and (map? object) (-> object keys (= [:repl-tooling/...])))
+    (->IncompleteObj (:repl-tooling/... object))
+
+    :else
+    (->Browseable object (:repl-tooling/... additional-data) nil)))
+
 (declare read-result)
-(defn- as-obj [data]
+(defn as-obj [data]
   (let [params (last data)
-        parse-obj (fn [[class obj-id repr]]
-                    (WithTag. (merge (:bean params)
-                                     {:class class
-                                      :object-id obj-id
-                                      :repr repr})
-                              "object"))]
-
-    (if-let [as-str (:pr-str params)]
-      (if (or (instance? IncompleteStr as-str)
-              (str/starts-with? (str as-str) "#object["))
-        (parse-obj data)
-        (read-result as-str))
-      (parse-obj data))))
-
-(defn- default-tag [tag data]
-  (case (str tag)
-    "clojure/var" (->> data (str "#'") symbol)
-    "unrepl/object" (as-obj data)
-    (WithTag. data tag)))
+        [browseable pr-str-obj obj-id repr] data]
+    (if pr-str-obj
+      (->browseable pr-str-obj (get (:bean params) {:repl-tooling/... nil}))
+      (->browseable (str (:object browseable) "@" obj-id) (get (:bean params) {:repl-tooling/... nil})))))
 
 (defn read-result [res]
   (try
-    (reader/read-string {:readers {'unrepl/string #(IncompleteStr. %)
-                                   'unrepl/bad-keyword (fn [[ns name]] (keyword ns name))
-                                   'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
-                                   'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
-                                   'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
-                                   ; FIXME: solve in the future this object
-                                   'unrepl/browsable (fn [[o]] o)
-                                   'unrepl.java/class (fn [k]
-                                                        (WithTag. k "class"))
-                                   'repl-tooling/literal-render #(LiteralRender. %)}
-                         :default default-tag} res)
+    (edn/read-string {:readers {'unrepl/string #(IncompleteStr. %)
+                                'unrepl/bad-keyword (fn [[ns name]] (keyword ns name))
+                                'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
+                                'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
+                                'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
+                                'unrepl.java/class (fn [k] (WithTag. k "class"))
+                                'unrepl/browsable (fn [[a b]]
+                                                    (->browseable a b))
+                                'repl-tooling/literal-render #(LiteralRender. %)
+                                'clojure/var #(->> % (str "#'") symbol)
+                                'error parse-error
+                                'unrepl/object as-obj}
+                      :default #(WithTag. %2 %1)}
+                     res)
     (catch :default _
       (symbol res))))
 
@@ -103,48 +114,123 @@
              "[" "]"
              "{" "}"})
 
-(defn- next-pos [row col text]
-  (if (>= col (-> text (get row) count dec))
-    (if (>= row (dec (count text)))
-      nil
-      [(inc row) 0])
-    [row (inc col)]))
-
-(defn top-levels [text]
-  (let [text (-> text strip-comments str/split-lines)]
-    (loop [forms []
-           {:keys [current close depth start] :as state} nil
-           [row col] [0 0]]
-
-      (let [char (get-in text [row col])
-            next (next-pos row col text)]
-        (cond
-          (nil? row)
-          forms
-
-          (and (nil? current) (delim char))
-          (recur forms {:current char :close (closes char) :depth 0 :start [row col]}
-            next)
-
-          (= current char)
-          (recur forms (update state :depth inc) next)
-
-          (and (zero? depth) (= close char))
-          (recur (conj forms [start [row col]]) nil next)
-
-          (= close char)
-          (recur forms (update state :depth dec) next)
-
-          :else
-          (recur forms  state next))))))
-
 (defn text-in-range [text [[row1 col1] [row2 col2]]]
   (let [lines (str/split-lines text)]
     (-> lines
         (subvec row1 (inc row2))
         (update 0 #(str/join "" (drop col1 %)))
-        (update (- row2 row1) #(str/join "" (take col2 %)))
+        (update (- row2 row1) #(str/join "" (take (inc col2) %)))
         (->> (str/join "\n")))))
 
-(defn current-top-block [text row col]
-  (let [levels (top-levels text)]))
+(defn- simple-read [str]
+  (edn/read-string {:default (fn [_ res] res)} str))
+
+(defn position
+  "Returns the zero-indexed position in a code string given line and column."
+  [code-str row col]
+  (->> code-str
+       str/split-lines
+       (take (dec row))
+       (str/join)
+       count
+       (+ col (dec row)) ;; `(dec row)` to include for newlines
+       dec
+       (max 0)))
+
+(defn search-start
+  "Find the place to start reading from. Search backwards from the starting
+  point, looking for a '[', '{', or '('. If none can be found, search from
+  the beginning of `code-str`."
+  ([code-str start-row start-col]
+   (search-start code-str (position code-str start-row start-col)))
+  ([code-str start-position]
+   (let [openers #{\[ \( \{}]
+     (if (contains? openers (nth code-str start-position))
+       start-position
+       (let [code-str-prefix (subs code-str 0 start-position)]
+         (->> openers
+              (map #(str/last-index-of code-str-prefix %))
+              (remove nil?)
+              (apply max 0)))))))
+
+(defn read-next
+  "Reads the next expression from some code. Uses an `indexing-pushback-reader`
+  to determine how much was read, and return that substring of the original
+  `code-str`, rather than what was actually read by the reader."
+  ([code-str start-row start-col]
+   (let [code-str (subs code-str (search-start code-str start-row start-col))
+         rdr (reader-types/indexing-push-back-reader code-str)]
+     ;; Read a form, but discard it, as we want the original string.
+     (reader/read rdr)
+     (subs code-str
+           0
+           ;; Even though this returns the position *after* the read, this works
+           ;; because subs is end point exclusive.
+           (position code-str
+                     (reader-types/get-line-number rdr)
+                     (reader-types/get-column-number rdr)))))
+  ([code-str start-position]
+   (let [code-str (subs code-str (search-start code-str start-position))
+         rdr (reader-types/indexing-push-back-reader code-str)]
+     ;; Read a form, but discard it, as we want the original string.
+     (reader/read rdr)
+     (subs code-str
+           0
+           ;; Even though this returns the position *after* the read, this works
+           ;; because subs is end point exclusive.
+           (position code-str
+                     (reader-types/get-line-number rdr)
+                     (reader-types/get-column-number rdr))))))
+
+(defn top-levels
+  "Gets all top-level ranges for the current code"
+  [text]
+  (let [size (count text)]
+    (loop [curr-pos 0
+           row 0
+           col 0
+           tops []]
+
+      (cond
+        (>= curr-pos size) tops
+        (re-find #"\n" (nth text curr-pos)) (recur (inc curr-pos) (inc row) 0 tops)
+        (re-find #"\s" (nth text curr-pos)) (recur (inc curr-pos) row (inc col) tops)
+        :else (let [nxt (read-next text curr-pos)
+                    last-row (->> nxt (re-seq #"\n") count (+ row))
+                    last-col (-> nxt str/split-lines last count (+ col))]
+                (recur
+                  (+ (count nxt) curr-pos)
+                  last-row
+                  last-col
+                  (conj tops [[[row col]
+                               [last-row (dec last-col)]]
+                              nxt])))))))
+
+(defn ns-range-for
+  "Gets the current NS range (and ns name) for the current code, considering
+that the cursor is in row and col (0-based)"
+  [code [row col]]
+  (let [levels (top-levels code)
+        before-selection? (fn [[[[_ _] [erow ecol]] _]]
+                            (or (and (= erow row) (<= col ecol))
+                                (< erow row)))
+        is-ns? #(and (list? %) (some-> % first (= 'ns)))
+        read #(try (simple-read %) (catch :default _ nil))]
+
+    (->> levels
+         (take-while before-selection?)
+         reverse
+         (map #(update % 1 read))
+         (filter #(-> % peek is-ns?))
+         (map #(update % 1 second))
+         first)))
+
+(defn top-block-for
+  "Gets the top-level from the code (a string) to the current row and col (0-based)"
+  [code [row col]]
+  (let [tops (top-levels code)
+        in-range? (fn [[[[b-row b-col] [e-row e-col]]]]
+                    (or (and (<= b-row row) (< row e-row))
+                        (and (<= b-row row e-row)
+                             (<= b-col col e-col))))]
+    (->> tops (filter in-range?) first)))
