@@ -78,6 +78,7 @@
 (defn read-result [res]
   (try
     (edn/read-string {:readers {'unrepl/string #(IncompleteStr. %)
+                                'js #(WithTag. % "js")
                                 'unrepl/bad-keyword (fn [[ns name]] (keyword ns name))
                                 'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
                                 'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
