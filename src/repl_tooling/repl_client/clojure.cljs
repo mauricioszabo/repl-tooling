@@ -190,8 +190,8 @@
   (evaluate [_ command opts callback]
     (let [id (gensym)
           in (-> evaluator :session deref :state deref :channel-in)
-          code (str "(cljs.core/pr-str (try (clojure.core/let [res\n" command
-                    "\n] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
+          code (str "(cljs.core/pr-str (try (clojure.core/let [res (do\n" command
+                    "\n)] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
                     "['" id " :error (cljs.core/pr-str e)])))\n")]
 
       (swap! pending assoc id {:callback callback :ignore (:ignore opts)
