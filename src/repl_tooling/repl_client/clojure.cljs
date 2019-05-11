@@ -224,10 +224,11 @@
         (output-fn {:out full-out})))))
 
 (defn- pending-evals-for-cljs [pending output-fn buffer]
-  (fn [{:keys [out as-text] :as res}]
+  (fn [{:keys [out]}]
     (if (or @buffer (and out (str/starts-with? out "\"[")))
       (treat-result-of-call out pending output-fn buffer)
-      (output-fn {:out out}))))
+      (when-not (or (= out "nil\n") (re-matches #"\[\d+:1\]~.+=>\s*" out))
+        (output-fn {:out out})))))
 
 (defn self-host [clj-evaluator command]
   (let [pending (atom {})
@@ -239,8 +240,9 @@
            assoc :on-output (pending-evals-for-cljs pending old-fn buffer))
     (js/Promise. (fn [resolve]
                    (eval/evaluate clj-evaluator command {}
-                                  (fn [{:keys [error]}]
-                                    (when error
-                                      (resolve {:error error}))))
+                                  (fn [res]
+                                    (let [res (helpers/parse-result res)]
+                                      (resolve {:error (-> res :error
+                                                           (or (:result res)))}))))
                    ; CLJS self-hosted REPL never returns, so we'll just set a timeout
                    (js/setTimeout #(resolve cljs-repl) 500)))))
