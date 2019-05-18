@@ -45,7 +45,9 @@
 
 (defn connect! []
   (when-not (-> @state :repl)
-    (. (conn2/auto-connect-embedded! (:host @state) (:port @state) "../integration/fixture-app")
+    (. (conn2/auto-connect-embedded! (:host @state) (:port @state)
+                                     "../integration/fixture-app"
+                                     identity)
       then (fn [repl]
              (prn repl)
              (swap! state assoc :repl repl
