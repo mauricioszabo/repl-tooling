@@ -81,11 +81,7 @@
                 (check (-> ellided-again async/<! eval/get-more-fn) => nil)))))
 
        (testing "no ellisions on taggable code"
-         (let [code  "(do
-                        (deftype Ball [a])
-                        (defmethod print-method Ball [d ^java.io.Writer w]
-                          (.write w \"#BAR 'FOOBAR\"))
-                        (Ball. 102030))"
+         (let [code  "(tagged-literal 'foo/bar \"Baz\")"
                not-ellided (:result (eval-and-parse code))]
            (check (eval/get-more-fn not-ellided) => nil)))
 
@@ -105,10 +101,10 @@
                ellide-fn (eval/get-more-fn res)]
            (check (eval/without-ellision res) => 'java.util.List)
            (ellide-fn repl #(async/put! more-data %))
-           (check (-> more-data async/<! :attributes count) => 10)
+           (check (-> more-data async/<! :attributes count) => 11)
 
            ((-> more-data async/<! eval/get-more-fn) repl #(async/put! even-more-data %))
-           (check (-> even-more-data async/<! :attributes count) => 20)))
+           (check (-> even-more-data async/<! :attributes count) => 21)))
 
        (testing "expand ellisions till some function is true"
          (let [res (eval-and-parse "(range)")
