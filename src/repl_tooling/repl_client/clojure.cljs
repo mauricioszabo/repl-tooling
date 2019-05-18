@@ -227,7 +227,7 @@
   (fn [{:keys [out]}]
     (if (or @buffer (and out (str/starts-with? out "\"[")))
       (treat-result-of-call out pending output-fn buffer)
-      (when-not (or (= out "nil\n") (re-matches #"\[\d+:1\]~.+=>\s*" out))
+      (when-not (or (= out "nil\n") (re-matches #"\[\d+:1\]~.+=>\s*" (str out)))
         (output-fn {:out out})))))
 
 (defn self-host [clj-evaluator command]
