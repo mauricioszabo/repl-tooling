@@ -37,6 +37,15 @@
                           #(async/put! res %))
            (is (re-find #"foo\.clj\" 12" (-> res async/<! :error)))))
 
+       (testing "canceling an evaluation"
+         (let [aux-repl (clj/repl :evaluation-test-break "localhost" 2233 identity)
+               res (async/promise-chan)]
+           (eval/evaluate repl "(Thread/sleep 5000)" {} #(async/put! res %))
+           (async/<! (async/timeout 500))
+           (eval/break repl aux-repl)
+           (is (-> res async/<! :error))
+           (client/disconnect! :evaluation-test-break)))
+
        (testing "bust evaluations"
          (let [res (async/chan)]
            (doseq [n (range 5)]
@@ -55,8 +64,7 @@
            (is (= "\"1\"" (-> res async/<! :result)))
            (is (= "\"2\"" (-> res async/<! :result)))
            (is (= "\"3\"" (-> res async/<! :result)))
-           (is (= "\"4\"" (-> res async/<! :result)))
-           (async/<! (async/timeout 1000))))
+           (is (= "\"4\"" (-> res async/<! :result)))))
 
       (client/disconnect! :evaluation-test)
       (done)))))

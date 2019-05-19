@@ -63,7 +63,9 @@
       (go (callback (<! chan)))
       id))
 
-  (break [this id]))
+  (break [this repl]
+    (when-let [interrupt (-> @session :state deref :processing :interrupt)]
+      (eval/evaluate repl interrupt {:ignore true} identity))))
 
 (defn- default-tags [tag data]
   (helpers/WithTag. data tag))
@@ -193,7 +195,7 @@
       (swap! (:session evaluator) assoc :pending [])
       id))
 
-  (break [this id]))
+  (break [this repl]))
 
 (defn- treat-result-of-call [out pending output-fn buffer]
   (let [full-out (str @buffer out)
