@@ -78,6 +78,9 @@
    :evaluate-selection {:name "Evaluate Selection"
                         :description "Evaluates current editor's selection"
                         :command #(eval-selection primary (editor-data) on-start-eval on-eval)}
+   :break-evaluation {:name "Break Evaluation"
+                      :description "Break current running eval"
+                      :command #(eval/break primary aux)}
    :disconnect {:name "Disconnect REPLs"
                 :description "Disconnect all current connected REPLs"
                 :command disconnect!}})

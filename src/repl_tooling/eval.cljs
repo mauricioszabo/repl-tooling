@@ -30,7 +30,7 @@ will call the callback with the same kind of object with more data"))
 
 (defprotocol Evaluator
   (evaluate [this command opts callback])
-  (break [this id]))
+  (break [this repl]))
 
 (defn evaluator
   ([in out on-line] (evaluator in out on-line identity))

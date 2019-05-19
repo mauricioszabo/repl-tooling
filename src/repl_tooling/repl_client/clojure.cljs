@@ -11,8 +11,11 @@
 
 (def blob (blob-contents))
 
+; Pending eval format:
+; {:cmd string? :channel async :id symbol? :ignore-result? boolean :opts map?}
 (defn- next-eval! [state]
-  (when (= (:state @state) :ready)
+  (when (and (= (:state @state) :ready)
+             (-> @state :processing nil?))
     (when-let [cmd (-> @state :pending first)]
       (swap! state (fn [s]
                      (-> s
@@ -37,8 +40,8 @@
 (defn- prepare-opts [repl {:keys [filename row col namespace]}]
   (let [state (-> repl :session deref :state)
         params {:unrepl/sourcename (str filename)
-                :unrepl/column (or col 0)
-                :unrepl/line (or row 0)}]
+                :unrepl/column (-> col (or 1) dec)
+                :unrepl/line (-> row (or 1) dec)}]
     (when namespace
       (add-to-eval-queue! (gensym) (async/promise-chan) (str "(ns " namespace ")") state true {}))
     (when (or filename row col)
@@ -56,26 +59,13 @@
           chan (async/promise-chan)
           state (:state @session)]
       (prepare-opts this opts)
-      (add-to-eval-queue! id chan (str command "\n") state (:ignore opts) (:pass opts))
+      (add-to-eval-queue! id chan (str "(do\n" command "\n)") state (:ignore opts) (:pass opts))
       (go (callback (<! chan)))
       id))
 
-  (break [this id]
-    (when (-> @session :state deref :processing :id (= id))
-      ; RESET connection, because UNREPL's interrupt is not working!
-      ; First, clear all pending evals
-      (some-> @session :state deref :processing :channel (doto
-                                                           (async/put! {})
-                                                           (async/close!)))
-
-      (doseq [pending (-> @session :state deref :pending-evals)]
-        (async/put! (:channel pending) {}))
-
-      (client/disconnect! (:session-name @session))
-      (let [evaluator (repl (:session-name @session)
-                            (:host @session) (:port @session)
-                            (-> @session :state deref :on-output))]
-        (reset! session @(:session evaluator))))))
+  (break [this repl]
+    (when-let [interrupt (-> @session :state deref :processing :interrupt)]
+      (eval/evaluate repl interrupt {:ignore true} identity))))
 
 (defn- default-tags [tag data]
   (helpers/WithTag. data tag))
@@ -128,6 +118,7 @@
     (when-not (-> @state :processing :ignore-result?)
       (on-out msg))
     (when-let [chan (-> @state :processing :channel)]
+      (swap! state assoc :processing nil)
       (async/put! chan msg))))
 
 (defn- send-output! [out state err?]
@@ -204,7 +195,7 @@
       (swap! (:session evaluator) assoc :pending [])
       id))
 
-  (break [this id]))
+  (break [this repl]))
 
 (defn- treat-result-of-call [out pending output-fn buffer]
   (let [full-out (str @buffer out)
@@ -227,7 +218,7 @@
   (fn [{:keys [out]}]
     (if (or @buffer (and out (str/starts-with? out "\"[")))
       (treat-result-of-call out pending output-fn buffer)
-      (when-not (or (= out "nil\n") (re-matches #"\[\d+:1\]~.+=>\s*" out))
+      (when-not (or (= out "nil\n") (re-matches #"\[\d+:1\]~.+=>\s*" (str out)))
         (output-fn {:out out})))))
 
 (defn self-host [clj-evaluator command]
