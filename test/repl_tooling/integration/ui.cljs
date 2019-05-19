@@ -13,7 +13,8 @@
             [repl-tooling.editor-helpers-test]
             [repl-tooling.repl-client.parsing-test]
             [repl-tooling.repl-client.textual-representation-test]
-            [repl-tooling.integration.clojurescript-ui]))
+            [repl-tooling.integration.clojurescript-ui]
+            [repl-tooling.repl-client.evaluation-test]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
