@@ -34,7 +34,6 @@ Callbacks expects :on-stdout and :on-stderr"
   (let [code (shadow-cljs/command-for project-paths)
         repl (delay (clj-repl/repl :clj-aux host port
                                    #(do
-                                      (prn :OUT %)
                                       (cond
                                        (:result %)
                                        ((:on-result callbacks) (helpers/parse-result %))
