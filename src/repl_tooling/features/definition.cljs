@@ -4,11 +4,11 @@
             [cljs.core.async :as async :include-macros true]))
 
 (defn- cmd-for-filename [the-var]
-  `(clojure.core/let [res# (clojure.core/meta (clojure.core/resolve (quote ~the-var)))]
-     (clojure.core/require 'clojure.java.io)
-     [(clojure.core/some->> (:file res#)
-                            (.getResource (clojure.lang.RT/baseLoader))
-                            .getPath)
+  `(~'clojure.core/let [res# (~'clojure.core/meta (~'clojure.core/resolve (quote ~the-var)))]
+     (~'clojure.core/require 'clojure.java.io)
+     [(~'clojure.core/some->> (:file res#)
+                              (.getResource (~'clojure.lang.RT/baseLoader))
+                              .getPath)
       (:line res#)]))
 
 (defn- cmd-for-read-jar [jar-file-name]
