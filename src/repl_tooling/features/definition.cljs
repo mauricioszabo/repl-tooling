@@ -12,12 +12,12 @@
       (:line res#)]))
 
 (defn- cmd-for-read-jar [jar-file-name]
-  `(clojure.core/let [[jar# path#] (clojure.string/split ~jar-file-name #"!/" 2)
-                      jar# (clojure.string/replace-first jar# #"file:" "")
-                      jar-file# (java.util.jar.JarFile. jar#)
-                      ba# (java.io.ByteArrayOutputStream.)
-                      is# (.getInputStream jar-file# (.getJarEntry jar-file# path#))]
-     (clojure.java.io/copy is# ba#)
+  `(~'clojure.core/let [[jar# path#] (~'clojure.string/split ~jar-file-name #"!/" 2)
+                        jar# (~'clojure.string/replace-first jar# #"file:" "")
+                        jar-file# (java.util.jar.JarFile. jar#)
+                        ba# (java.io.ByteArrayOutputStream.)
+                        is# (.getInputStream jar-file# (.getJarEntry jar-file# path#))]
+     (~'clojure.java.io/copy is# ba#)
      (java.lang.String. (.toByteArray ba#))))
 
 (defn- get-result [repl [file-name line] resolve]
