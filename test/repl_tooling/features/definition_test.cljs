@@ -19,7 +19,8 @@
            inside-jar (async/promise-chan)
            in-other-ns (async/promise-chan)
            in-other-by-refer (async/promise-chan)
-           in-same-ns (async/promise-chan)]
+           in-same-ns (async/promise-chan)
+           loading-file (async/promise-chan)]
        (eval-on-repl ":ok")
        (-> repl :session deref :state
            (clj/unrepl-cmd :print-limits
@@ -52,8 +53,17 @@
          (. (def/find-var-definition repl
               'repl-tooling.features.definition-helper "some-function")
            then #(async/put! in-same-ns %))
-         (-> in-same-ns async/<! :line (check => number?))
+         (-> in-same-ns async/<! :line (check => 3))
          (-> in-same-ns async/<! :file-name
+             (check => #(re-find #"repl_tooling/features/definition_helper\.clj" %))))
+
+       (testing "load file, then find symbol"
+         (eval-on-repl "(load-file \"test/repl_tooling/features/definition_helper.clj\")")
+         (. (def/find-var-definition repl
+              'repl-tooling.features.definition-helper "some-function")
+           then #(async/put! loading-file %))
+         (-> loading-file async/<! :line (check => 3))
+         (-> loading-file async/<! :file-name
              (check => #(re-find #"repl_tooling/features/definition_helper\.clj" %))))
 
        (client/disconnect! :definition-test1)
