@@ -39,13 +39,13 @@
   (let [ns (when ns-name (symbol ns-name))
         context (make-context text prefix row col)
         code `(do
-                 (clojure.core/require '[compliment.core])
-                 (clojure.core/let [completions# (compliment.core/completions
-                                                  ~prefix
-                                                  {:tag-candidates true
-                                                   :ns '~ns
-                                                   :context ~context})]
-                   (clojure.core/vec completions#)))]
+                 (~'clojure.core/require '[compliment.core])
+                 (~'clojure.core/let [completions# (compliment.core/completions
+                                                     ~prefix
+                                                     {:tag-candidates true
+                                                      :ns '~ns
+                                                      :context ~context})]
+                   (~'clojure.core/vec completions#)))]
     (js/Promise. (fn [resolve]
                    (eval/evaluate repl code {:ignore true} #(if-let [res (:result %)]
                                                               (resolve (helpers/read-result res))
@@ -53,7 +53,7 @@
 
 (defn- require-compliment [repl checker]
   (js/Promise. (fn [resolve]
-                 (eval/evaluate repl `(clojure.core/require 'compliment.core) {}
+                 (eval/evaluate repl `(~'clojure.core/require 'compliment.core) {}
                                 (fn [res]
                                   (if (:error res)
                                     (reset! checker false)
