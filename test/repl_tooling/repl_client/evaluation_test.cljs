@@ -1,6 +1,5 @@
 (ns repl-tooling.repl-client.evaluation-test
   (:require [clojure.test :refer-macros [testing async is]]
-            [matcher-combinators.test]
             [devcards.core :as cards :include-macros true]
             [check.core :refer-macros [check]]
             [clojure.core.async :as async :include-macros true]

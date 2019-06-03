@@ -14,17 +14,12 @@
             [repl-tooling.repl-client.parsing-test]
             [repl-tooling.repl-client.textual-representation-test]
             [repl-tooling.integration.clojurescript-ui]
-            [repl-tooling.repl-client.evaluation-test]))
+            [repl-tooling.repl-client.evaluation-test]
+            [repl-tooling.features.definition-test]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
- ;                        :code "(do
- ;  (->> (range 100)
- ; (map #(vector % (range %)))
- ; (into {})))
- ; "
                         :code "(do (defrecord Foo [a b]) (->Foo (range 20) 20))"
-                        ; :code "(range 100)"
                         :repls {:eval nil
                                 :aux nil}
                         :commands {}
