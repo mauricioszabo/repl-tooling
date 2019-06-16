@@ -132,6 +132,24 @@
                                         "3435363738394041424344...\"")
                                    "  +  {:data {:foo (0 1 2 3 4 5 6 7 8 9 ...)}}"])))
 
+       (testing "rendering tagged literals for non-collections"
+         (let [parsed (render/parse-result
+                       (eval-and-parse "(tagged-literal 'foobar :FOOBAR)") repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+           (check txt => ["#foobar :FOOBAR"])))
+
+       (testing "rendering tagged literals"
+         (let [parsed (render/parse-result
+                       (eval-and-parse "(tagged-literal 'foobar {:foo :bar})") repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+           (check txt => ["+  #foobar {:foo :bar}"])
+
+           ((get funs [0 0]) identity)
+           (check (-> parsed render/txt-for-result render/repr->lines first)
+                  => ["-  #foobar {:foo :bar}"
+                      "  +  [:foo :bar]"])))
+
+
        (async/<! (async/timeout 100))
 
        (client/disconnect! :clj-text-1)
