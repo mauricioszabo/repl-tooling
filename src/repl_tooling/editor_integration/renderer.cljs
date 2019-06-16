@@ -172,24 +172,20 @@
        [:text "\""]]
       [:text (pr-str string)])))
 
-(defn- transform-to-tagged [tagged structure]
-  (let [fst (first structure)]
-    (cond
-      (= :text fst)
-      [:text (str tagged (second structure))]
-
-      (and (= :row fst) (-> structure second first (= :expand)))
-      (update-in structure [2 1] #(str tagged %))
-
-      :else
-      (update-in structure [2 0] #(str tagged %)))))
-
 (defrecord Tagged [tag subelement]
   Renderable
   (as-text [_ ratom root?]
-    (def subelement subelement)
-    (let [sub (as-text @subelement subelement root?)]
-      (transform-to-tagged tag sub)))
+    (let [structure (as-text @subelement subelement root?)
+          fst (first structure)]
+      (cond
+        (= :text fst)
+        [:text (str tag (second structure))]
+
+        (and (= :row fst) (-> structure second first (= :expand)))
+        (update-in structure [2 1] #(str tag %))
+
+        :else
+        (update-in structure [2 0] #(str tag %)))))
 
   (as-html [_ ratom root?]
     [:div {:class "tagged"} [:span {:class "tag"} tag]
