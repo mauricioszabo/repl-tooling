@@ -32,8 +32,27 @@
         (cond-> more-fn (conj (second sep) a-for-more))
         (->> (map #(with-meta %2 {:key %1}) (range))))))
 
+(defn- assert-root [txt]
+  (if (-> txt first (= :row))
+    txt
+    [:row txt]))
+
+(defn- obj-with-more-fn [more-fn ratom repl callback]
+  (more-fn repl #(do
+                   (swap! ratom assoc
+                          :more-fn nil
+                          :expanded? true
+                          :attributes-atom (as-renderable (:attributes %) repl))
+                   (callback))))
+
 (defrecord ObjWithMore [obj-atom more-fn attributes-atom expanded? repl]
   Renderable
+  (as-text [_ ratom root?]
+    (let [obj (assert-root (as-text @obj-atom obj-atom root?))]
+      (if expanded?
+        (conj obj (as-text @attributes-atom attributes-atom root?))
+        (conj obj [:button "..." #(obj-with-more-fn more-fn ratom repl %)]))))
+
   (as-html [_ ratom root?]
     [:div {:class ["browseable"]}
      [:div {:class ["object"]}
@@ -42,19 +61,11 @@
         [:a {:href "#"
              :on-click (fn [e]
                          (.preventDefault e)
-                         (more-fn repl #(swap! ratom assoc
-                                               :more-fn nil
-                                               :expanded? true
-                                               :attributes-atom (as-renderable (:attributes %) repl))))}
+                         (obj-with-more-fn more-fn ratom repl identity))}
          (when root? "...")])]
      (when (and root? expanded?)
        [:div {:class "row children"}
         [as-html @attributes-atom attributes-atom true]])]))
-
-(defn- assert-root [txt]
-  (if (-> txt first (= :row))
-    txt
-    [:row txt]))
 
 (declare ->indexed)
 (defn- reset-atom [repl ratom obj result]
@@ -201,24 +212,29 @@
                                   (more repl #(reset! ratom @(as-renderable % repl))))}
         "..."]])))
 
-(defn- link-for-more-trace [repl ratom more-trace more-str]
+(defn- link-for-more-trace [repl ratom more-trace more-str callback?]
   (cond
     more-trace
     (fn [e]
-      (.preventDefault e)
-      (more-trace repl #(reset! ratom %)))
+      (when-not callback? (.preventDefault e))
+      (more-trace repl #(do
+                          (reset! ratom %)
+                          (when callback? (e)))))
 
     more-str
     (fn [e]
-      (.preventDefault e)
-      (more-str repl #(swap! ratom assoc 2 %)))))
+      (when-not callback? (.preventDefault e))
+      (more-str repl #(do
+                        (swap! ratom assoc 2 %)
+                        (when callback? (e)))))))
 
 (defn- to-trace-row [repl ratom idx trace]
   (let [[class method file row] trace
         link-for-more (link-for-more-trace repl
                                            (r/cursor ratom [:obj :trace idx])
                                            (eval/get-more-fn trace)
-                                           (eval/get-more-fn file))
+                                           (eval/get-more-fn file)
+                                           false)
         clj-file? (re-find #"\.clj?$" (str file))]
     (cond
       (string? trace)
@@ -243,7 +259,8 @@
         link-for-more (link-for-more-trace repl
                                            (r/cursor ratom [:obj :trace idx])
                                            (eval/get-more-fn trace)
-                                           (eval/get-more-fn file))
+                                           (eval/get-more-fn file)
+                                           true)
         clj-file? (re-find #"\.clj?$" (str file))]
     (cond
       (string? trace) [:row [:text trace]]

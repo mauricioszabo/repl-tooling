@@ -149,6 +149,19 @@
                   => ["-  #foobar {:foo :bar}"
                       "  +  [:foo :bar]"])))
 
+       (testing "rendering browseable objects"
+         (let [parsed (render/parse-result (eval-and-parse "Object") repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))
+               wait (async/promise-chan)]
+           (check txt => ["java.lang.Object..."])
+
+           ((get funs [0 16]) #(async/put! wait :done))
+           (async/<! wait)
+           (-> parsed render/txt-for-result render/repr->lines first first
+               (check => "java.lang.Object"))
+           (-> parsed render/txt-for-result render/repr->lines first second
+               (check => #"new java\.lang\.Object"))))
+
 
        (async/<! (async/timeout 100))
 
