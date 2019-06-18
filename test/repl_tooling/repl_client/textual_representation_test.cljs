@@ -162,8 +162,17 @@
            (-> parsed render/txt-for-result render/repr->lines first second
                (check => #"new java\.lang\.Object"))))
 
-
-       (async/<! (async/timeout 100))
+       #_
+       (testing "rendering incomplete objects"
+         (let [obj (helpers/->IncompleteObj (fn [ & args] ((last args) {:result ":FOO"})))
+               parsed (render/parse-result {:result obj :parsed? true} repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))
+               wait (async/promise-chan)]
+           (check txt => ["..."])
+           ((get funs [0 0]) #(async/put! wait :done))
+           (async/<! wait)
+           (-> parsed render/txt-for-result render/repr->lines first
+               (check => [":FOO"]))))
 
        (client/disconnect! :clj-text-1)
        (done)))))

@@ -204,7 +204,14 @@
 
 (defrecord IncompleteObj [incomplete repl]
   Renderable
-  (as-html [_ ratom root?]
+  (as-text [_ ratom _]
+    (let [more (eval/get-more-fn incomplete)]
+      [:button "..." (fn [callback]
+                       (more repl #(do
+                                     (reset! ratom @(as-renderable % repl))
+                                     (callback))))]))
+
+  (as-html [_ ratom _]
     (let [more (eval/get-more-fn incomplete)]
       [:div {:class "incomplete-obj"}
        [:a {:href "#" :on-click (fn [e]
