@@ -2,7 +2,8 @@
   (:require [repl-tooling.repl-client :as repl-client]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
-            [repl-tooling.repl-client.clojure :as clj-repl]))
+            [repl-tooling.repl-client.clojure :as clj-repl]
+            [repl-tooling.features.loaders :as loaders]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -68,7 +69,7 @@
                    (eval-cmd repl code filename row col namespace range
                              on-eval on-start-eval)))))
 
-(defn- cmds-for [aux primary {:keys [editor-data on-start-eval on-eval]}]
+(defn- cmds-for [aux primary {:keys [editor-data on-start-eval on-eval] :as opts}]
   {:evaluate-top-block {:name "Evaluate Top Block"
                         :description "Evaluates top block block on current editor's selection"
                         :command #(eval-top-block primary (editor-data) on-start-eval on-eval)}
@@ -81,6 +82,10 @@
    :break-evaluation {:name "Break Evaluation"
                       :description "Break current running eval"
                       :command #(eval/break primary aux)}
+   :load-file {:name "Load File"
+               :description "Loads current file on a Clojure REPL"
+               :command (fn [] (ensure-data (editor-data)
+                                            #(loaders/load-file opts %)))}
    :disconnect {:name "Disconnect REPLs"
                 :description "Disconnect all current connected REPLs"
                 :command disconnect!}})
@@ -88,6 +93,16 @@
 (defn connect-unrepl!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
 callbacks:
+* on-start-eval -> a function that'll be called when an evaluation starts
+* on-eval -> a function that'll be called when an evaluation ends
+* editor-data -> a function that'll be called when a command needs editor's data.
+  Editor's data is a map (or a promise that resolves to a map) with the arguments:
+    :contents - the editor's contents.
+    :filename - the current file's name. Can be nil if file was not saved yet.
+    :range - a vector containing [[start-row start-col] [end-row end-col]], representing
+      the current selection
+* notify -> when something needs to be notified, this function will be called with a map
+  containing :type (one of :info, :warning, or :error), :title and :message
 * on-stdout -> a function that receives a string when some code prints to stdout
 * on-stderr -> a function that receives a string when some code prints to stderr
 * on-result -> returns a clojure EDN with the result of code
