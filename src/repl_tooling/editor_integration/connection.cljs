@@ -3,7 +3,7 @@
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]
-            [repl-tooling.features.loaders :as loaders]))
+            [repl-tooling.editor-integration.loaders :as loaders]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -26,69 +26,75 @@
     (. data-or-promise then #(call %))
     (call data-or-promise)))
 
-(defn- eval-cmd [repl code range filename row col namespace on-eval on-start]
+(defn- eval-cmd [state code filename namespace range editor-data on-eval on-start]
   (when code
-    (let [id (atom nil)]
-      (reset! id (eval/evaluate repl
+    (let [id (atom nil)
+          [[row col]] range
+          eval-data (delay {:id @id
+                            :editor-data editor-data
+                            :range range})]
+      (reset! id (eval/evaluate (:clj/repl @state)
                                 code
                                 {:filename filename
-                                 :row row
-                                 :col col
+                                 :row (inc row)
+                                 :col (inc col)
                                  :namespace (str namespace)}
-                                #(and on-eval (on-eval (helpers/parse-result %)
-                                                       @id
-                                                       range))))
-      (and on-start (on-start @id range)))))
+                                #(and on-eval
+                                      (on-eval (assoc @eval-data
+                                                      :result (helpers/parse-result %))))))
+      (and on-start (on-start @eval-data)))))
 
-(defn- eval-block [repl data on-start-eval on-eval]
+(defn- eval-block [state data on-start-eval on-eval]
   (ensure-data data
                (fn [{:keys [contents range filename] :as data}]
                  (let [[[row col]] range
                        code (helpers/read-next contents (inc row) (inc col))
                        [_ namespace] (helpers/ns-range-for contents [row col])]
                    ;FIXME: It's not this range!
-                   (eval-cmd repl code filename row col namespace range
+                   (eval-cmd state code filename namespace range data
                              on-eval on-start-eval)))))
 
-(defn- eval-top-block [repl data on-start-eval on-eval]
+(defn- eval-top-block [state data on-start-eval on-eval]
   (ensure-data data
                (fn [{:keys [contents range filename] :as data}]
                  (let [[start] range
                        [eval-range code] (helpers/top-block-for contents start)
                        [[s-row s-col]] eval-range
                        [_ namespace] (helpers/ns-range-for contents [s-row s-col])]
-                   (eval-cmd repl code filename s-row s-col namespace eval-range
+                   (eval-cmd state code filename namespace eval-range data
                              on-eval on-start-eval)))))
 
-(defn- eval-selection [repl data on-start-eval on-eval]
+(defn- eval-selection [state data on-start-eval on-eval]
   (ensure-data data
                (fn [{:keys [contents range filename] :as data}]
                  (let [[[row col]] range
                        code (helpers/text-in-range contents range)
                        [_ namespace] (helpers/ns-range-for contents [row col])]
-                   (eval-cmd repl code filename row col namespace range
+                   (eval-cmd state code filename namespace range data
                              on-eval on-start-eval)))))
 
-(defn- cmds-for [aux primary {:keys [editor-data on-start-eval on-eval] :as opts}]
-  {:evaluate-top-block {:name "Evaluate Top Block"
-                        :description "Evaluates top block block on current editor's selection"
-                        :command #(eval-top-block primary (editor-data) on-start-eval on-eval)}
-   :evaluate-block {:name "Evaluate Block"
-                    :description "Evaluates current block on editor's selection"
-                    :command #(eval-block primary (editor-data) on-start-eval on-eval)}
-   :evaluate-selection {:name "Evaluate Selection"
-                        :description "Evaluates current editor's selection"
-                        :command #(eval-selection primary (editor-data) on-start-eval on-eval)}
-   :break-evaluation {:name "Break Evaluation"
-                      :description "Break current running eval"
-                      :command #(eval/break primary aux)}
-   :load-file {:name "Load File"
-               :description "Loads current file on a Clojure REPL"
-               :command (fn [] (ensure-data (editor-data)
-                                            #(loaders/load-file opts %)))}
-   :disconnect {:name "Disconnect REPLs"
-                :description "Disconnect all current connected REPLs"
-                :command disconnect!}})
+(defn- cmds-for [state {:keys [editor-data on-start-eval on-eval] :as opts}]
+  (let [primary (:clj/repl @state)
+        aux (:clj/aux @state)]
+    {:evaluate-top-block {:name "Evaluate Top Block"
+                          :description "Evaluates top block block on current editor's selection"
+                          :command #(eval-top-block state (editor-data) on-start-eval on-eval)}
+     :evaluate-block {:name "Evaluate Block"
+                      :description "Evaluates current block on editor's selection"
+                      :command #(eval-block state (editor-data) on-start-eval on-eval)}
+     :evaluate-selection {:name "Evaluate Selection"
+                          :description "Evaluates current editor's selection"
+                          :command #(eval-selection state (editor-data) on-start-eval on-eval)}
+     :break-evaluation {:name "Break Evaluation"
+                        :description "Break current running eval"
+                        :command #(eval/break primary aux)}
+     :load-file {:name "Load File"
+                 :description "Loads current file on a Clojure REPL"
+                 :command (fn [] (ensure-data (editor-data)
+                                              #(loaders/load-file opts aux %)))}
+     :disconnect {:name "Disconnect REPLs"
+                  :description "Disconnect all current connected REPLs"
+                  :command disconnect!}}))
 
 (defn connect-unrepl!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
@@ -103,6 +109,8 @@ callbacks:
       the current selection
 * notify -> when something needs to be notified, this function will be called with a map
   containing :type (one of :info, :warning, or :error), :title and :message
+* get-config -> when some function needs the configuration from the editor, this fn
+  is called without arguments. Need to return a map with the config options.
 * on-stdout -> a function that receives a string when some code prints to stdout
 * on-stderr -> a function that receives a string when some code prints to stderr
 * on-result -> returns a clojure EDN with the result of code
@@ -133,7 +141,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                                 (fn []
                                   (reset! state {:clj/aux aux
                                                  :clj/repl @primary
-                                                 :editor/commands (cmds-for aux @primary opts)})
+                                                 :editor/commands (cmds-for state opts)})
                                   (resolve @state))))]
 
        (eval/evaluate aux ":aux-connected" {:ignore true}
