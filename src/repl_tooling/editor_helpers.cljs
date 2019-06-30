@@ -116,11 +116,15 @@
              "{" "}"})
 
 (defn text-in-range [text [[row1 col1] [row2 col2]]]
-  (let [lines (str/split-lines text)]
+  (let [lines (str/split-lines text)
+        rows-offset (- row2 row1)]
     (-> lines
         (subvec row1 (inc row2))
         (update 0 #(str/join "" (drop col1 %)))
-        (update (- row2 row1) #(str/join "" (take (inc col2) %)))
+        (update rows-offset #(str/join "" (take (inc (if (zero? rows-offset)
+                                                       (- col2 col1)
+                                                       col2))
+                                                %)))
         (->> (str/join "\n")))))
 
 (defn- simple-read [str]
