@@ -59,6 +59,13 @@
     (check (editor/top-block-for simple-clj [0 8])
            => [[[0 8] [0 16]] "(+ (3) 4)"])))
 
+(deftest getting-blocks-with-quotes
+  (testing "top-block"
+    (check (editor/top-block-for "(defmacro foo [] `(+ 1 2))" [0 21])
+           => [[[0 0] [0 25]] "(defmacro foo [] `(+ 1 2))"])))
+    ; (check (editor/block-for "(defmacro foo [] `(+ 1 2))" [0 21])
+    ;        => [[[0 18] [0 25]] "(+ 1 2)"])))
+
 (def ns-code "(ns foobar)\n(def foo 10)\n(ns barbaz)\n(def wow 1)\n\n")
 (deftest getting-ns
   (testing "getting NS top-level"

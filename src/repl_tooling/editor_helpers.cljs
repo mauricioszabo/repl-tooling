@@ -159,29 +159,31 @@
   to determine how much was read, and return that substring of the original
   `code-str`, rather than what was actually read by the reader."
   ([code-str start-row start-col]
-   (let [code-str (subs code-str (search-start code-str start-row start-col))
-         rdr (reader-types/indexing-push-back-reader code-str)]
-     ;; Read a form, but discard it, as we want the original string.
-     (reader/read rdr)
-     (subs code-str
-           0
-           ;; Even though this returns the position *after* the read, this works
-           ;; because subs is end point exclusive.
-           (position code-str
-                     (reader-types/get-line-number rdr)
-                     (reader-types/get-column-number rdr)))))
+   (binding [reader/resolve-symbol identity]
+     (let [code-str (subs code-str (search-start code-str start-row start-col))
+           rdr (reader-types/indexing-push-back-reader code-str)]
+       ;; Read a form, but discard it, as we want the original string.
+       (reader/read rdr)
+       (subs code-str
+             0
+             ;; Even though this returns the position *after* the read, this works
+             ;; because subs is end point exclusive.
+             (position code-str
+                       (reader-types/get-line-number rdr)
+                       (reader-types/get-column-number rdr))))))
   ([code-str start-position]
-   (let [code-str (subs code-str (search-start code-str start-position))
-         rdr (reader-types/indexing-push-back-reader code-str)]
-     ;; Read a form, but discard it, as we want the original string.
-     (reader/read rdr)
-     (subs code-str
-           0
-           ;; Even though this returns the position *after* the read, this works
-           ;; because subs is end point exclusive.
-           (position code-str
-                     (reader-types/get-line-number rdr)
-                     (reader-types/get-column-number rdr))))))
+   (binding [reader/resolve-symbol identity]
+     (let [code-str (subs code-str (search-start code-str start-position))
+           rdr (reader-types/indexing-push-back-reader code-str)]
+       ;; Read a form, but discard it, as we want the original string.
+       (reader/read rdr)
+       (subs code-str
+             0
+             ;; Even though this returns the position *after* the read, this works
+             ;; because subs is end point exclusive.
+             (position code-str
+                       (reader-types/get-line-number rdr)
+                       (reader-types/get-column-number rdr)))))))
 
 (defn top-levels
   "Gets all top-level ranges for the current code"
@@ -225,6 +227,12 @@ that the cursor is in row and col (0-based)"
          (filter #(-> % peek is-ns?))
          (map #(update % 1 second))
          first)))
+
+(defn block-for
+  "Gets the current block from the code (a string) to the current row and col (0-based)"
+  [code [row col]]
+  (let [block (read-next code row col)]
+    [block]))
 
 (defn top-block-for
   "Gets the top-level from the code (a string) to the current row and col (0-based)"
