@@ -63,22 +63,20 @@
     (check (helpers/top-block-for some-clj [9 3])
            => [[[9 0] [9 10]] "(ns barbaz)"])
     (check (helpers/top-block-for simple-clj [0 8])
-           => [[[0 8] [0 16]] "(+ (3) 4)"])))
+           => [[[0 8] [0 16]] "(+ (3) 4)"]))
+
+  (testing "text and range from block"
+    (check (helpers/block-for simple-clj [0 10]) => [[[0 8] [0 16]] "(+ (3) 4)"])
+    (check (helpers/block-for simple-clj [1 2]) => [[[1 0] [2 1]] "[1 2\n3]"])))
 
 (deftest getting-blocks-with-special-symbols
   (testing "top-block with syntax quote"
     (check (helpers/top-block-for "(defmacro foo [] `(+ 1 2))" [0 21])
            => [[[0 0] [0 25]] "(defmacro foo [] `(+ 1 2))"]))
+
   (testing "top-block with tags"
-    (try
-      (helpers/top-block-for "(defmacro foo [] #js [1 2])" [0 21])
-      (catch :default e
-        (prn e)
-        (println (.-stack e))))
     (check (helpers/top-block-for "(defmacro foo [] #js [1 2])" [0 21])
            => [[[0 0] [0 26]] "(defmacro foo [] #js [1 2])"])))
-    ; (check (helpers/block-for "(defmacro foo [] `(+ 1 2))" [0 21])
-    ;        => [[[0 18] [0 25]] "(+ 1 2)"])))
 
 (def ns-code "(ns foobar)\n(def foo 10)\n(ns barbaz)\n(def wow 1)\n\n")
 (deftest getting-ns
