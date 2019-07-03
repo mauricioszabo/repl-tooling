@@ -3,7 +3,8 @@
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]
-            [repl-tooling.editor-integration.loaders :as loaders]))
+            [repl-tooling.editor-integration.loaders :as loaders]
+            [repl-tooling.editor-integration.evaluation :as e-eval]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -26,65 +27,44 @@
     (. data-or-promise then #(call %))
     (call data-or-promise)))
 
-(defn- eval-cmd [state code filename namespace range editor-data on-eval on-start]
-  (when code
-    (let [id (atom nil)
-          [[row col]] range
-          eval-data (delay {:id @id
-                            :editor-data editor-data
-                            :range range})]
-      (reset! id (eval/evaluate (:clj/repl @state)
-                                code
-                                {:filename filename
-                                 :row (inc row)
-                                 :col (inc col)
-                                 :namespace (str namespace)}
-                                #(and on-eval
-                                      (on-eval (assoc @eval-data
-                                                      :result (helpers/parse-result %))))))
-      (and on-start (on-start @eval-data)))))
-
-(defn- eval-block [state data on-start-eval on-eval]
+(defn- eval-block [state data opts]
   (ensure-data data
-               (fn [{:keys [contents range filename] :as data}]
+               (fn [{:keys [contents range] :as data}]
                  (let [[[row col]] range
                        code (helpers/read-next contents (inc row) (inc col))
                        [_ namespace] (helpers/ns-range-for contents [row col])]
                    ;FIXME: It's not this range!
-                   (eval-cmd state code filename namespace range data
-                             on-eval on-start-eval)))))
+                   (e-eval/eval-cmd state code namespace range data opts)))))
 
-(defn- eval-top-block [state data on-start-eval on-eval]
+(defn- eval-top-block [state data opts]
   (ensure-data data
-               (fn [{:keys [contents range filename] :as data}]
+               (fn [{:keys [contents range] :as data}]
                  (let [[start] range
                        [eval-range code] (helpers/top-block-for contents start)
                        [[s-row s-col]] eval-range
                        [_ namespace] (helpers/ns-range-for contents [s-row s-col])]
-                   (eval-cmd state code filename namespace eval-range data
-                             on-eval on-start-eval)))))
+                   (e-eval/eval-cmd state code namespace eval-range data opts)))))
 
-(defn- eval-selection [state data on-start-eval on-eval]
+(defn- eval-selection [state data opts]
   (ensure-data data
-               (fn [{:keys [contents range filename] :as data}]
+               (fn [{:keys [contents range] :as data}]
                  (let [[[row col]] range
                        code (helpers/text-in-range contents range)
                        [_ namespace] (helpers/ns-range-for contents [row col])]
-                   (eval-cmd state code filename namespace range data
-                             on-eval on-start-eval)))))
+                   (e-eval/eval-cmd state code namespace range data opts)))))
 
-(defn- cmds-for [state {:keys [editor-data on-start-eval on-eval] :as opts}]
+(defn- cmds-for [state {:keys [editor-data] :as opts}]
   (let [primary (:clj/repl @state)
         aux (:clj/aux @state)]
     {:evaluate-top-block {:name "Evaluate Top Block"
                           :description "Evaluates top block block on current editor's selection"
-                          :command #(eval-top-block state (editor-data) on-start-eval on-eval)}
+                          :command #(eval-top-block state (editor-data) opts)}
      :evaluate-block {:name "Evaluate Block"
                       :description "Evaluates current block on editor's selection"
-                      :command #(eval-block state (editor-data) on-start-eval on-eval)}
+                      :command #(eval-block state (editor-data) opts)}
      :evaluate-selection {:name "Evaluate Selection"
                           :description "Evaluates current editor's selection"
-                          :command #(eval-selection state (editor-data) on-start-eval on-eval)}
+                          :command #(eval-selection state (editor-data) opts)}
      :break-evaluation {:name "Break Evaluation"
                         :description "Break current running eval"
                         :command #(eval/break primary aux)}
@@ -95,6 +75,16 @@
      :disconnect {:name "Disconnect REPLs"
                   :description "Disconnect all current connected REPLs"
                   :command disconnect!}}))
+
+(defn- disable-limits! [aux]
+  (eval/evaluate aux
+                 (clj-repl/unrepl-cmd (-> aux :session deref :state)
+                                      :print-limits
+                                      {:unrepl.print/string-length 9223372036854775807
+                                       :unrepl.print/coll-length 9223372036854775807
+                                       :unrepl.print/nesting-depth 9223372036854775807})
+                 {:ignore true}
+                 identity))
 
 (defn connect-unrepl!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
@@ -128,21 +118,13 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
            primary (delay (clj-repl/repl :clj-eval host port callback))
            state (atom nil)
            connect-primary (fn []
-                             (eval/evaluate aux
-                                            (clj-repl/unrepl-cmd (-> aux :session deref :state)
-                                                                 :print-limits
-                                                                 {:unrepl.print/string-length 9223372036854775807
-                                                                  :unrepl.print/coll-length 9223372036854775807
-                                                                  :unrepl.print/nesting-depth 9223372036854775807})
-                                            {:ignore true}
-                                            identity)
-
+                             (disable-limits! aux)
                              (eval/evaluate @primary ":primary-connected" {:ignore true}
                                 (fn []
                                   (reset! state {:clj/aux aux
                                                  :clj/repl @primary
                                                  :editor/commands (cmds-for state opts)})
-                                  (resolve @state))))]
+                                  (resolve state))))]
 
        (eval/evaluate aux ":aux-connected" {:ignore true}
                       #(connect-primary))))))
