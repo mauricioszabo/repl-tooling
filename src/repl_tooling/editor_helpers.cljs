@@ -133,6 +133,8 @@
 (defn position
   "Returns the zero-indexed position in a code string given line and column."
   [code-str row col]
+  (let [row (dec row)
+        col (dec col)])
   (->> code-str
        str/split-lines
        (take (dec row))
@@ -234,11 +236,42 @@ that the cursor is in row and col (0-based)"
          (map #(update % 1 second))
          first)))
 
+#_
+(search-start code 0 10)
+#_
+(read-next code 1 8)
+
+#_
+(read-next "(+ \"(+ 1 2)\" 2 3)" 1 13)
+
+#_
+(search-start "(+ 1 2) (+ 2 (3) 5)" 1 2)
+#_
+(block-for "(+ 1 2) (+ 2 (3) 5)" [0 9])
+
 (defn block-for
   "Gets the current block from the code (a string) to the current row and col (0-based)"
   [code [row col]]
-  (let [block (read-next code row col)]
-    [block]))
+  (def code code)
+  (def row row)
+  (def col col)
+  (let [pos (search-start code (inc row) (inc col))
+        _ (prn pos)
+        block (read-next code pos)
+        block-lines (str/split-lines block)
+        reds (->> code
+                  str/split-lines
+                  (reductions #(-> %2 count (+ %1)) 0)
+                  (take-while #(<= % pos)))
+        _ (prn reds)
+        row (-> reds count dec)
+        col (- pos (last reds))
+        last-row (-> block-lines count dec (+ row))
+        last-col (if (= row last-row)
+                   (-> block count (+ col) dec)
+                   (-> block-lines last count dec))]
+    [[[row col] [last-row last-col]] block]))
+
 
 (defn top-block-for
   "Gets the top-level from the code (a string) to the current row and col (0-based)"
