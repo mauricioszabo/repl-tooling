@@ -31,10 +31,11 @@
 
 (deftest stripping-comments
   (testing "simple comments"
-    (check (helpers/strip-comments "(+ ; foobar)") => "(+ "))
+    (check (helpers/strip-comments "(+ ; foobar)") => "(+          "))
 
   (testing "comments inside strings"
-    (check (helpers/strip-comments "\"foo;bar\"; foobar)") => "\"foo bar\"")))
+    (check (helpers/strip-comments "\"foo;bar\"; foobar)")
+           => "\"foo;bar\"         ")))
 
 (deftest text-in-rage
   (testing "gets text in same line"
@@ -54,7 +55,7 @@
   (testing "gets top-level forms in complex CLJ code"
     (check (helpers/top-levels some-clj)
            => [[[[1 0] [1 10]] "(ns foobar)"]
-               [[[3 0] [7 20]] "(defn foo [a b c]\n  (+ 1 2) ; ))\n\n (defn bar [x y z]\n   {:a x :b y :c z}))"]
+               [[[3 0] [7 20]] "(defn foo [a b c]\n  (+ 1 2)     \n\n (defn bar [x y z]\n   {:a x :b y :c z}))"]
                [[[9 0] [9 10]] "(ns barbaz)"]
                [[[11 0] [11 12]] "(def algo 10)"]])))
 
