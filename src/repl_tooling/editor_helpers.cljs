@@ -105,10 +105,11 @@
          :parsed? true))
 
 (defn strip-comments [text]
-  (-> text
-      (str/replace #"\".(\\\"|[^\"])*\"" (fn [[a]] (str/replace a #";" " ")))
-      (str/replace #"\\;" "  ")
-      (str/replace #";.*" "")))
+  (str/replace text #"(\".(\\\"|[^\"])*\"|;.*)"
+               (fn [[match]]
+                 (cond-> match
+                         (str/starts-with? match ";")
+                         (str/replace #"." " ")))))
 
 (def delim #{"(" "[" "{"})
 (def closes {"(" ")"
@@ -196,7 +197,8 @@
 (defn top-levels
   "Gets all top-level ranges for the current code"
   [text]
-  (let [size (count text)]
+  (let [size (count text)
+        text (strip-comments text)]
     (loop [curr-pos 0
            row 0
            col 0
