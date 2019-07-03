@@ -163,7 +163,8 @@
   to determine how much was read, and return that substring of the original
   `code-str`, rather than what was actually read by the reader."
   ([code-str start-row start-col]
-   (binding [reader/resolve-symbol identity]
+   (binding [reader/resolve-symbol identity
+             reader/*suppress-read* true]
      (let [code-str (subs code-str (search-start code-str start-row start-col))
            rdr (reader-types/indexing-push-back-reader code-str)]
        ;; Read a form, but discard it, as we want the original string.
@@ -176,7 +177,8 @@
                        (reader-types/get-line-number rdr)
                        (reader-types/get-column-number rdr))))))
   ([code-str start-position]
-   (binding [reader/resolve-symbol identity]
+   (binding [reader/resolve-symbol identity
+             reader/*suppress-read* true]
      (let [code-str (subs code-str (search-start code-str start-position))
            rdr (reader-types/indexing-push-back-reader code-str)]
        ;; Read a form, but discard it, as we want the original string.
