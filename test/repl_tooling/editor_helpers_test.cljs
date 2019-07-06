@@ -57,7 +57,12 @@
            => [[[[1 0] [1 10]] "(ns foobar)"]
                [[[3 0] [7 20]] "(defn foo [a b c]\n  (+ 1 2)     \n\n (defn bar [x y z]\n   {:a x :b y :c z}))"]
                [[[9 0] [9 10]] "(ns barbaz)"]
-               [[[11 0] [11 12]] "(def algo 10)"]])))
+               [[[11 0] [11 12]] "(def algo 10)"]]))
+
+  (testing "get top-levels with syntax errors"
+    (check (helpers/top-levels "(+ 1) ) (+ 2)")
+           => [[[[0 0] [0 4]] "(+ 1)"]
+               [[[0 8] [0 12]] "(+ 2)"]])))
 
 (deftest getting-blocks
   (testing "text and range from top-block"
@@ -78,6 +83,7 @@
   (testing "top-block with tags"
     (check (helpers/top-block-for "(defmacro foo [] #js [1 2])" [0 21])
            => [[[0 0] [0 26]] "(defmacro foo [] #js [1 2])"])))
+
 
 (def ns-code "(ns foobar)\n(def foo 10)\n(ns barbaz)\n(def wow 1)\n\n")
 (deftest getting-ns

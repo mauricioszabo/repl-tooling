@@ -161,6 +161,20 @@
               (remove nil?)
               (apply max 0)))))))
 
+(def ^:private openers #{\[ \( \{ \"})
+(defn next-open-start [code-str start-position]
+  (if (contains? openers (nth code-str start-position))
+    start-position
+    (let [code-str-prefix (subs code-str start-position)]
+      (->> openers
+           (map #(str/last-index-of code-str-prefix %))
+           (remove nil?)
+           (apply max 0)
+           (+ start-position)))))
+
+#_
+(next-open-start "(+ 1 2 3) ) (4 5 6)" 10)
+
 (defn read-next
   "Reads the next expression from some code. Uses an `indexing-pushback-reader`
   to determine how much was read, and return that substring of the original
@@ -182,7 +196,7 @@
   ([code-str start-position]
    (binding [reader/resolve-symbol identity
              reader/*suppress-read* true]
-     (let [code-str (subs code-str (search-start code-str start-position))
+     (let [code-str (subs code-str start-position)
            rdr (reader-types/indexing-push-back-reader code-str)]
        ;; Read a form, but discard it, as we want the original string.
        (reader/read rdr)
@@ -208,16 +222,27 @@
         (>= curr-pos size) tops
         (re-find #"\n" (nth text curr-pos)) (recur (inc curr-pos) (inc row) 0 tops)
         (re-find #"\s" (nth text curr-pos)) (recur (inc curr-pos) row (inc col) tops)
-        :else (let [nxt (read-next text curr-pos)
-                    last-row (->> nxt (re-seq #"\n") count (+ row))
-                    last-col (-> nxt str/split-lines last count (+ col))]
-                (recur
-                  (+ (count nxt) curr-pos)
-                  last-row
-                  last-col
-                  (conj tops [[[row col]
-                               [last-row (dec last-col)]]
-                              nxt])))))))
+        :else (if-let [nxt (try (read-next text curr-pos) (catch ExceptionInfo _ nil))]
+                (let [last-row (->> nxt (re-seq #"\n") count (+ row))
+                      last-col (-> nxt str/split-lines last count (+ col))]
+                  (recur
+                    (+ (count nxt) curr-pos)
+                    last-row
+                    last-col
+                    (conj tops [[[row col]
+                                 [last-row (dec last-col)]]
+                                nxt])))
+                (recur (inc curr-pos) row col tops))))))
+
+#_
+(top-levels "(+ 1) ) (+ 2)" 6)
+
+#_
+(try (read-next "(+ 1) ) (+ 2)" 6)
+  (catch ExceptionInfo _ nil))
+
+#_
+(search-start "(+ 1) ) (+ 2)" 6)
 
 (defn ns-range-for
   "Gets the current NS range (and ns name) for the current code, considering
