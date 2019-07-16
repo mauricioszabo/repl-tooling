@@ -55,7 +55,7 @@
   (testing "gets top-level forms in complex CLJ code"
     (check (helpers/top-levels some-clj)
            => [[[[1 0] [1 10]] "(ns foobar)"]
-               [[[3 0] [7 20]] "(defn foo [a b c]\n  (+ 1 2)     \n\n (defn bar [x y z]\n   {:a x :b y :c z}))"]
+               [[[3 0] [7 20]] "(defn foo [a b c]\n  (+ 1 2) ; ))\n\n (defn bar [x y z]\n   {:a x :b y :c z}))"]
                [[[9 0] [9 10]] "(ns barbaz)"]
                [[[11 0] [11 12]] "(def algo 10)"]]))
 

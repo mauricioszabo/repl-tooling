@@ -167,13 +167,10 @@
     start-position
     (let [code-str-prefix (subs code-str start-position)]
       (->> openers
-           (map #(str/last-index-of code-str-prefix %))
+           (map #(str/index-of code-str-prefix %))
            (remove nil?)
-           (apply max 0)
+           (first)
            (+ start-position)))))
-
-#_
-(next-open-start "(+ 1 2 3) ) (4 5 6)" 10)
 
 (defn read-next
   "Reads the next expression from some code. Uses an `indexing-pushback-reader`
@@ -208,41 +205,28 @@
                        (reader-types/get-line-number rdr)
                        (reader-types/get-column-number rdr)))))))
 
+(defn- count-nls [text row]
+  (->> text (re-seq #"\n") count (+ row)))
+
 (defn top-levels
   "Gets all top-level ranges for the current code"
-  [text]
-  (let [size (count text)
-        text (strip-comments text)]
-    (loop [curr-pos 0
-           row 0
-           col 0
-           tops []]
-
-      (cond
-        (>= curr-pos size) tops
-        (re-find #"\n" (nth text curr-pos)) (recur (inc curr-pos) (inc row) 0 tops)
-        (re-find #"\s" (nth text curr-pos)) (recur (inc curr-pos) row (inc col) tops)
-        :else (if-let [nxt (try (read-next text curr-pos) (catch ExceptionInfo _ nil))]
-                (let [last-row (->> nxt (re-seq #"\n") count (+ row))
-                      last-col (-> nxt str/split-lines last count (+ col))]
-                  (recur
-                    (+ (count nxt) curr-pos)
-                    last-row
-                    last-col
-                    (conj tops [[[row col]
-                                 [last-row (dec last-col)]]
-                                nxt])))
-                (recur (inc curr-pos) row col tops))))))
-
-#_
-(top-levels "(+ 1) ) (+ 2)" 6)
-
-#_
-(try (read-next "(+ 1) ) (+ 2)" 6)
-  (catch ExceptionInfo _ nil))
-
-#_
-(search-start "(+ 1) ) (+ 2)" 6)
+  [code]
+  (loop [row 0 col 0 old-pos 0 sofar []]
+    (if-let [curr-pos (try (next-open-start code old-pos) (catch :default e nil))]
+      (let [code-frag (read-next code curr-pos)
+            before-code (subs code curr-pos old-pos)
+            new-row (count-nls before-code row)
+            new-col (cond-> (-> before-code (str/split-lines) last count)
+                            (= new-row row) (+ col))
+            end-row (count-nls code-frag new-row)
+            end-col (cond-> (-> code-frag (str/split-lines) last count)
+                            (= end-row new-row) (+ new-col))]
+        (recur
+          end-row
+          end-col
+          (+ curr-pos (count code-frag))
+          (conj sofar [[[new-row new-col] [end-row (dec end-col)]] code-frag])))
+      sofar)))
 
 (defn ns-range-for
   "Gets the current NS range (and ns name) for the current code, considering
@@ -263,19 +247,6 @@ that the cursor is in row and col (0-based)"
          (map #(update % 1 second))
          first)))
 
-#_
-(search-start code 0 10)
-#_
-(read-next code 1 8)
-
-#_
-(read-next "(+ \"(+ 1 2)\" 2 3)" 1 13)
-
-#_
-(search-start "(+ 1 2) (+ 2 (3) 5)" 1 2)
-#_
-(block-for "(+ 1 2) (+ 2 (3) 5)" [0 9])
-
 (defn block-for
   "Gets the current block from the code (a string) to the current row and col (0-based)"
   [code [row col]]
@@ -283,14 +254,12 @@ that the cursor is in row and col (0-based)"
   (def row row)
   (def col col)
   (let [pos (search-start code (inc row) (inc col))
-        _ (prn pos)
         block (read-next code pos)
         block-lines (str/split-lines block)
         reds (->> code
                   str/split-lines
                   (reductions #(-> %2 count (+ %1)) 0)
                   (take-while #(<= % pos)))
-        _ (prn reds)
         row (-> reds count dec)
         col (- pos (last reds))
         last-row (-> block-lines count dec (+ row))
