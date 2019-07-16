@@ -208,25 +208,35 @@
 (defn- count-nls [text row]
   (->> text (re-seq #"\n") count (+ row)))
 
+(defn code-frag [code curr-pos]
+  (try
+    (read-next code curr-pos)
+    (catch ExceptionInfo e
+      (if (-> e .-data :ex-kind (= :eof))
+        nil
+        (throw e)))))
+
 (defn top-levels
   "Gets all top-level ranges for the current code"
   [code]
   (loop [row 0 col 0 old-pos 0 sofar []]
-    (if-let [curr-pos (try (next-open-start code old-pos) (catch :default e nil))]
-      (let [code-frag (read-next code curr-pos)
-            before-code (subs code curr-pos old-pos)
-            new-row (count-nls before-code row)
-            new-col (cond-> (-> before-code (str/split-lines) last count)
-                            (= new-row row) (+ col))
-            end-row (count-nls code-frag new-row)
-            end-col (cond-> (-> code-frag (str/split-lines) last count)
-                            (= end-row new-row) (+ new-col))]
-        (recur
-          end-row
-          end-col
-          (+ curr-pos (count code-frag))
-          (conj sofar [[[new-row new-col] [end-row (dec end-col)]] code-frag])))
-      sofar)))
+    (let [curr-pos (try (next-open-start code old-pos) (catch :default e nil))
+          code-frag (delay (code-frag code curr-pos))]
+      (if (and curr-pos @code-frag)
+        (let [code-frag @code-frag
+              before-code (subs code curr-pos old-pos)
+              new-row (count-nls before-code row)
+              new-col (cond-> (-> before-code (str/split-lines) last count)
+                              (= new-row row) (+ col))
+              end-row (count-nls code-frag new-row)
+              end-col (cond-> (-> code-frag (str/split-lines) last count)
+                              (= end-row new-row) (+ new-col))]
+          (recur
+            end-row
+            end-col
+            (+ curr-pos (count code-frag))
+            (conj sofar [[[new-row new-col] [end-row (dec end-col)]] code-frag])))
+        sofar))))
 
 (defn ns-range-for
   "Gets the current NS range (and ns name) for the current code, considering
