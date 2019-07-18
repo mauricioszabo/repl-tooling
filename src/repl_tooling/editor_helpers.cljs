@@ -214,24 +214,16 @@
     (catch ExceptionInfo e
       (if (-> e .-data :ex-kind (= :eof))
         nil
-        (do
-          (prn :PS (apply str (take 100 code)))
-          (throw e))))))
+        (throw e)))))
 
 (defn top-levels
   "Gets all top-level ranges for the current code"
   [code]
-  (try
-    (throw (ex-info "" {}))
-    (catch :default e
-      (println (.-stack e))))
-
   (loop [row 0 col 0 old-pos 0 sofar []]
     (let [curr-pos (try (next-open-start code old-pos) (catch :default e nil))
           code-frag (delay (code-frag code curr-pos))]
       (if (and curr-pos @code-frag)
         (let [code-frag @code-frag
-              _ (prn row code-frag)
               before-code (subs code curr-pos old-pos)
               new-row (count-nls before-code row)
               new-col (cond-> (-> before-code (str/split-lines) last count)
