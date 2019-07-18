@@ -53,7 +53,7 @@
                                     {:filename filename
                                      :row (inc row)
                                      :col (inc col)
-                                     :namespace (str namespace)}
+                                     :namespace namespace}
                                     #(and on-eval
                                           (on-eval (assoc @eval-data
                                                           :result (helpers/parse-result %))))))
