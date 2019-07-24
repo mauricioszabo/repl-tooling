@@ -54,27 +54,25 @@
                    (e-eval/eval-cmd state code namespace range data opts)))))
 
 (defn- cmds-for [state {:keys [editor-data] :as opts}]
-  (let [primary (:clj/repl @state)
-        aux (:clj/aux @state)]
-    {:evaluate-top-block {:name "Evaluate Top Block"
-                          :description "Evaluates top block block on current editor's selection"
-                          :command #(eval-top-block state (editor-data) opts)}
-     :evaluate-block {:name "Evaluate Block"
-                      :description "Evaluates current block on editor's selection"
-                      :command #(eval-block state (editor-data) opts)}
-     :evaluate-selection {:name "Evaluate Selection"
-                          :description "Evaluates current editor's selection"
-                          :command #(eval-selection state (editor-data) opts)}
-     :break-evaluation {:name "Break Evaluation"
-                        :description "Break current running eval"
-                        :command #(eval/break primary aux)}
-     :load-file {:name "Load File"
-                 :description "Loads current file on a Clojure REPL"
-                 :command (fn [] (ensure-data (editor-data)
-                                              #(loaders/load-file opts aux %)))}
-     :disconnect {:name "Disconnect REPLs"
-                  :description "Disconnect all current connected REPLs"
-                  :command disconnect!}}))
+  {:evaluate-top-block {:name "Evaluate Top Block"
+                        :description "Evaluates top block block on current editor's selection"
+                        :command #(eval-top-block state (editor-data) opts)}
+   :evaluate-block {:name "Evaluate Block"
+                    :description "Evaluates current block on editor's selection"
+                    :command #(eval-block state (editor-data) opts)}
+   :evaluate-selection {:name "Evaluate Selection"
+                        :description "Evaluates current editor's selection"
+                        :command #(eval-selection state (editor-data) opts)}
+   :break-evaluation {:name "Break Evaluation"
+                      :description "Break current running eval"
+                      :command #(eval/break (:clj/repl @state) (:clj/aux @state))}
+   :load-file {:name "Load File"
+               :description "Loads current file on a Clojure REPL"
+               :command (fn [] (ensure-data (editor-data)
+                                            #(loaders/load-file opts (:clj/aux @state) %)))}
+   :disconnect {:name "Disconnect REPLs"
+                :description "Disconnect all current connected REPLs"
+                :command disconnect!}})
 
 (defn- disable-limits! [aux]
   (eval/evaluate aux
