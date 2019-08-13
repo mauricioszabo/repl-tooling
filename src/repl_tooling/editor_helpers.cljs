@@ -260,9 +260,6 @@ that the cursor is in row and col (0-based)"
 (defn block-for
   "Gets the current block from the code (a string) to the current row and col (0-based)"
   [code [row col]]
-  (def code code)
-  (def row row)
-  (def col col)
   (let [pos (search-start code (inc row) (inc col))
         block (read-next code pos)
         block-lines (str/split-lines block)
