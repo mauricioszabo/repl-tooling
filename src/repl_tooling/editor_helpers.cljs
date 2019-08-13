@@ -81,6 +81,7 @@
                                 'js #(WithTag. % "js")
                                 'unrepl/bad-keyword (fn [[ns name]] (keyword ns name))
                                 'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
+                                'unrepl/ratio (fn [[n d]] (LiteralRender. (str n "/" d)))
                                 'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
                                 'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
                                 'unrepl.java/class (fn [k] (WithTag. k "class"))
