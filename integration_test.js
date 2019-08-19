@@ -3,16 +3,15 @@ const assert = require('assert')
 const electronPath = require('electron')
 const path = require('path')
 
-newApp = () => {
-  app = new Application({
+const newApp = () => {
+  const app = new Application({
     path: electronPath,
     args: ["integration.js"]
   })
   return app.start()
 }
-app2 = newApp()
 
-runTestAndCollectResult = async (client, idx, numTests, numFailures) => {
+const runTestAndCollectResult = async (client, idx, numTests, numFailures) => {
   const selector = `.com-rigsomelight-devcard:nth-child(${idx})`
   const testName = await client.$(selector + " a").getText()
   const failures = await client.$$(selector + ' .com-rigsomelight-devcards-fail')
@@ -28,9 +27,8 @@ runTestAndCollectResult = async (client, idx, numTests, numFailures) => {
     return runTestAndCollectResult(client, idx + 1, numTests, totalFailures)
   }
 }
-// runTestAndCollectResult(client, 1, 4, 0).then(console.log)
 
-collectTest = async (client, idx, numTests, totalFailures) => {
+const collectTest = async (client, idx, numTests, totalFailures) => {
   const selector = `.com-rigsomelight-devcards-list-group-item:nth-child(${idx})`
   await client.waitForText(selector)
   const span = `${selector} span`
@@ -49,7 +47,7 @@ collectTest = async (client, idx, numTests, totalFailures) => {
   }
 }
 
-runAllTests = async (app) => {
+const runAllTests = async (app) => {
   await app.client.waitForText('a.com-rigsomelight-devcards-list-group-item')
   const tsts = await app.client.$$('a.com-rigsomelight-devcards-list-group-item')
   console.log(`Running ${tsts.length} testcases`)
@@ -64,4 +62,4 @@ runAllTests = async (app) => {
   }
 }
 
-app2.then(runAllTests)
+newApp().then(runAllTests)
