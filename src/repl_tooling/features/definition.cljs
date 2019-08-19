@@ -34,7 +34,6 @@
         (resolve {:file-name file-name :line (dec line)})))
     (resolve nil)))
 
-
 (defn find-var-definition [repl ns-name symbol-name]
   (js/Promise.
    (fn [resolve]
