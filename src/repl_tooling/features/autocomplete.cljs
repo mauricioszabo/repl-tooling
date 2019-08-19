@@ -96,7 +96,6 @@
 (defn- merge-all [ & features])
 
 (defn detect [evaluator callback]
-  ; (eval/eval evaluator "(require 'compliment.core)" {} #(println))
   (-> (detect-fn evaluator "lumo.repl/get-completions" #"function "
                  :simple-complete lumo-fn)
       (.then callback)
