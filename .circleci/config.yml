@@ -1,7 +1,7 @@
 version: 2.1
 defaults: &defaults
-  machine:
-    image: circleci/classic:edge
+  docker:
+    - image: circleci/clojure:openjdk-11-lein-node
 
 jobs:
   test:
