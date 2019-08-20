@@ -7,8 +7,10 @@
        '(case* catch def defrecord* deftype* do finally fn* if js* let*
           letfn* loop* new ns quote recur set! throw try)))
 
-(defn complete [repl ns-name prefix callback]
-  (let [have-prefix? (re-find #"/" prefix)
+(def ^:private valid-prefix #"/?([a-zA-Z0-9\-.$!?\/><*=\?_]+)")
+(defn complete [repl ns-name atom-prefix callback]
+  (let [prefix (->> atom-prefix (re-seq valid-prefix) last last)
+        have-prefix? (re-find #"/" prefix)
         ns-part (if have-prefix?
                   (str/replace prefix #"/.*" "")
                   ns-name)
@@ -25,7 +27,11 @@
                           "nil"
                           "(js->clj (.keys js/Object (aget js/goog \"global\" \"cljs\" \"core\")))")
                         "      both (concat from-ns from-core " special-forms ")]"
-                        "(filter #(re-find #\"" prefix "\" %) "
-                        "(take 50 (map cljs.core/demunge both))))")
-                   {:namespace ns-name}
+                        "(->> both"
+                        "     (clojure.core/map cljs.core/demunge)"
+                        "     (clojure.core/filter #(clojure.core/re-find #\"" prefix "\" %))"
+                        "     (clojure.core/sort)"
+                        "     (clojure.core/take 50)"
+                        "))")
+                   {:namespace ns-name :ignore true}
                    callback)))
