@@ -17,6 +17,7 @@
 - Clojure socket REPL with UnREPL
 - ClojureScript self-hosted REPL (run a command to start a CLJS REPL)
 - Preliminary support for detecting forms/comments/namespaces
+- Fix some AutoComplete on ClojureScript (https://github.com/mauricioszabo/atom-chlorine/issues/85)
 
 ## 0.0.2
 - Fixed a bug when we could interleave REPL commands
