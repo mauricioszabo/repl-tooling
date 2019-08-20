@@ -1,13 +1,15 @@
 # Clojure REPL's Tooling
 
+[![CircleCI](https://circleci.com/gh/mauricioszabo/repl-tooling.svg?style=svg)](https://circleci.com/gh/mauricioszabo/repl-tooling)
+
 This library's idea is to work as a base package for Clojure's editor tooling. The idea is to work in multiple environments, it is written in ClojureScript so it'll work with Atom, VS Code, NeoVIM, and other editors that are able to run JS.
 
 ## Design decisions
 This library is not made to be stand-alone, but to work as base for editor plug-ins (or web interfaces, etc). This means that there is no "main entry point" - there's only one entry on `shadow-cljs.edn` file to run tests.
 
-This lib is still very crude: it's, right now, being developed together with Atom Chlorine (that's the reason is not yet published on Clojars or NPM). The best way to experiment with it right now is to add a submodule on your project and ask for Shadow-CLJS to add `repl-tooling/src` (or whatever the path you configured for your submodule) as a source-path. It would be great if we didn't add too many dependencies (for now, it just depends on core-async) for it to work, as probably specific editor's will pull their dependencies and they may conflict with this lib's deps (and also because of security issues).
+This lib is, right now, being developed together with Atom Chlorine. The best way to experiment with it right now is to add a submodule on your project and ask for Shadow-CLJS to add `repl-tooling/src` (or whatever the path you configured for your submodule) as a source-path. It would be great if we didn't add too many dependencies for it to work, as probably specific editor's will pull their dependencies and they may conflict with this lib's deps (and also because of security issues).
 
-This lib depends on `lein` because of unrepl blob. It is not clear how different editors will handle paths, so to sideload files (like, for example, the `unrepl` blob) I'm using the `resources` folder, and generating a macro. This means that when we compile a release version, the contents of the files will be inlined on the end code.
+This lib depends on `lein` just to publish the code to clojars. It is not clear how different editors will handle paths, so to sideload files (like, for example, the `unrepl` blob) I'm using the `resources` folder, and generating a macro. This means that when we compile a release version, the contents of the files will be inlined on the end code.
 
 Also, there can't be specific editor's code inside repl-tooling. We can't priorize one editor from another, exactly because we need to find common ground between all editors. This have the huge advantage that, when we add a feature on repl-tooling, all editor's plug-ins will automatically have that new feature. Also, when we fix a bug, all editor's plug-ins will have the bug fixed.
 

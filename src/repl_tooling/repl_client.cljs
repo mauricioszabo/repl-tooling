@@ -3,7 +3,6 @@
             [repl-tooling.repl-client.protocols :as repl]
             [clojure.string :as str]))
 
-(def ^:private net (js/require "net"))
 (defonce ^:private sessions (atom {}))
 
 (defn disconnect! [session-name]
