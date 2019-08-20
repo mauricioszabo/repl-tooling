@@ -278,7 +278,7 @@
               => #"#foobar.baz/lolnein \( 99 99 \) \.\.\."))
 
      (testing "division by zero renders an exception"
-       (ui/assert-out #"java.lang.ArithmeticException : Divide by zero"
+       (ui/assert-out #"java.lang.ArithmeticException : \"Divide by zero\""
                       "(/ 10 0)"))
 
      (disconnect!)

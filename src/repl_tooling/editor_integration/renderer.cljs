@@ -32,8 +32,27 @@
         (cond-> more-fn (conj (second sep) a-for-more))
         (->> (map #(with-meta %2 {:key %1}) (range))))))
 
+(defn- assert-root [txt]
+  (if (-> txt first (= :row))
+    txt
+    [:row txt]))
+
+(defn- obj-with-more-fn [more-fn ratom repl callback]
+  (more-fn repl #(do
+                   (swap! ratom assoc
+                          :more-fn nil
+                          :expanded? true
+                          :attributes-atom (as-renderable (:attributes %) repl))
+                   (callback))))
+
 (defrecord ObjWithMore [obj-atom more-fn attributes-atom expanded? repl]
   Renderable
+  (as-text [_ ratom root?]
+    (let [obj (assert-root (as-text @obj-atom obj-atom root?))]
+      (if expanded?
+        (conj obj (as-text @attributes-atom attributes-atom root?))
+        (conj obj [:button "..." #(obj-with-more-fn more-fn ratom repl %)]))))
+
   (as-html [_ ratom root?]
     [:div {:class ["browseable"]}
      [:div {:class ["object"]}
@@ -42,19 +61,11 @@
         [:a {:href "#"
              :on-click (fn [e]
                          (.preventDefault e)
-                         (more-fn repl #(swap! ratom assoc
-                                               :more-fn nil
-                                               :expanded? true
-                                               :attributes-atom (as-renderable (:attributes %) repl))))}
+                         (obj-with-more-fn more-fn ratom repl identity))}
          (when root? "...")])]
      (when (and root? expanded?)
        [:div {:class "row children"}
         [as-html @attributes-atom attributes-atom true]])]))
-
-(defn- assert-root [txt]
-  (if (-> txt first (= :row))
-    txt
-    [:row txt]))
 
 (declare ->indexed)
 (defn- reset-atom [repl ratom obj result]
@@ -116,7 +127,7 @@
                         (not root?) @complete-txt
                         more-fn [:row
                                  @root-part
-                                 (update txt 1 #(str open %))
+                                 (update txt 1 #(str open % " "))
                                  [:button "..." more-callback]
                                  [:text close]]
                         :else [:row @root-part @complete-txt])]
@@ -174,13 +185,33 @@
 
 (defrecord Tagged [tag subelement]
   Renderable
+  (as-text [_ ratom root?]
+    (let [structure (as-text @subelement subelement root?)
+          fst (first structure)]
+      (cond
+        (= :text fst)
+        [:text (str tag (second structure))]
+
+        (and (= :row fst) (-> structure second first (= :expand)))
+        (update-in structure [2 1] #(str tag %))
+
+        :else
+        (update-in structure [2 0] #(str tag %)))))
+
   (as-html [_ ratom root?]
     [:div {:class "tagged"} [:span {:class "tag"} tag]
      [as-html @subelement subelement root?]]))
 
 (defrecord IncompleteObj [incomplete repl]
   Renderable
-  (as-html [_ ratom root?]
+  (as-text [_ ratom _]
+    (let [more (eval/get-more-fn incomplete)]
+      [:button "..." (fn [callback]
+                       (more repl #(do
+                                     (reset! ratom @(as-renderable % repl))
+                                     (callback))))]))
+
+  (as-html [_ ratom _]
     (let [more (eval/get-more-fn incomplete)]
       [:div {:class "incomplete-obj"}
        [:a {:href "#" :on-click (fn [e]
@@ -188,24 +219,29 @@
                                   (more repl #(reset! ratom @(as-renderable % repl))))}
         "..."]])))
 
-(defn- link-for-more-trace [repl ratom more-trace more-str]
+(defn- link-for-more-trace [repl ratom more-trace more-str callback?]
   (cond
     more-trace
     (fn [e]
-      (.preventDefault e)
-      (more-trace repl #(reset! ratom %)))
+      (when-not callback? (.preventDefault e))
+      (more-trace repl #(do
+                          (reset! ratom %)
+                          (when callback? (e)))))
 
     more-str
     (fn [e]
-      (.preventDefault e)
-      (more-str repl #(swap! ratom assoc 2 %)))))
+      (when-not callback? (.preventDefault e))
+      (more-str repl #(do
+                        (swap! ratom assoc 2 %)
+                        (when callback? (e)))))))
 
 (defn- to-trace-row [repl ratom idx trace]
   (let [[class method file row] trace
         link-for-more (link-for-more-trace repl
                                            (r/cursor ratom [:obj :trace idx])
                                            (eval/get-more-fn trace)
-                                           (eval/get-more-fn file))
+                                           (eval/get-more-fn file)
+                                           false)
         clj-file? (re-find #"\.clj?$" (str file))]
     (cond
       (string? trace)
@@ -225,13 +261,47 @@
                              method])
         [:span {:class "file"} " (" file ":" row ")"]]])))
 
+(defn- to-trace-row-txt [repl ratom idx trace]
+  (let [[class method file row] trace
+        link-for-more (link-for-more-trace repl
+                                           (r/cursor ratom [:obj :trace idx])
+                                           (eval/get-more-fn trace)
+                                           (eval/get-more-fn file)
+                                           true)
+        clj-file? (re-find #"\.clj?$" (str file))]
+    (cond
+      (string? trace) [:row [:text trace]]
+
+      link-for-more [:row [:text "in "] [:button "..." link-for-more]]
+
+      (not= -1 row)
+      [:row
+       [:text
+        (str "in " (cond-> (str class) clj-file? demunge)
+             (when-not clj-file? (str "." method))
+             " (" file ":" row ")")]])))
+
 (defrecord ExceptionObj [obj add-data repl]
   Renderable
+  (as-text [_ ratom root?]
+    (let [{:keys [type message trace]} obj
+          ex (as-text @message message true)
+          ex (if (-> ex first (= :row))
+                (update-in ex [1 1] #(str type ": " %))
+                [:row (update ex 1 #(str type ": " %))])
+
+          traces (map (partial to-trace-row-txt repl ratom)
+                      (range)
+                      (eval/without-ellision trace))]
+      (if add-data
+        (apply conj ex (as-text @add-data add-data root?) traces)
+        (apply conj ex traces))))
+
   (as-html [_ ratom root?]
     (let [{:keys [type message trace]} obj]
       [:div {:class "exception row"}
        [:div {:class "description"}
-        [:span {:class "ex-kind"} (str type)] ": " [:span {:class "ex-message"} message]]
+        [:span {:class "ex-kind"} (str type)] ": " [as-html @message message root?]]
        (when add-data
          [:div {:class "children additional"}
           [as-html @add-data add-data root?]])
@@ -250,8 +320,9 @@
 (extend-protocol Parseable
   helpers/Error
   (as-renderable [self repl]
-    (let [add-data (some-> self :add-data not-empty (as-renderable repl))]
-      (r/atom (->ExceptionObj self add-data repl))))
+    (let [obj (update self :message as-renderable repl)
+          add-data (some-> self :add-data not-empty (as-renderable repl))]
+      (r/atom (->ExceptionObj obj add-data repl))))
 
   helpers/IncompleteObj
   (as-renderable [self repl]
@@ -331,13 +402,13 @@ make a placeholder that we can expand (+) or collapse (-) the structure"
         last-line (peek lines)
         curr-text (if (empty? last-line)
                     @indent
-                    (str last-line " "))]
+                    last-line)]
     (case elem
       :row (recur (rest position) (conj lines "") funs (inc depth))
       :text [(assoc lines last-elem (str curr-text text)) funs]
       :button [(assoc lines last-elem (str curr-text text))
                (parse-funs funs last-elem curr-text position)]
-      :expand [(assoc lines last-elem (str curr-text text " "))
+      :expand [(assoc lines last-elem (str curr-text text "  "))
                (parse-funs funs last-elem curr-text position)]
       (reduce (fn [[lines funs] position] (parse-elem position lines funs depth))
               [lines funs] position))))
