@@ -81,6 +81,7 @@
                                 'js #(WithTag. % "js")
                                 'unrepl/bad-keyword (fn [[ns name]] (keyword ns name))
                                 'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
+                                'unrepl/ratio (fn [[n d]] (LiteralRender. (str n "/" d)))
                                 'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
                                 'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
                                 'unrepl.java/class (fn [k] (WithTag. k "class"))
@@ -105,10 +106,11 @@
          :parsed? true))
 
 (defn strip-comments [text]
-  (-> text
-      (str/replace #"\".(\\\"|[^\"])*\"" (fn [[a]] (str/replace a #";" " ")))
-      (str/replace #"\\;" "  ")
-      (str/replace #";.*" "")))
+  (str/replace text #"(\".(\\\"|[^\"])*\"|;.*)"
+               (fn [[match]]
+                 (cond-> match
+                         (str/starts-with? match ";")
+                         (str/replace #"." " ")))))
 
 (def delim #{"(" "[" "{"})
 (def closes {"(" ")"
@@ -116,11 +118,15 @@
              "{" "}"})
 
 (defn text-in-range [text [[row1 col1] [row2 col2]]]
-  (let [lines (str/split-lines text)]
+  (let [lines (str/split-lines text)
+        rows-offset (- row2 row1)]
     (-> lines
         (subvec row1 (inc row2))
         (update 0 #(str/join "" (drop col1 %)))
-        (update (- row2 row1) #(str/join "" (take (inc col2) %)))
+        (update rows-offset #(str/join "" (take (inc (if (zero? rows-offset)
+                                                       (- col2 col1)
+                                                       col2))
+                                                %)))
         (->> (str/join "\n")))))
 
 (defn- simple-read [str]
@@ -129,6 +135,8 @@
 (defn position
   "Returns the zero-indexed position in a code string given line and column."
   [code-str row col]
+  (let [row (dec row)
+        col (dec col)])
   (->> code-str
        str/split-lines
        (take (dec row))
@@ -154,58 +162,82 @@
               (remove nil?)
               (apply max 0)))))))
 
+(def ^:private openers #{\[ \( \{})
+(defn next-open-start [code-str start-position]
+  (if (contains? openers (nth code-str start-position))
+    start-position
+    (let [code-str-prefix (subs code-str start-position)]
+      (->> openers
+           (map #(str/index-of code-str-prefix %))
+           (remove nil?)
+           (first)
+           (+ start-position)))))
+
 (defn read-next
   "Reads the next expression from some code. Uses an `indexing-pushback-reader`
   to determine how much was read, and return that substring of the original
   `code-str`, rather than what was actually read by the reader."
   ([code-str start-row start-col]
-   (let [code-str (subs code-str (search-start code-str start-row start-col))
-         rdr (reader-types/indexing-push-back-reader code-str)]
-     ;; Read a form, but discard it, as we want the original string.
-     (reader/read rdr)
-     (subs code-str
-           0
-           ;; Even though this returns the position *after* the read, this works
-           ;; because subs is end point exclusive.
-           (position code-str
-                     (reader-types/get-line-number rdr)
-                     (reader-types/get-column-number rdr)))))
+   (binding [reader/resolve-symbol identity
+             reader/*suppress-read* true]
+     (let [code-str (subs code-str (search-start code-str start-row start-col))
+           rdr (reader-types/indexing-push-back-reader code-str)]
+       ;; Read a form, but discard it, as we want the original string.
+       (reader/read rdr)
+       (subs code-str
+             0
+             ;; Even though this returns the position *after* the read, this works
+             ;; because subs is end point exclusive.
+             (position code-str
+                       (reader-types/get-line-number rdr)
+                       (reader-types/get-column-number rdr))))))
   ([code-str start-position]
-   (let [code-str (subs code-str (search-start code-str start-position))
-         rdr (reader-types/indexing-push-back-reader code-str)]
-     ;; Read a form, but discard it, as we want the original string.
-     (reader/read rdr)
-     (subs code-str
-           0
-           ;; Even though this returns the position *after* the read, this works
-           ;; because subs is end point exclusive.
-           (position code-str
-                     (reader-types/get-line-number rdr)
-                     (reader-types/get-column-number rdr))))))
+   (binding [reader/resolve-symbol identity
+             reader/*suppress-read* true]
+     (let [code-str (subs code-str start-position)
+           rdr (reader-types/indexing-push-back-reader code-str)]
+       ;; Read a form, but discard it, as we want the original string.
+       (reader/read rdr)
+       (subs code-str
+             0
+             ;; Even though this returns the position *after* the read, this works
+             ;; because subs is end point exclusive.
+             (position code-str
+                       (reader-types/get-line-number rdr)
+                       (reader-types/get-column-number rdr)))))))
+
+(defn- count-nls [text row]
+  (->> text (re-seq #"\n") count (+ row)))
+
+(defn code-frag [code curr-pos]
+  (try
+    (read-next code curr-pos)
+    (catch ExceptionInfo e
+      (if (-> e .-data :ex-kind (= :eof))
+        nil
+        (throw e)))))
 
 (defn top-levels
   "Gets all top-level ranges for the current code"
-  [text]
-  (let [size (count text)]
-    (loop [curr-pos 0
-           row 0
-           col 0
-           tops []]
-
-      (cond
-        (>= curr-pos size) tops
-        (re-find #"\n" (nth text curr-pos)) (recur (inc curr-pos) (inc row) 0 tops)
-        (re-find #"\s" (nth text curr-pos)) (recur (inc curr-pos) row (inc col) tops)
-        :else (let [nxt (read-next text curr-pos)
-                    last-row (->> nxt (re-seq #"\n") count (+ row))
-                    last-col (-> nxt str/split-lines last count (+ col))]
-                (recur
-                  (+ (count nxt) curr-pos)
-                  last-row
-                  last-col
-                  (conj tops [[[row col]
-                               [last-row (dec last-col)]]
-                              nxt])))))))
+  [code]
+  (loop [row 0 col 0 old-pos 0 sofar []]
+    (let [curr-pos (try (next-open-start code old-pos) (catch :default e nil))
+          code-frag (delay (code-frag code curr-pos))]
+      (if (and curr-pos @code-frag)
+        (let [code-frag @code-frag
+              before-code (subs code curr-pos old-pos)
+              new-row (count-nls before-code row)
+              new-col (cond-> (-> before-code (str/split-lines) last count)
+                              (= new-row row) (+ col))
+              end-row (count-nls code-frag new-row)
+              end-col (cond-> (-> code-frag (str/split-lines) last count)
+                              (= end-row new-row) (+ new-col))]
+          (recur
+            end-row
+            end-col
+            (+ curr-pos (count code-frag))
+            (conj sofar [[[new-row new-col] [end-row (dec end-col)]] code-frag])))
+        sofar))))
 
 (defn ns-range-for
   "Gets the current NS range (and ns name) for the current code, considering
@@ -225,6 +257,25 @@ that the cursor is in row and col (0-based)"
          (filter #(-> % peek is-ns?))
          (map #(update % 1 second))
          first)))
+
+(defn block-for
+  "Gets the current block from the code (a string) to the current row and col (0-based)"
+  [code [row col]]
+  (let [pos (search-start code (inc row) (inc col))
+        block (read-next code pos)
+        block-lines (str/split-lines block)
+        reds (->> code
+                  str/split-lines
+                  (reductions #(-> %2 count (+ %1)) 0)
+                  (take-while #(<= % pos)))
+        row (-> reds count dec)
+        col (- pos (last reds))
+        last-row (-> block-lines count dec (+ row))
+        last-col (if (= row last-row)
+                   (-> block count (+ col) dec)
+                   (-> block-lines last count dec))]
+    [[[row col] [last-row last-col]] block]))
+
 
 (defn top-block-for
   "Gets the top-level from the code (a string) to the current row and col (0-based)"
