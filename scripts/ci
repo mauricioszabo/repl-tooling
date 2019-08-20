@@ -1,6 +1,6 @@
 #!/bin/bash
 
-lein run -m shadow.cljs.devtools.cli --npm watch tests &
+npx shadow-cljs watch integration &
 for n in {1..15}; do
   ls target/all_tests.js &>/dev/null && break
   echo "Not compiled yet, waiting..."
