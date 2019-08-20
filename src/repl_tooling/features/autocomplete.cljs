@@ -100,7 +100,3 @@
                  :simple-complete lumo-fn)
       (.then callback)
       (.catch #(. js/console (log %)))))
-
-; (-> (detect-fn evaluator "lumo.repl/get-completions" #"Function"
-;                  :simple-complete lumo-fn)
-;     (.catch #(. js/console (log %))))
