@@ -62,4 +62,7 @@ const runAllTests = async (app) => {
   }
 }
 
-newApp().then(runAllTests)
+newApp().then(runAllTests).catch(e => {
+  console.log("ERROR:", e)
+  process.exit(2)
+})
