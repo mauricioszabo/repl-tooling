@@ -2,7 +2,26 @@
   (:require [clojure.string :as str]
             [cljs.reader :as edn]
             [clojure.tools.reader.reader-types :as reader-types]
-            [clojure.tools.reader :as reader]))
+            [clojure.tools.reader :as reader]
+            [rewrite-clj.zip :as zip]
+            [rewrite-clj.node :as node]
+            [rewrite-clj.reader :as clj-reader]
+            [rewrite-clj.zip.move :as m]
+            [rewrite-clj.parser :as parser]))
+
+; FIXME: Experiments, remove it!
+#_
+(-> a
+    ; (z/find-next m/left)
+    meta)
+    ; (z/find-next m/left)
+    ; (z/find-next m/left)
+    ; z/string)
+
+    ; (z/find-last-by-pos {:row 1 :col 3})
+    ; (pe/raise)
+    ; (pe/raise))
+    ; (pe/find-by-pos a {:row 1 :col 29}))
 
 (deftype LiteralRender [string]
   IPrintWithWriter
@@ -162,17 +181,6 @@
               (remove nil?)
               (apply max 0)))))))
 
-(def ^:private openers #{\[ \( \{})
-(defn next-open-start [code-str start-position]
-  (if (contains? openers (nth code-str start-position))
-    start-position
-    (let [code-str-prefix (subs code-str start-position)]
-      (->> openers
-           (map #(str/index-of code-str-prefix %))
-           (remove nil?)
-           (first)
-           (+ start-position)))))
-
 (defn read-next
   "Reads the next expression from some code. Uses an `indexing-pushback-reader`
   to determine how much was read, and return that substring of the original
@@ -206,38 +214,31 @@
                        (reader-types/get-line-number rdr)
                        (reader-types/get-column-number rdr)))))))
 
-(defn- count-nls [text row]
-  (->> text (re-seq #"\n") count (+ row)))
-
-(defn code-frag [code curr-pos]
+(defn- parse-reader [reader]
   (try
-    (read-next code curr-pos)
-    (catch ExceptionInfo e
-      (if (-> e .-data :ex-kind (= :eof))
-        nil
-        (throw e)))))
+    (let [parsed (parser/parse reader)]
+      (when parsed
+        (if (node/whitespace? parsed)
+          :whitespace
+          parsed)))
+    (catch :default _
+      (clj-reader/read-char reader)
+      :whitespace)))
 
 (defn top-levels
   "Gets all top-level ranges for the current code"
   [code]
-  (loop [row 0 col 0 old-pos 0 sofar []]
-    (let [curr-pos (try (next-open-start code old-pos) (catch :default e nil))
-          code-frag (delay (code-frag code curr-pos))]
-      (if (and curr-pos @code-frag)
-        (let [code-frag @code-frag
-              before-code (subs code curr-pos old-pos)
-              new-row (count-nls before-code row)
-              new-col (cond-> (-> before-code (str/split-lines) last count)
-                              (= new-row row) (+ col))
-              end-row (count-nls code-frag new-row)
-              end-col (cond-> (-> code-frag (str/split-lines) last count)
-                              (= end-row new-row) (+ new-col))]
-          (recur
-            end-row
-            end-col
-            (+ curr-pos (count code-frag))
-            (conj sofar [[[new-row new-col] [end-row (dec end-col)]] code-frag])))
-        sofar))))
+  (let [reader (clj-reader/indexing-push-back-reader code)]
+    (loop [sofar []]
+      (let [parsed (parse-reader reader)]
+        (case parsed
+          :whitespace (recur sofar)
+          nil sofar
+          (let [as-str (node/string parsed)
+                {:keys [row col end-row end-col]} (meta parsed)]
+            (recur (conj sofar [[[(dec row) (dec col)]
+                                 [(dec end-row) (- end-col 2)]]
+                                as-str]))))))))
 
 (defn ns-range-for
   "Gets the current NS range (and ns name) for the current code, considering
