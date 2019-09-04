@@ -130,9 +130,13 @@
   (try
     (let [parsed (parser/parse reader)]
       (when parsed
-        (if (node/whitespace-or-comment? parsed)
-          :whitespace
-          parsed)))
+        (cond
+          (node/whitespace-or-comment? parsed) :whitespace
+
+          (instance? rewrite-clj.node.uneval/UnevalNode parsed)
+          (-> parsed :children first)
+
+          :else parsed)))
     (catch :default _
       (clj-reader/read-char reader)
       :whitespace)))
@@ -222,18 +226,6 @@ that the cursor is in row and col (0-based)"
                     (node/forms-node nodes)
                     (meta (first nodes)))]
     (-> all-nodes zip-base/edn)))
-
-#_
-(->> (zip-from-code "( ) 1 2)")
-     ; type)
-     ; (map zip/node)
-     (iterate zip/next)
-     (take-while identity)
-     (take-while (complement move/end?))
-     (map zip/node)
-     (map (juxt node/string meta)))
-
-; (take 20 foo)
 
 (defn block-for
   "Gets the current block from the code (a string) to the current row and col (0-based)"

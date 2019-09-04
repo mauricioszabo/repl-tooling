@@ -71,7 +71,9 @@
     (check (helpers/top-block-for "#?(:cljs 1)\n()" [0 2])
            => [[[0 0] [0 10]] "#?(:cljs 1)"])
     (check (helpers/top-block-for "{::some/key a}\n()" [0 2])
-           => [[[0 0] [0 13]] "{::some/key a}"])))
+           => [[[0 0] [0 13]] "{::some/key a}"])
+    (check (helpers/top-block-for "#_(+ 1 2)\n()" [0 2])
+           => [[[0 2] [0 8]] "(+ 1 2)"])))
 
 (deftest getting-blocks
   (testing "text and range from block"
