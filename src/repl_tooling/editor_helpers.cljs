@@ -169,10 +169,11 @@ that the cursor is in row and col (0-based)"
          (map #(update % 1 second))
          first)))
 
+(defn- p [a] (prn :DBG a) a)
 (defn block-for
   "Gets the current block from the code (a string) to the current row and col (0-based)"
   [code [row col]]
-  (let [form? #(some-> % zip/node :tag #{:vector :list :map :set})
+  (let [form? #(some-> % zip/node p :tag p #{:vector :list :map :set :quote})
         zipped-block (-> code
                          zip/of-string
                          (zip/find-last-by-pos {:row (inc row) :col (inc col)} form?))
