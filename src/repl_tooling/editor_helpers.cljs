@@ -3,7 +3,9 @@
             [cljs.reader :as edn]
             [clojure.tools.reader.reader-types :as reader-types]
             [clojure.tools.reader :as reader]
+            [rewrite-clj.zip.move :as move]
             [rewrite-clj.zip :as zip]
+            [rewrite-clj.zip.base :as zip-base]
             [rewrite-clj.node :as node]
             [rewrite-clj.reader :as clj-reader]
             [rewrite-clj.parser :as parser]))
@@ -169,18 +171,82 @@ that the cursor is in row and col (0-based)"
          (map #(update % 1 second))
          first)))
 
-(defn- p [a] (prn :DBG a) a)
+(defn in-range? [{:keys [row col end-row end-col]} {r :row c :col}]
+  (and (>= r row)
+       (<= r end-row)
+       (if (= r row) (>= c col) true)
+       (if (= r end-row) (< c end-col) true)))
+
+(defn find-inners-by-pos
+  "Find last node (if more than one node) that is in range of pos and
+  satisfying the given predicate depth first from initial zipper
+  location."
+  [zloc pos]
+  (->> zloc
+       (iterate zip/next)
+       (take-while identity)
+       (take-while (complement move/end?))
+       (filter #(in-range? (-> % zip/node meta) pos))))
+
+(defn- reader-tag? [node]
+  (when node
+    (or (instance? rewrite-clj.node.reader-macro.ReaderMacroNode node)
+        (instance? rewrite-clj.node.fn/FnNode node)
+        (instance? rewrite-clj.node.quote.QuoteNode node)
+        (instance? rewrite-clj.node.reader-macro.DerefNode node))))
+
+(defn- filter-forms [nodes]
+  (when nodes
+    (let [valid-tag? (comp #{:vector :list :map :set :quote} :tag)]
+      (->> nodes
+           (map zip/node)
+           (partition-all 2 1)
+           (map (fn [[fst snd]]
+                  (cond
+                    (reader-tag? fst) fst
+                    (-> fst :tag (= :list) (and snd (reader-tag? snd))) snd
+                    (valid-tag? fst) fst)))
+           (filter identity)
+           first))))
+
+(defn- zip-from-code [code]
+  (let [reader (clj-reader/indexing-push-back-reader code)
+        nodes (->> (repeatedly #(try
+                                  (parser/parse reader)
+                                  (catch :default _
+                                    (clj-reader/read-char reader)
+                                    (node/whitespace-node " "))))
+                   (take-while identity)
+                   (doall))
+        all-nodes (with-meta
+                    (node/forms-node nodes)
+                    (meta (first nodes)))]
+    (-> all-nodes zip-base/edn)))
+
+#_
+(->> (zip-from-code "( ) 1 2)")
+     ; type)
+     ; (map zip/node)
+     (iterate zip/next)
+     (take-while identity)
+     (take-while (complement move/end?))
+     (map zip/node)
+     (map (juxt node/string meta)))
+
+; (take 20 foo)
+
 (defn block-for
   "Gets the current block from the code (a string) to the current row and col (0-based)"
   [code [row col]]
-  (let [form? #(some-> % zip/node p :tag p #{:vector :list :map :set :quote})
-        zipped-block (-> code
-                         zip/of-string
-                         (zip/find-last-by-pos {:row (inc row) :col (inc col)} form?))
-        {:keys [row col end-row end-col]} (some-> zipped-block zip/node meta)]
-    (when zipped-block
+  (let [node-block (-> code
+                       zip-from-code
+                       (find-inners-by-pos {:row (inc row) :col (inc col)})
+                       reverse
+                       filter-forms)
+        {:keys [row col end-row end-col]} (some-> node-block meta)]
+    (when node-block
       [[[(dec row) (dec col)] [(dec end-row) (- end-col 2)]]
-       (zip/string zipped-block)])))
+       (node/string node-block)])))
 
 (defn top-block-for
   "Gets the top-level from the code (a string) to the current row and col (0-based)"
