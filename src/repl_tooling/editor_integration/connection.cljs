@@ -30,7 +30,7 @@
 (defn- eval-block [state data opts]
   (ensure-data data
                (fn [{:keys [contents range] :as data}]
-                 (let [[[start]] range
+                 (let [[start] range
                        [blk-range code] (helpers/block-for contents start)
                        [_ namespace] (helpers/ns-range-for contents (first blk-range))]
                    (e-eval/eval-cmd state code namespace blk-range data opts)))))
