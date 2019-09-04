@@ -6,22 +6,7 @@
             [rewrite-clj.zip :as zip]
             [rewrite-clj.node :as node]
             [rewrite-clj.reader :as clj-reader]
-            [rewrite-clj.zip.move :as m]
             [rewrite-clj.parser :as parser]))
-
-; FIXME: Experiments, remove it!
-#_
-(-> a
-    ; (z/find-next m/left)
-    meta)
-    ; (z/find-next m/left)
-    ; (z/find-next m/left)
-    ; z/string)
-
-    ; (z/find-last-by-pos {:row 1 :col 3})
-    ; (pe/raise)
-    ; (pe/raise))
-    ; (pe/find-by-pos a {:row 1 :col 29}))
 
 (deftype LiteralRender [string]
   IPrintWithWriter
@@ -124,18 +109,6 @@
            (update result :error #(cond-> % (not (:parsed? result)) read-result)))
          :parsed? true))
 
-(defn strip-comments [text]
-  (str/replace text #"(\".(\\\"|[^\"])*\"|;.*)"
-               (fn [[match]]
-                 (cond-> match
-                         (str/starts-with? match ";")
-                         (str/replace #"." " ")))))
-
-(def delim #{"(" "[" "{"})
-(def closes {"(" ")"
-             "[" "]"
-             "{" "}"})
-
 (defn text-in-range [text [[row1 col1] [row2 col2]]]
   (let [lines (str/split-lines text)
         rows-offset (- row2 row1)]
@@ -151,74 +124,11 @@
 (defn- simple-read [str]
   (edn/read-string {:default (fn [_ res] res)} str))
 
-(defn position
-  "Returns the zero-indexed position in a code string given line and column."
-  [code-str row col]
-  (let [row (dec row)
-        col (dec col)])
-  (->> code-str
-       str/split-lines
-       (take (dec row))
-       (str/join)
-       count
-       (+ col (dec row)) ;; `(dec row)` to include for newlines
-       dec
-       (max 0)))
-
-(defn search-start
-  "Find the place to start reading from. Search backwards from the starting
-  point, looking for a '[', '{', or '('. If none can be found, search from
-  the beginning of `code-str`."
-  ([code-str start-row start-col]
-   (search-start code-str (position code-str start-row start-col)))
-  ([code-str start-position]
-   (let [openers #{\[ \( \{}]
-     (if (contains? openers (nth code-str start-position))
-       start-position
-       (let [code-str-prefix (subs code-str 0 start-position)]
-         (->> openers
-              (map #(str/last-index-of code-str-prefix %))
-              (remove nil?)
-              (apply max 0)))))))
-
-(defn read-next
-  "Reads the next expression from some code. Uses an `indexing-pushback-reader`
-  to determine how much was read, and return that substring of the original
-  `code-str`, rather than what was actually read by the reader."
-  ([code-str start-row start-col]
-   (binding [reader/resolve-symbol identity
-             reader/*suppress-read* true]
-     (let [code-str (subs code-str (search-start code-str start-row start-col))
-           rdr (reader-types/indexing-push-back-reader code-str)]
-       ;; Read a form, but discard it, as we want the original string.
-       (reader/read rdr)
-       (subs code-str
-             0
-             ;; Even though this returns the position *after* the read, this works
-             ;; because subs is end point exclusive.
-             (position code-str
-                       (reader-types/get-line-number rdr)
-                       (reader-types/get-column-number rdr))))))
-  ([code-str start-position]
-   (binding [reader/resolve-symbol identity
-             reader/*suppress-read* true]
-     (let [code-str (subs code-str start-position)
-           rdr (reader-types/indexing-push-back-reader code-str)]
-       ;; Read a form, but discard it, as we want the original string.
-       (reader/read rdr)
-       (subs code-str
-             0
-             ;; Even though this returns the position *after* the read, this works
-             ;; because subs is end point exclusive.
-             (position code-str
-                       (reader-types/get-line-number rdr)
-                       (reader-types/get-column-number rdr)))))))
-
 (defn- parse-reader [reader]
   (try
     (let [parsed (parser/parse reader)]
       (when parsed
-        (if (node/whitespace? parsed)
+        (if (node/whitespace-or-comment? parsed)
           :whitespace
           parsed)))
     (catch :default _
@@ -262,21 +172,14 @@ that the cursor is in row and col (0-based)"
 (defn block-for
   "Gets the current block from the code (a string) to the current row and col (0-based)"
   [code [row col]]
-  (let [pos (search-start code (inc row) (inc col))
-        block (read-next code pos)
-        block-lines (str/split-lines block)
-        reds (->> code
-                  str/split-lines
-                  (reductions #(-> %2 count (+ %1)) 0)
-                  (take-while #(<= % pos)))
-        row (-> reds count dec)
-        col (- pos (last reds))
-        last-row (-> block-lines count dec (+ row))
-        last-col (if (= row last-row)
-                   (-> block count (+ col) dec)
-                   (-> block-lines last count dec))]
-    [[[row col] [last-row last-col]] block]))
-
+  (let [form? #(some-> % zip/node :tag #{:vector :list :map :set})
+        zipped-block (-> code
+                         zip/of-string
+                         (zip/find-last-by-pos {:row (inc row) :col (inc col)} form?))
+        {:keys [row col end-row end-col]} (some-> zipped-block zip/node meta)]
+    (when zipped-block
+      [[[(dec row) (dec col)] [(dec end-row) (- end-col 2)]]
+       (zip/string zipped-block)])))
 
 (defn top-block-for
   "Gets the top-level from the code (a string) to the current row and col (0-based)"
