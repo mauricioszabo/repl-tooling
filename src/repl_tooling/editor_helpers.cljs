@@ -1,8 +1,6 @@
 (ns repl-tooling.editor-helpers
   (:require [clojure.string :as str]
             [cljs.reader :as edn]
-            [clojure.tools.reader.reader-types :as reader-types]
-            [clojure.tools.reader :as reader]
             [rewrite-clj.zip.move :as move]
             [rewrite-clj.zip :as zip]
             [rewrite-clj.zip.base :as zip-base]
