@@ -132,7 +132,7 @@
           (node/whitespace-or-comment? parsed) :whitespace
 
           (instance? rewrite-clj.node.uneval/UnevalNode parsed)
-          (-> parsed :children first)
+          (->> parsed :children (remove node/whitespace-or-comment?) first)
 
           :else parsed)))
     (catch :default _
