@@ -6,7 +6,7 @@
 (defn need-cljs? [config filename]
   (or
    (-> config :eval-mode (= :cljs))
-   (and (-> config :eval-mode (= :discover))
+   (and (-> config :eval-mode #{:prefer-clj :prefer-cljs})
         (str/ends-with? (str filename) ".cljs"))
    (and (-> config :eval-mode (= :prefer-cljs))
         (or (str/ends-with? (str filename) ".cljs")
