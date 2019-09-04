@@ -29,14 +29,6 @@
 90)
 ")
 
-(deftest stripping-comments
-  (testing "simple comments"
-    (check (helpers/strip-comments "(+ ; foobar)") => "(+          "))
-
-  (testing "comments inside strings"
-    (check (helpers/strip-comments "\"foo;bar\"; foobar)")
-           => "\"foo;bar\"         ")))
-
 (deftest text-in-rage
   (testing "gets text in same line"
     (check (helpers/text-in-range ":foo" [[0 1] [0 2]]) => "fo"))
@@ -50,7 +42,6 @@
            [[[[0 0] [0 6]] "(+ 1 2)"]
             [[[0 8] [0 16]] "(+ (3) 4)"]
             [[[1 0] [2 1]] "[1 2\n3]"]]))
-
 
   (testing "gets top-level forms in complex CLJ code"
     (check (helpers/top-levels some-clj)
@@ -71,11 +62,9 @@
     (check (helpers/top-block-for simple-clj [0 8])
            => [[[0 8] [0 16]] "(+ (3) 4)"]))
 
-  (comment
-   "This is not yet working correctly"
-   (testing "text and range from block"
-     (check (helpers/block-for simple-clj [0 10]) => [[[0 8] [0 16]] "(+ (3) 4)"])
-     (check (helpers/block-for simple-clj [1 2]) => [[[1 0] [2 1]] "[1 2\n3]"]))))
+  (testing "text and range from block"
+    (check (helpers/block-for simple-clj [0 10]) => [[[0 8] [0 16]] "(+ (3) 4)"])
+    (check (helpers/block-for simple-clj [1 2]) => [[[1 0] [2 1]] "[1 2\n3]"])))
 
 (deftest getting-blocks-with-special-symbols
   (testing "top-block with syntax quote"
