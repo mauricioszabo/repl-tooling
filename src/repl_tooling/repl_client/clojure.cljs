@@ -106,7 +106,7 @@
                      :else
                      %)]
     (if (coll? result)
-      {:as-text (pr-str (walk/prewalk to-string result))}
+      {:as-text (pr-str result)}
       {:as-text (pr-str (to-string result))})))
 
 (defn- send-result! [res exception? state]
