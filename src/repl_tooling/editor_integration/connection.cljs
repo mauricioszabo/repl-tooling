@@ -19,7 +19,7 @@
     (on-disconnect))
   (when-let [out (:out output)] (and on-stdout (on-stdout out)))
   (when-let [out (:err output)] (and on-stderr (on-stderr out)))
-  (when (or (:result output) (:error output))
+  (when (or (contains? output :result) (contains? output :error))
     (and on-result (on-result (helpers/parse-result output)))))
 
 (defn- ensure-data [data-or-promise call]
@@ -30,11 +30,10 @@
 (defn- eval-block [state data opts]
   (ensure-data data
                (fn [{:keys [contents range] :as data}]
-                 (let [[[row col]] range
-                       code (helpers/read-next contents (inc row) (inc col))
-                       [_ namespace] (helpers/ns-range-for contents [row col])]
-                   ;FIXME: It's not this range!
-                   (e-eval/eval-cmd state code namespace range data opts)))))
+                 (let [[start] range
+                       [blk-range code] (helpers/block-for contents start)
+                       [_ namespace] (helpers/ns-range-for contents (first blk-range))]
+                   (e-eval/eval-cmd state code namespace blk-range data opts)))))
 
 (defn- eval-top-block [state data opts]
   (ensure-data data

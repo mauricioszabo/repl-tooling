@@ -242,7 +242,7 @@
                                            (eval/get-more-fn trace)
                                            (eval/get-more-fn file)
                                            false)
-        clj-file? (re-find #"\.clj?$" (str file))]
+        clj-file? (re-find #"\.clj.?$" (str file))]
     (cond
       (string? trace)
       [:div {:key idx :class ["row" "clj-stack"]}
