@@ -225,6 +225,12 @@ that the cursor is in row and col (0-based)"
                     (meta (first nodes)))]
     (-> all-nodes zip-base/edn)))
 
+(defn current-var [code [row col]]
+  (-> code
+      zip-from-code
+      (zip/find-last-by-pos {:row (inc row) :col (inc col)})
+      zip/string))
+
 (defn block-for
   "Gets the current block from the code (a string) to the current row and col (0-based)"
   [code [row col]]

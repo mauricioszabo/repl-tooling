@@ -35,7 +35,7 @@ Callbacks expects :on-stdout and :on-stderr"
         repl (delay (clj-repl/repl :clj-aux host port
                                    #(do
                                       (cond
-                                       (:result %)
+                                       (or (contains? % :result) (contains? % :error))
                                        ((:on-result callbacks) (helpers/parse-result %))
 
                                        (:out %)
