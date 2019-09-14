@@ -1,6 +1,5 @@
 (ns repl-tooling.features.shadow-cljs
   (:require [cljs.reader :as edn]
-            ["fs" :as fs]
             ["path" :as path]))
 
 (def ^private fs ^js (js/require "fs"))
@@ -9,19 +8,23 @@
 
 (defn- readfile [shadow-path]
   (-> shadow-path read-file str edn/read-string
-      :builds first first))
+      :builds keys))
 
-(defn- cmd-for [shadow-path]
-  (let [build-id (readfile shadow-path)]
-    `(do
-       (~'clojure.core/require '[shadow.cljs.devtools.api])
-       (shadow.cljs.devtools.api/repl ~build-id))))
+(defn- cmd-for [build-id]
+  `(do
+     (~'clojure.core/require '[shadow.cljs.devtools.api])
+     (shadow.cljs.devtools.api/repl ~build-id)))
 
-(defn command-for [project-folders]
-  (let [first-shadow-file (->> project-folders
+(defn- cmds-for [shadow-path]
+  (->> (readfile shadow-path)
+       (map (juxt identity cmd-for))
+       (into {})))
+
+(defn command-for [project-paths]
+  (let [first-shadow-file (->> project-paths
                                (map #(path/join % "/shadow-cljs.edn"))
                                (filter exists-sync)
                                first)]
     (if first-shadow-file
-      (cmd-for first-shadow-file)
+      (cmds-for first-shadow-file)
       {:error :no-shadow-file})))
