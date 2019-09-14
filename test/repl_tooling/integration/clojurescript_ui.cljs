@@ -10,16 +10,14 @@
             [clojure.core.async :as async :include-macros true]
             [devcards.core :as cards :include-macros true]
             [clojure.string :as str]
-            [repl-tooling.integrations.connection :as conn2]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
-                        :code "(do (defrecord Foo [a b]) (->Foo (range 20) 20))"
-                        ; :code "(range 100)"
-                        :repl nil
-                        :commands {}
+                        ; :code "(do (defrecord Foo [a b]) (->Foo (range 20) 20))"
+                        :code "(/ 10 0)"
+                        :commands nil
                         :stdout nil
                         :stderr nil
                         :range [[0 0]]
@@ -28,36 +26,48 @@
 (defn disconnect! []
   (conn/disconnect!)
   (swap! state assoc
-         :repl nil
          :stdout nil :stderr nil
-         :commands {}))
+         :commands nil))
 
 (defn handle-disconnect []
   (reset! (:eval-result @state) nil)
   (swap! state assoc
-         :repl nil
          :stdout nil :stderr nil
          :commands {}))
 
 (defn- res [result]
-  (reset! (:eval-result @state) (render/parse-result result (-> @state :repl)))
+  ; (reset! (:eval-result @state) (render/parse-result result (-> @state :repl)))
   (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
 
 (defn connect! []
-  (when-not (-> @state :repl)
-    (. (conn2/auto-connect-embedded! (:host @state) (:port @state)
-                                     "../integration/fixture-app"
-                                     identity)
-      then (fn [repl]
-             (prn repl)
-             (swap! state assoc :repl repl
-                    :stdout "" :stderr "")))))
+  (when-not (-> @state :commands)
+    (.. (conn/connect! (:host @state) (:port @state)
+                       {:on-disconnect handle-disconnect
+                        :notify prn
+                        :prompt (constantly (. js/Promise resolve "fixture"))
+                        :get-config (constantly {:eval-mode :prefer-cljs
+                                                 :project-paths [(. js/process cwd)]})
+                        :editor-data #(let [code (:code @state)]
+                                        {:contents code
+                                         :filename "foo.cljs"
+                                         :range (:range @state)})
+                        :on-eval #(prn :EVALUATED %)})
+        (then (fn [st]
+                (.. ((-> @st :editor/commands :connect-embedded :command))
+                    (then #(if %
+                             st
+                             (prn :ERRRORRR!!!!!))))))
+        (then (fn [st]
+                (swap! state assoc
+                       :commands (:editor/commands @st)
+                       :stdout "" :stderr ""))))))
 
 (defn- evaluate []
-  (some-> @state :repl
-      (eval/evaluate (-> @state :code)
-                     {}
-                     #(prn (helpers/parse-result %)))))
+  ((-> @state :commands :evaluate-top-block :command)))
+  ; (some-> @state :repl
+  ;     (eval/evaluate (-> @state :code)
+  ;                    {}
+  ;                    #(prn (helpers/parse-result %)))))
   ; (let [lines (-> @state :code str/split-lines)
   ;       eval-sel (-> @state :commands :evaluate-selection :command)]
   ;   (swap! state assoc :range [[0 0] [(-> lines count dec) (-> lines last count dec)]])
@@ -65,7 +75,7 @@
 
 (defn fake-editor [state]
   [:div
-   [:h4 "Socket REPL connections"]
+   [:h4 "Socket REPL connection"]
    [:p [:b "Hostname: "] [:input {:type "text" :value (:host @state)
                                   :on-change #(->> % .-target .-value (swap! state assoc :host))}]
        [:b " Port: "] [:input {:type "text" :value (:port @state)
@@ -74,13 +84,13 @@
                :value (:code @state)
                :on-change #(->> % .-target .-value (swap! state assoc :code))}]
    [:p
-    (if (-> @state :repl)
+    (if (-> @state :commands)
       [:span
        [:button {:on-click evaluate}
         "Evaluate"] " "
        [:button {:on-click disconnect!} "Disconnect!"]]
       [:button {:on-click connect!} "Connect!"])]
-   [:p (if (-> @state :repl) "Connected" "Disconnected")]
+   [:p (if (-> @state :commands) "Connected" "Disconnected")]
    [:div
     (when-let [res @(:eval-result @state)]
       [:div
@@ -103,7 +113,7 @@
      (pr-str
       (walk/prewalk
        #(if (satisfies? IDeref %)
-          (cond-> @% (map? @%) (dissoc :repl))
+          @%
           %)
        @result))])
   (:eval-result @state)
@@ -158,7 +168,7 @@
   (async done
     (async/go
      (connect!)
-     (async/<! (wait-for #(-> @state :repl)))
+     (async/<! (wait-for #(-> @state :commands)))
 
      (testing "evaluation works"
        (type-and-eval "(+ 2 3)")
