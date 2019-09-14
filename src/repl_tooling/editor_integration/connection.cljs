@@ -4,13 +4,15 @@
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.editor-integration.loaders :as loaders]
-            [repl-tooling.editor-integration.evaluation :as e-eval]))
+            [repl-tooling.editor-integration.evaluation :as e-eval]
+            [repl-tooling.editor-integration.embedded-clojurescript :as embedded]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
   []
   (repl-client/disconnect! :clj-eval)
   (repl-client/disconnect! :clj-aux)
+  (repl-client/disconnect! :cljs-aux)
   (repl-client/disconnect! :cljs-eval))
 
 (defn- callback [on-stdout on-stderr on-result on-disconnect output]
@@ -69,6 +71,9 @@
                :description "Loads current file on a Clojure REPL"
                :command (fn [] (ensure-data (editor-data)
                                             #(loaders/load-file opts (:clj/aux @state) %)))}
+   :connect-embedded {:name "Connect Embedded ClojureScript REPL"
+                      :description "Connects to a ClojureScript REPL inside a Clojure one"
+                      :command #(embedded/connect! state opts)}
    :disconnect {:name "Disconnect REPLs"
                 :description "Disconnect all current connected REPLs"
                 :command disconnect!}})
@@ -98,6 +103,10 @@ callbacks:
   containing :type (one of :info, :warning, or :error), :title and :message
 * get-config -> when some function needs the configuration from the editor, this fn
   is called without arguments. Need to return a map with the config options.
+* prompt -> when some function needs an answer from the editor, it'll call this
+  callback passing :title, :message, and :arguments (a vector that is composed by
+  :key and :value). The callback needs to return a `Promise` with one of the
+  :key from the :arguments, or nil if nothing was selected.
 * on-stdout -> a function that receives a string when some code prints to stdout
 * on-stderr -> a function that receives a string when some code prints to stderr
 * on-result -> returns a clojure EDN with the result of code
@@ -120,6 +129,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                                 (fn []
                                   (reset! state {:clj/aux aux
                                                  :clj/repl @primary
+                                                 :repl/info {:host host :port port}
                                                  :editor/commands (cmds-for state opts)})
                                   (resolve state))))]
 
@@ -137,6 +147,5 @@ than once
 
 Returns a promise that will resolve to a map with two repls: :clj/aux will be used
 to autocomplete/etc, :clj/repl will be used to evaluate code."
-  [host port {:keys [on-stdout on-stderr on-result on-disconnect
-                     editor-data on-start-eval on-eval cljs?] :as opts}]
+  [host port opts]
   (connect-unrepl! host port opts))
