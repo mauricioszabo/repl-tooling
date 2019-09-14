@@ -23,7 +23,7 @@
                                             (resolve ret))
                        :else (do
                                (resolve {:error :unknown})
-                               (client/disconnect! evaluator)))))))
+                               (client/disconnect! :cljs-aux)))))))
 
 (defn ^:deprecated auto-connect-embedded!
   "Given a host, port, and project paths, try to parse shadow-cljs.edn and
