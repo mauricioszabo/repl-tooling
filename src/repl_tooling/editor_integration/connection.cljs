@@ -13,15 +13,6 @@
   (repl-client/disconnect! :clj-aux)
   (repl-client/disconnect! :cljs-eval))
 
-(defn- callback [on-stdout on-stderr on-result on-disconnect output]
-  (when (nil? output)
-    (disconnect!)
-    (on-disconnect))
-  (when-let [out (:out output)] (and on-stdout (on-stdout out)))
-  (when-let [out (:err output)] (and on-stderr (on-stderr out)))
-  (when (or (contains? output :result) (contains? output :error))
-    (and on-result (on-result (helpers/parse-result output)))))
-
 (defn- ensure-data [data-or-promise call]
   (if (instance? js/Promise data-or-promise)
     (. data-or-promise then #(call %))
@@ -83,6 +74,25 @@
                  {:ignore true}
                  identity))
 
+(defn- callback-fn [on-stdout on-stderr on-result on-disconnect output]
+  (when (nil? output)
+    (disconnect!)
+    (on-disconnect))
+  (when-let [out (:out output)] (and on-stdout (on-stdout out)))
+  (when-let [out (:err output)] (and on-stderr (on-stderr out)))
+  (when (or (contains? output :result) (contains? output :error))
+    (and on-result (on-result (helpers/parse-result output)))))
+
+(defn connect-evaluator!
+  ""
+  [evaluators {:keys [on-stdout on-stderr on-result on-disconnect
+                      editor-data on-start-eval on-eval] :as opts}]
+  (js/Promise.
+   (fn [resolve]
+     (let [state (atom evaluators)]
+       (swap! state assoc :editor/commands (cmds-for state opts))
+       (resolve state)))))
+
 (defn connect-unrepl!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
 callbacks:
@@ -110,7 +120,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                      editor-data on-start-eval on-eval] :as opts}]
   (js/Promise.
    (fn [resolve]
-     (let [callback (partial callback on-stdout on-stderr on-result on-disconnect)
+     (let [callback (partial callback-fn on-stdout on-stderr on-result on-disconnect)
            aux (clj-repl/repl :clj-aux host port callback)
            primary (delay (clj-repl/repl :clj-eval host port callback))
            state (atom nil)
