@@ -50,8 +50,7 @@
                       :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
                       :on-eval res
                       :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
-                      :editor-data #(let [code (:code @state)
-                                          lines (str/split-lines code)]
+                      :editor-data #(let [code (:code @state)]
                                       {:contents code
                                        :filename "foo.clj"
                                        :range (:range @state)})})
