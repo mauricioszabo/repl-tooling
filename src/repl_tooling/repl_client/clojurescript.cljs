@@ -11,7 +11,7 @@
 (def blob (cljs-blob-contents))
 
 (defn evaluate-code [in pending command opts callback]
-  (let [id (gensym)
+  (let [id (or (:id opts) (gensym))
         code (str "(cljs.core/pr-str (try (clojure.core/let [res\n(do\n" command
                   "\n)] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
                   "['" id " :error (cljs.core/pr-str e)])))\n")]
