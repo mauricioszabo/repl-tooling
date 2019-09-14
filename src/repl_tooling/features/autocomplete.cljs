@@ -1,12 +1,8 @@
 (ns repl-tooling.features.autocomplete
   (:require [repl-tooling.eval :as eval]
             [clojure.string :as str]
-            [cljs.core.async :refer [<! >!] :refer-macros [go] :as async]
-            [repl-tooling.repl-client :as client]
             [repl-tooling.repl-client.cljs.autocomplete :as cljs-auto]
-            [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]
-            [repl-tooling.repl-client.lumo :as lumo]
             [repl-tooling.editor-helpers :as helpers]))
 
 (defprotocol AutoComplete
@@ -74,29 +70,3 @@
                                        #(if-let [res (:result %)]
                                           (resolve (helpers/read-result res))
                                           (resolve [])))))))
-
-;;;;;;;;;;;;; CUT HERE ;;;;;;;;;;;;;;
-
-(defn- detect-fn
-  ([evaluator fun-name check-for key fun]
-   (js/Promise.
-    (fn [resolve]
-      (eval/eval evaluator
-                 fun-name
-                 {}
-                 #(resolve (when (re-find check-for %)
-                             {key fun})))))))
-
-(defn- lumo-fn [evaluator ns-name text callback]
-  (let [complete-form `(lumo.repl/get-completions
-                        ~(str text) cljs.core/js->clj)]
-    (eval/eval evaluator (str "(ns " ns-name ")") {}
-               #(eval/eval evaluator complete-form {} callback))))
-
-(defn- merge-all [ & features])
-
-(defn detect [evaluator callback]
-  (-> (detect-fn evaluator "lumo.repl/get-completions" #"function "
-                 :simple-complete lumo-fn)
-      (.then callback)
-      (.catch #(. js/console (log %)))))
