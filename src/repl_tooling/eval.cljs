@@ -11,23 +11,6 @@
     "Returns a function that'll receive an Evaluator and a callback
 will call the callback with the same kind of object with more data"))
 
-(defn more-until
-  ([repl obj fun callback] (more-until repl obj 100 fun callback))
-  ([repl obj max-expansions fun callback]
-   (let [c (chan)]
-     (go-loop [obj obj
-               n 0]
-       (if (fun obj)
-         (callback obj)
-         (if (= n max-expansions)
-           (callback obj)
-           (if-let [more (get-more-fn obj)]
-             (do
-               (more repl #(put! c %))
-               (recur (<! c) (inc n)))
-             (callback obj))))))))
-
-
 (defprotocol Evaluator
   (evaluate [this command opts callback])
   (break [this repl]))
