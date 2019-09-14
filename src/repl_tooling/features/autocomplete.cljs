@@ -18,19 +18,6 @@
          (update lines row str/replace-first pattern)
          (str/join "\n"))))
 
-(declare take-results)
-(defn- get-more [repl resolve more acc]
-  (eval/evaluate repl more {} #(take-results repl resolve acc %)))
-
-(defn- take-results [repl resolve acc {:keys [result]}]
-  (let [acc (vec (concat acc (helpers/read-result result)))
-        more (-> acc last :repl-tooling/...)
-        size (count acc)]
-    (cond
-      (-> size (> 50) (and more)) (-> acc butlast resolve)
-      (-> size (< 50) (and more)) (get-more repl resolve more acc)
-      :else (resolve acc))))
-
 (defn- clj-compliment [repl ns-name text prefix row col]
   (let [ns (when ns-name (symbol ns-name))
         context (make-context text prefix row col)
@@ -46,15 +33,6 @@
                    (eval/evaluate repl code {:ignore true} #(if-let [res (:result %)]
                                                               (resolve (helpers/read-result res))
                                                               (resolve [])))))))
-
-(defn- require-compliment [repl checker]
-  (js/Promise. (fn [resolve]
-                 (eval/evaluate repl `(~'clojure.core/require 'compliment.core) {}
-                                (fn [res]
-                                  (if (:error res)
-                                    (reset! checker false)
-                                    (reset! checker true))
-                                  (resolve))))))
 
 (extend-protocol AutoComplete
   clj-repl/Evaluator
