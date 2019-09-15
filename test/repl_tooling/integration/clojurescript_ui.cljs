@@ -24,20 +24,21 @@
                         :eval-result (r/atom nil)}))
 
 (defn disconnect! []
-  (conn/disconnect!)
-  (swap! state assoc
-         :stdout nil :stderr nil
-         :commands nil))
+  (conn/disconnect!))
 
 (defn handle-disconnect []
   (reset! (:eval-result @state) nil)
   (swap! state assoc
          :stdout nil :stderr nil
-         :commands {}))
+         :commands nil))
 
-(defn- res [result]
-  ; (reset! (:eval-result @state) (render/parse-result result (-> @state :repl)))
-  (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
+(defn- eval-result [{:keys [result]}]
+  (reset! (:eval-result @state)
+          (render/parse-result result nil))
+  (swap! state update :stdout (fn [e] (str e "=> "
+                                           (pr-str (or (:result result)
+                                                       (:error result)))
+                                           "\n"))))
 
 (defn connect! []
   (when-not (-> @state :commands)
@@ -51,7 +52,7 @@
                                         {:contents code
                                          :filename "foo.cljs"
                                          :range (:range @state)})
-                        :on-eval #(prn :EVALUATED %)})
+                        :on-eval eval-result})
         (then (fn [st]
                 (.. ((-> @st :editor/commands :connect-embedded :command))
                     (then #(if %
@@ -64,14 +65,6 @@
 
 (defn- evaluate []
   ((-> @state :commands :evaluate-top-block :command)))
-  ; (some-> @state :repl
-  ;     (eval/evaluate (-> @state :code)
-  ;                    {}
-  ;                    #(prn (helpers/parse-result %)))))
-  ; (let [lines (-> @state :code str/split-lines)
-  ;       eval-sel (-> @state :commands :evaluate-selection :command)]
-  ;   (swap! state assoc :range [[0 0] [(-> lines count dec) (-> lines last count dec)]])
-  ;   (eval-sel)))
 
 (defn fake-editor [state]
   [:div
@@ -136,7 +129,7 @@
 
 (defn- type-in [txt] (swap! state assoc :code txt))
 (defn- type-and-eval [txt]
-  (swap! state assoc :code txt)
+  (swap! state assoc :code txt :range [[0 0]])
   (evaluate))
 (defn- txt-in-stdout [reg]
   (wait-for #(re-find reg (:stdout @state))))
@@ -163,7 +156,7 @@
   (-> js/document (.querySelector sel) .click))
 
 (set! cards/test-timeout 8000)
-#_
+
 (cards/deftest repl-evaluation
   (async done
     (async/go
@@ -172,42 +165,45 @@
 
      (testing "evaluation works"
        (type-and-eval "(+ 2 3)")
-       (check (async/<! (txt-in-stdout #"=> 5")) => "=> 5")
+       (async/<! (change-stdout))
        (check (txt-for-selector "#result") => "5"))
-     ;
-     ; (testing "evaluate blocks"
-     ;   (swap! state assoc
-     ;          :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
-     ;          :range [[3 3]])
-     ;   ((-> @state :commands :evaluate-block :command))
-     ;   (async/<! (change-stdout))
-     ;   (check (txt-for-selector "#result") => "7"))
-     ;
-     ; (testing "evaluate top blocks"
-     ;   (swap! state assoc
-     ;          :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
-     ;          :range [[3 3]])
-     ;   ((-> @state :commands :evaluate-top-block :command))
-     ;   (async/<! (change-stdout))
-     ;   (check (txt-for-selector "#result") => "9"))
-     ;
-     ; (testing "displays booleans"
-     ;   (ui/assert-out "true" "true")
-     ;   (ui/assert-out "false" "false")
-     ;   (ui/assert-out "nil" "nil"))
-     ;
-     ; (testing "captures STDOUT"
-     ;   (type-and-eval "(println :FOOBAR)")
-     ;   (check (async/<! (change-stdout)) => #":FOOBAR"))
-     ;
-     ; (testing "captures STDERR"
-     ;   (type-and-eval "(.write *err* \"Error\")")
-     ;   (check (async/<! (change-stderr)) => #"Error"))
-     ;
-     ; (testing "detects NS on file"
-     ;   (type-and-eval "(do (ns clojure.string)\n(upper-case \"this is upper\"))")
-     ;   (check (async/<! (change-stdout)) => #"THIS IS UPPER"))
-     ;
+
+     (testing "evaluate blocks"
+       (swap! state assoc
+              :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
+              :range [[3 3]])
+       ((-> @state :commands :evaluate-block :command))
+       (async/<! (change-stdout))
+       (check (txt-for-selector "#result") => "7"))
+
+     (testing "evaluate top blocks"
+       (swap! state assoc
+              :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
+              :range [[3 3]])
+       ((-> @state :commands :evaluate-top-block :command))
+       (async/<! (change-stdout))
+       (check (txt-for-selector "#result") => "9"))
+
+     (testing "displays booleans"
+       (ui/assert-out "true" "true")
+       (ui/assert-out "false" "false")
+       (ui/assert-out "nil" "nil"))
+
+     ; TODO: Node.JS target don't redirect the console
+     #_
+     (testing "captures STDOUT"
+       (type-and-eval "(println :FOOBAR)")
+       (check (async/<! (change-stdout)) => #":FOOBAR"))
+
+     (testing "detects NS on file"
+       (swap! state assoc
+              :code "(ns clojure.string)\n(upper-case \"this is upper\")"
+              :range [[1 1]])
+       ((-> @state :commands :evaluate-block :command))
+       (async/<! (change-stdout))
+       (check (:stdout @state) => #"THIS IS UPPER"))
+
+     ; TODO: All of these!
      ; (testing "evaluates and presents big strings"
      ;   (ui/assert-out (str "\"01234567891011121314151617181920212223242526272829"
      ;                       "303132333435363738394041424344 ... \"")
