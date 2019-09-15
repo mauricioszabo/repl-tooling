@@ -40,7 +40,7 @@
     (clj-compliment repl ns-name text prefix row col))
 
   clj-repl/SelfHostedCljs
-  (complete [repl ns-name text prefix row col]
+  (complete [repl ns-name _text prefix _row _col]
     (js/Promise. (fn [resolve]
                    (cljs-auto/complete repl
                                        ns-name
