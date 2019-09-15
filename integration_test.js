@@ -31,10 +31,10 @@ const runTestAndCollectResult = async (client, idx, numTests, numFailures) => {
 const collectTest = async (client, idx, numTests, totalFailures) => {
   const selector = `.com-rigsomelight-devcards-list-group-item:nth-child(${idx})`
   await client.waitForText(selector)
-  const span = `${selector} span`
-  const txt = await client.$(span).getText()
-  const numAsserts = parseInt(txt)
-  console.log(`\n Collecting ${numAsserts} tests`)
+  const description = await client.$(`${selector} span:nth-child(2)`).getText()
+  const num = await client.$(`${selector} span`).getText()
+  const numAsserts = parseInt(num)
+  console.log(`\n [testcase] ${description} - collecting ${numAsserts} tests`)
   await client.$(selector).click()
   const failures = await runTestAndCollectResult(client, 1, numAsserts, 0)
   const total = failures + totalFailures
