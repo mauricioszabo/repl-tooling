@@ -1,8 +1,7 @@
 (ns repl-tooling.editor-integration.embedded-clojurescript
   (:require [repl-tooling.features.shadow-cljs :as shadow]
             [cljs.core.async :include-macros true :as async]
-            [repl-tooling.integrations.connection :as conn]
-            [repl-tooling.eval :as eval]))
+            [repl-tooling.integrations.connection :as conn]))
 
 (def trs {:no-build-id "There's no build ID detected on shadow-cljs file"
           :no-shadow-file "File shadow-cljs.edn not found"
@@ -14,11 +13,11 @@
            :message (trs error "Unknown Error")})
   nil)
 
-(defn- connect-and-update-state! [state opts build-id]
+(defn- connect-and-update-state! [state opts upgrade-cmd]
   (let [{:keys [notify on-result on-stdout]} opts
         {:keys [host port]} (:repl/info @state)]
-    (.. (conn/connect! host port build-id {:on-result #(and on-result (on-result %))
-                                           :on-stdout #(and on-stdout (on-stdout %))})
+    (.. (conn/connect! host port upgrade-cmd {:on-result #(and on-result (on-result %))
+                                              :on-stdout #(and on-stdout (on-stdout %))})
         (then #(if-let [error (:error %)]
                  (treat-error error notify)
                  (do (swap! state assoc :cljs/repl %) state))))))
