@@ -21,8 +21,9 @@
     (on-disconnect))
   (when-let [out (:out output)] (and on-stdout (on-stdout out)))
   (when-let [out (:err output)] (and on-stderr (on-stderr out)))
-  (when (or (contains? output :result) (contains? output :error))
-    (and on-result (on-result (helpers/parse-result output)))))
+  (when (and on-result (or (contains? output :result)
+                           (contains? output :error)))
+    (on-result (helpers/parse-result output))))
 
 (defn- ensure-data [data-or-promise call]
   (if (instance? js/Promise data-or-promise)

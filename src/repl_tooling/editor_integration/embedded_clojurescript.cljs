@@ -14,34 +14,34 @@
            :message (trs error "Unknown Error")})
   nil)
 
-(defn- connect-and-update-state! [state notify host port build-id]
-  (.. (conn/connect! host port build-id prn)
-      (then #(if-let [error (:error %)]
-               (treat-error error notify)
-               (do (swap! state assoc :cljs/repl %) state)))))
+(defn- connect-and-update-state! [state opts build-id]
+  (let [{:keys [notify on-result on-stdout]} opts
+        {:keys [host port]} (:repl/info @state)]
+    (.. (conn/connect! host port build-id {:on-result #(and on-result (on-result %))
+                                           :on-stdout #(and on-stdout (on-stdout %))})
+        (then #(if-let [error (:error %)]
+                 (treat-error error notify)
+                 (do (swap! state assoc :cljs/repl %) state))))))
 
-(defn- choose-id! [state notify commands prompt host port resolve]
+(defn- choose-id! [state {:keys [prompt] :as opts} commands resolve]
   (.. (prompt {:title "Multiple Shadow-CLJS targets"
                :message "Choose the build target that you want to connect"
                :values (->> commands keys (map name))})
-      (then #(connect-and-update-state! state notify
-                                        host port (->> % keyword (get commands))))
+      (then #(connect-and-update-state! state opts (->> % keyword (get commands))))
       (then resolve)))
 
-(defn- connect-embedded [state {:keys [notify prompt get-config]} resolve]
-  (let [project-paths (:project-paths (get-config))
-        commands (shadow/command-for project-paths)
-        {:keys [host port]} (:repl/info @state)]
+(defn- connect-embedded [state {:keys [get-config notify] :as opts} resolve]
+  (let [commands (shadow/command-for (:project-paths (get-config)))]
     (if-let [error (:error commands)]
       (resolve (treat-error error notify))
       (case (count commands)
         0 (resolve (treat-error :no-build-id notify))
-        1 (.then (connect-and-update-state! state notify
-                                            host port (-> commands vals first))
+        1 (.then (connect-and-update-state! state opts
+                                            (-> commands vals first))
                  resolve)
-        (choose-id! state notify commands prompt host port resolve)))))
+        (choose-id! state opts commands resolve)))))
 
-(defn connect! [state {:keys [notify prompt] :as opts}]
+(defn connect! [state {:keys [notify] :as opts}]
   (js/Promise.
    (fn [resolve]
      (cond
