@@ -37,20 +37,6 @@
        (client/disconnect! :clj-simple)
        (done)))))
 
-(cards/deftest clojure-compliment-autocomplete
-  (async done
-    (async/go
-     (client/disconnect! :clojure-compliment)
-     (let [repl (clj/repl :clojure-compliment "localhost" 2233 identity)
-           chan (async/promise-chan)
-           res (compliment/for-clojure repl 'user "(let [foo 10] fo)" "fo" 0 16)]
-       (check (async/<! res) => [{:candidate "foo", :type :local}
-                                 {:candidate "for", :type :macro, :ns "clojure.core"}
-                                 {:candidate "force", :type :function, :ns "clojure.core"}
-                                 {:candidate "format", :type :function, :ns "clojure.core"}])
-       (client/disconnect! :clojure-compliment)
-       (done)))))
-
 (cards/deftest clojurescript-simple-autocomplete
   (async done
     (async/go
@@ -80,4 +66,37 @@
                                      {:candidate "st/replace-with" :type :function}])))
 
        (client/disconnect! :cljs-simple)
+       (done)))))
+
+(cards/deftest clojure-compliment-autocomplete
+  (async done
+    (async/go
+     (client/disconnect! :clojure-compliment)
+     (let [repl (clj/repl :clojure-compliment "localhost" 2233 identity)
+           res (compliment/for-clojure repl 'user "(let [foo 10] fo)" "fo" 0 16)]
+       (check (async/<! res) => [{:candidate "foo", :type :local}
+                                 {:candidate "for", :type :macro, :ns "clojure.core"}
+                                 {:candidate "force", :type :function, :ns "clojure.core"}
+                                 {:candidate "format", :type :function, :ns "clojure.core"}])
+       (client/disconnect! :clojure-compliment)
+       (done)))))
+
+(cards/deftest clojurescript-compliment-autocomplete
+  (async done
+    (async/go
+     (client/disconnect! :cljs-compliment)
+     (let [repl (clj/repl :cljs-compliment "localhost" 2233 identity)
+           cljs-env '(shadow.cljs.devtools.api/compiler-env :fixture)]
+
+        (testing "will complete local and NS variables"
+          (let [res (compliment/for-cljs repl cljs-env 'cljs.user "(let [foo 10] fo)" "fo" 0 16)]
+            (check (async/<! res) => [{:candidate "foo", :type :local}
+                                      {:candidate "for", :type :macro, :ns "cljs.core"}
+                                      {:candidate "force", :type :function, :ns "cljs.core"}])))
+
+        (testing "will complete keyword"
+          (let [res (compliment/for-cljs repl cljs-env 'cljs.user "" ":cljs-autocom" 0 16)]
+            (check (async/<! res) => [{:candidate ":cljs-autocomplete-keyword", :type :keyword}])))
+
+       (client/disconnect! :cljs-compliment)
        (done)))))

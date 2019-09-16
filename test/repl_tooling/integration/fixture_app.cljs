@@ -7,4 +7,5 @@
 (defn- private-fn [a b] (+ a b 11))
 (defn local-fn [a b] (+ a b 10))
 (defn main []
+  :cljs-autocomplete-keyword
   (prn :CONNECTED))
