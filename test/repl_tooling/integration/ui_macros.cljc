@@ -1,7 +1,8 @@
 (ns repl-tooling.integration.ui-macros
   (:require [clojure.core.async :as async]
             [clojure.string :as str]))
-            ; [check.core :refer [check]]))
+
+(defn- type-and-just-for-test [])
 
 (defmacro type-and-result [cmd]
   `(do
