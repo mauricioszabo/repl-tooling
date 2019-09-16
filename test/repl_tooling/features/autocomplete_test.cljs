@@ -11,6 +11,32 @@
             [repl-tooling.repl-helpers :as repl-helpers]))
 
 (set! cards/test-timeout 8000)
+(cards/deftest clojure-simple-autocomplete
+  (async done
+    (async/go
+     (client/disconnect! :clj-simple)
+     (let [repl (clj/repl :clj-simple "localhost" 2233 identity)
+           chan (async/promise-chan)]
+
+       (testing "completing core functions"
+         (let [res (simple/for-clj repl 'repl-tooling.integration.fixture-app "prn")]
+           (check (async/<! res) => [{:candidate "prn" :type :function}
+                                     {:candidate "prn-str" :type :function}])))
+
+       (testing "completing macros and private fns in current NS"
+         (let [res (simple/for-clj repl 'repl-tooling.integration.ui-macros "type-and")]
+           (check (async/<! res) => [{:candidate "type-and-just-for-test" :type :function}
+                                     {:candidate "type-and-result" :type :function}])))
+
+       (testing "completing imported vars"
+         (let [res (simple/for-clj repl 'repl-tooling.integration.ui-macros "str/repl")]
+           (check (async/<! res) => [{:candidate "str/replace" :type :function}
+                                     {:candidate "str/replace-first" :type :function}])))
+
+       (async/<! (async/timeout 500))
+       (client/disconnect! :clj-simple)
+       (done)))))
+
 (cards/deftest clojure-compliment-autocomplete
   (async done
     (async/go
@@ -22,7 +48,6 @@
                                  {:candidate "for", :type :macro, :ns "clojure.core"}
                                  {:candidate "force", :type :function, :ns "clojure.core"}
                                  {:candidate "format", :type :function, :ns "clojure.core"}])
-       (async/<! (async/timeout 500))
        (client/disconnect! :clojure-compliment)
        (done)))))
 
@@ -54,6 +79,5 @@
                                      {:candidate "st/replace-first" :type :function}
                                      {:candidate "st/replace-with" :type :function}])))
 
-       (async/<! (async/timeout 500))
        (client/disconnect! :cljs-simple)
        (done)))))
