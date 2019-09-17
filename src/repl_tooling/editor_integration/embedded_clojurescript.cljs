@@ -16,20 +16,24 @@
 (defn- connect-and-update-state! [state opts target upgrade-cmd]
   (let [{:keys [notify on-result on-stdout]} opts
         {:keys [host port]} (:repl/info @state)]
-    (.. (conn/connect! host port upgrade-cmd {:on-result #(and on-result (on-result %))
-                                              :on-stdout #(and on-stdout (on-stdout %))})
-        (then #(if-let [error (:error %)]
-                 (treat-error error notify)
-                 (do
-                   (swap! state assoc :cljs/repl %)
-                   (notify {:type :info
-                            :title "Connected to ClojureScript"
-                            :message (str "Connected to Shadow-CLJS target" target)})))))))
+    (if target
+      (.. (conn/connect! host port upgrade-cmd {:on-result #(and on-result (on-result %))
+                                                :on-stdout #(and on-stdout (on-stdout %))})
+          (then #(if-let [error (:error %)]
+                   (treat-error error notify)
+                   (do
+                     (swap! state assoc :cljs/repl %)
+                     (notify {:type :info
+                              :title "Connected to ClojureScript"
+                              :message (str "Connected to Shadow-CLJS target" target)})))))
+      (notify {:type :warn
+               :title "Error connecting to CLJS"
+               :message "Please select a valid target for Shadow-CLJS"}))))
 
 (defn- choose-id! [state {:keys [prompt] :as opts} commands]
   (.. (prompt {:title "Multiple Shadow-CLJS targets"
                :message "Choose the build target that you want to connect"
-               :values (->> commands keys (map (fn [id] {:key id :value (name id)})))})
+               :arguments (->> commands keys (map (fn [id] {:key id :value (name id)})))})
       (then #(connect-and-update-state! state opts
                                         (keyword %)
                                         (->> % keyword (get commands))))))
