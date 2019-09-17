@@ -25,7 +25,7 @@
 (defn- choose-id! [state {:keys [prompt] :as opts} commands resolve]
   (.. (prompt {:title "Multiple Shadow-CLJS targets"
                :message "Choose the build target that you want to connect"
-               :values (->> commands keys (map name))})
+               :values (->> commands keys (map (fn [id] {:key id :value (name id)})))})
       (then #(connect-and-update-state! state opts (->> % keyword (get commands))))
       (then resolve)))
 
