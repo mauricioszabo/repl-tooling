@@ -1,5 +1,6 @@
 (ns repl-tooling.editor-integration.connection
-  (:require [repl-tooling.repl-client :as repl-client]
+  (:require [reagent.core :as r]
+            [repl-tooling.repl-client :as repl-client]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]
@@ -123,7 +124,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
      (let [callback (partial callback on-stdout on-stderr on-result on-disconnect)
            aux (clj-repl/repl :clj-aux host port callback)
            primary (delay (clj-repl/repl :clj-eval host port callback))
-           state (atom nil)
+           state (r/atom nil)
            connect-primary (fn []
                              (disable-limits! aux)
                              (eval/evaluate @primary ":primary-connected" {:ignore true}
