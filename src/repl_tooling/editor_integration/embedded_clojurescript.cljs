@@ -7,11 +7,22 @@
           :no-shadow-file "File shadow-cljs.edn not found"
           :no-worker "No worker for first build ID"})
 
+(defn- notify! [notify params]
+  (notify params)
+  (. js/Promise resolve nil))
+
 (defn- treat-error [error notify]
-  (notify {:type :error
-           :title "Error connecting to ClojureScript"
-           :message (trs error "Unknown Error")})
+  (notify! notify {:type :error
+                   :title "Error connecting to ClojureScript"
+                   :message (trs error "Unknown Error")})
   nil)
+
+(defn- save-repl-info! [state target repl]
+  (swap! state
+         (fn [s] (-> s
+                     (assoc :cljs/repl repl)
+                     (assoc-in [:repl/info :cljs/repl-env]
+                               `(shadow.cljs.devtools.api/compiler-env ~target))))))
 
 (defn- connect-and-update-state! [state opts target upgrade-cmd]
   (let [{:keys [notify on-result on-stdout]} opts
@@ -22,13 +33,15 @@
           (then #(if-let [error (:error %)]
                    (treat-error error notify)
                    (do
-                     (swap! state assoc :cljs/repl %)
-                     (notify {:type :info
-                              :title "Connected to ClojureScript"
-                              :message (str "Connected to Shadow-CLJS target" target)})))))
-      (notify {:type :warn
-               :title "Error connecting to CLJS"
-               :message "Please select a valid target for Shadow-CLJS"}))))
+                     (save-repl-info! state target %)
+                     (notify! notify
+                              {:type :info
+                               :title "Connected to ClojureScript"
+                               :message (str "Connected to Shadow-CLJS target" target)})
+                     %))))
+      (notify! notify {:type :warn
+                       :title "No option selected"
+                       :message "Please select a valid target for Shadow-CLJS"}))))
 
 (defn- choose-id! [state {:keys [prompt] :as opts} commands]
   (.. (prompt {:title "Multiple Shadow-CLJS targets"
@@ -52,19 +65,17 @@
 (defn connect! [state {:keys [notify] :as opts}]
   (cond
     (:cljs/repl @state)
-    (do
-      (notify {:type :warn
-               :title "REPL already connected"
-               :message (str "REPL is already connected.\n\n"
-                             "Please, disconnect the current REPL "
-                             "if you want to connect to another.")}))
+    (notify! notify {:type :warn
+                     :title "REPL already connected"
+                     :message (str "REPL is already connected.\n\n"
+                                   "Please, disconnect the current REPL "
+                                   "if you want to connect to another.")})
 
     (:clj/aux @state)
     (connect-embedded state opts)
 
     :else
-    (do
-      (notify {:type :warn
-               :title "REPL not connected"
-               :message (str "To connect a self-hosted REPL, "
-                             "you first need to connect a Clojure REPL")}))))
+    (notify! notify {:type :warn
+                     :title "REPL not connected"
+                     :message (str "To connect a self-hosted REPL, "
+                                   "you first need to connect a Clojure REPL")})))
