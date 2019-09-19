@@ -61,8 +61,10 @@
                     [(- orig-row block-row) orig-col]
                     [0 0])]
     (if (= :compliment @cljs-autocomplete)
-      (compliment/for-cljs clj-repl cmd ns-name block-text prefix row col)
-      (simple/for-cljs cljs-repl ns-name prefix))))
+      (or (some-> clj-repl (compliment/for-cljs cmd ns-name block-text prefix row col))
+          (async/go []))
+      (or (some-> cljs-repl (simple/for-cljs ns-name prefix))
+          (async/go [])))))
 
 (defn- resolve-clj [state opts editor-data resolve]
   (async/go
@@ -71,7 +73,9 @@
              (if (async/<! (detect-clj-compliment (:clj/aux @state)))
                :compliment
                :simple)))
-   (resolve (async/<! (autocomplete-clj (:clj/aux @state) editor-data)))))
+   (if (:clj/aux @state)
+     (resolve (async/<! (autocomplete-clj (:clj/aux @state) editor-data)))
+     (resolve []))))
 
 (defn- resolve-cljs [state opts editor-data resolve]
   (async/go
@@ -88,8 +92,6 @@
 (defn command [state {:keys [get-config] :as opts} editor-data]
   (js/Promise.
    (fn [resolve]
-     (prn (:filename editor-data)
-          (evaluation/need-cljs? (get-config) (:filename editor-data)))
      (if (evaluation/need-cljs? (get-config) (:filename editor-data))
        (resolve-cljs state opts editor-data resolve)
        (resolve-clj  state opts editor-data resolve)))))
