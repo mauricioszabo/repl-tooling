@@ -16,8 +16,8 @@
             [repl-tooling.integration.clojurescript-ui]
             [repl-tooling.repl-client.evaluation-test]
             [repl-tooling.features.definition-test]
-            [repl-tooling.features.autocomplete-test]))
-            ; [repl-tooling.editor-integration.autocomplete-test]))
+            [repl-tooling.features.autocomplete-test]
+            [repl-tooling.editor-integration.autocomplete-test]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
