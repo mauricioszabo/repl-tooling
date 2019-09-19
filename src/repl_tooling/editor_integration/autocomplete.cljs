@@ -28,11 +28,12 @@
 (defn- get-prefix [code row col]
   (-> code
       str/split-lines
-      (nth row)
+      (nth row "")
       (->> (take col)
            (apply str))
       (str/split non-clj-var-regex)
-      last))
+      last
+      str))
 
 (defn- autocomplete-clj [repl {:keys [contents range]}]
   (let [position (first range)
@@ -42,11 +43,11 @@
         ns-name (-> contents
                     (helpers/ns-range-for position)
                     second)
-        [row col] (if range
+        [row col] (if block-text
                     [(- orig-row block-row) orig-col]
                     [0 0])]
     (if (= :compliment @clj-autocomplete)
-      (compliment/for-clojure repl ns-name block-text prefix row col)
+      (compliment/for-clojure repl ns-name (str block-text) prefix row col)
       (simple/for-clj repl ns-name prefix))))
 
 (defn- autocomplete-cljs [clj-repl cljs-repl cmd {:keys [contents range]}]
@@ -57,11 +58,11 @@
         ns-name (-> contents
                     (helpers/ns-range-for position)
                     second)
-        [row col] (if range
+        [row col] (if block-text
                     [(- orig-row block-row) orig-col]
                     [0 0])]
     (if (= :compliment @cljs-autocomplete)
-      (or (some-> clj-repl (compliment/for-cljs cmd ns-name block-text prefix row col))
+      (or (some-> clj-repl (compliment/for-cljs cmd ns-name (str block-text) prefix row col))
           (async/go []))
       (or (some-> cljs-repl (simple/for-cljs ns-name prefix))
           (async/go [])))))
