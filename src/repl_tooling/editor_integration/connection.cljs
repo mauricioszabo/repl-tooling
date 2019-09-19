@@ -6,7 +6,8 @@
             [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.editor-integration.loaders :as loaders]
             [repl-tooling.editor-integration.evaluation :as e-eval]
-            [repl-tooling.editor-integration.embedded-clojurescript :as embedded]))
+            [repl-tooling.editor-integration.embedded-clojurescript :as embedded]
+            [repl-tooling.editor-integration.autocomplete :as autocomplete]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -19,7 +20,7 @@
 (defn- callback [on-stdout on-stderr on-result on-disconnect output]
   (when (nil? output)
     (disconnect!)
-    (on-disconnect))
+    (and on-disconnect (on-disconnect)))
   (when-let [out (:out output)] (and on-stdout (on-stdout out)))
   (when-let [out (:err output)] (and on-stderr (on-stderr out)))
   (when (and on-result (or (contains? output :result)
@@ -80,6 +81,10 @@
                 :description "Disconnect all current connected REPLs"
                 :command disconnect!}})
 
+(defn- features-for [state {:keys [editor-data] :as opts}]
+  {:autocomplete #(ensure-data (editor-data)
+                               (fn [data] (autocomplete/command state opts data)))})
+
 (defn- disable-limits! [aux]
   (eval/evaluate aux
                  (clj-repl/unrepl-cmd (-> aux :session deref :state)
@@ -89,6 +94,14 @@
                                        :unrepl.print/nesting-depth 9223372036854775807})
                  {:ignore true}
                  identity))
+
+(def ^:private default-opts
+  {:on-start-eval identity
+   :on-eval identity
+   :editor-data identity
+   :notify identity
+   :get-config identity ;FIXME
+   :prompt (js/Promise. (fn []))})
 
 (defn connect-unrepl!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
@@ -125,6 +138,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
            aux (clj-repl/repl :clj-aux host port callback)
            primary (delay (clj-repl/repl :clj-eval host port callback))
            state (r/atom nil)
+           options (merge default-opts opts)
            connect-primary (fn []
                              (disable-limits! aux)
                              (eval/evaluate @primary ":primary-connected" {:ignore true}
@@ -132,7 +146,8 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                                   (reset! state {:clj/aux aux
                                                  :clj/repl @primary
                                                  :repl/info {:host host :port port}
-                                                 :editor/commands (cmds-for state opts)})
+                                                 :editor/commands (cmds-for state options)
+                                                 :editor/features (features-for state options)})
                                   (resolve state))))]
 
        (eval/evaluate aux ":aux-connected" {:ignore true}
