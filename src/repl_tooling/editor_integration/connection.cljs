@@ -17,9 +17,16 @@
   (repl-client/disconnect! :cljs-aux)
   (repl-client/disconnect! :cljs-eval))
 
-(defn- callback [on-stdout on-stderr on-result on-disconnect output]
+(defn- handle-disconnect!
+  "Disconnect all REPLs. Indempotent."
+  [state]
+  (disconnect!)
+  (reset! state nil))
+
+
+(defn- callback-fn [state on-stdout on-stderr on-result on-disconnect output]
   (when (nil? output)
-    (disconnect!)
+    (handle-disconnect! state)
     (and on-disconnect (on-disconnect)))
   (when-let [out (:out output)] (and on-stdout (on-stdout out)))
   (when-let [out (:err output)] (and on-stderr (on-stderr out)))
@@ -79,7 +86,7 @@
                       :command #(embedded/connect! state opts)}
    :disconnect {:name "Disconnect REPLs"
                 :description "Disconnect all current connected REPLs"
-                :command disconnect!}})
+                :command #(handle-disconnect! state)}})
 
 (defn- features-for [state {:keys [editor-data] :as opts}]
   {:autocomplete #(ensure-data (editor-data)
@@ -134,10 +141,10 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                      editor-data on-start-eval on-eval] :as opts}]
   (js/Promise.
    (fn [resolve]
-     (let [callback (partial callback on-stdout on-stderr on-result on-disconnect)
+     (let [state (r/atom nil)
+           callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
            aux (clj-repl/repl :clj-aux host port callback)
            primary (delay (clj-repl/repl :clj-eval host port callback))
-           state (r/atom nil)
            options (merge default-opts opts)
            connect-primary (fn []
                              (disable-limits! aux)
