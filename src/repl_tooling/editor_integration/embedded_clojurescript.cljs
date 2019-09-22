@@ -37,7 +37,7 @@
                      (notify! notify
                               {:type :info
                                :title "Connected to ClojureScript"
-                               :message (str "Connected to Shadow-CLJS target" target)})
+                               :message (str "Connected to Shadow-CLJS target " target)})
                      %))))
       (notify! notify {:type :warn
                        :title "No option selected"
