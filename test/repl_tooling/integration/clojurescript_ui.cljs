@@ -10,62 +10,65 @@
             [clojure.core.async :as async :include-macros true]
             [devcards.core :as cards :include-macros true]
             [clojure.string :as str]
-            [repl-tooling.integrations.connection :as conn2]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
-                        :code "(do (defrecord Foo [a b]) (->Foo (range 20) 20))"
-                        ; :code "(range 100)"
-                        :repl nil
-                        :commands {}
+                        ; :code "(do (defrecord Foo [a b]) (->Foo (range 20) 20))"
+                        :code "(/ 10 0)"
+                        :commands nil
                         :stdout nil
                         :stderr nil
                         :range [[0 0]]
                         :eval-result (r/atom nil)}))
 
 (defn disconnect! []
-  (conn/disconnect!)
-  (swap! state assoc
-         :repl nil
-         :stdout nil :stderr nil
-         :commands {}))
+  (conn/disconnect!))
 
 (defn handle-disconnect []
   (reset! (:eval-result @state) nil)
   (swap! state assoc
-         :repl nil
          :stdout nil :stderr nil
-         :commands {}))
+         :commands nil))
 
-(defn- res [result]
-  (reset! (:eval-result @state) (render/parse-result result (-> @state :repl)))
-  (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
+(defn- eval-result [{:keys [result]}]
+  (reset! (:eval-result @state)
+          (render/parse-result result nil))
+  (swap! state update :stdout (fn [e] (str e "=> "
+                                           (pr-str (or (:result result)
+                                                       (:error result)))
+                                           "\n"))))
 
 (defn connect! []
-  (when-not (-> @state :repl)
-    (. (conn2/auto-connect-embedded! (:host @state) (:port @state)
-                                     "../integration/fixture-app"
-                                     identity)
-      then (fn [repl]
-             (prn repl)
-             (swap! state assoc :repl repl
-                    :stdout "" :stderr "")))))
+  (when-not (-> @state :commands)
+    (.. (conn/connect! (:host @state) (:port @state)
+                       {:on-disconnect handle-disconnect
+                        :notify prn
+                        :prompt (constantly (. js/Promise resolve "fixture"))
+                        :get-config (constantly {:eval-mode :prefer-cljs
+                                                 :project-paths [(. js/process cwd)]})
+                        :editor-data #(let [code (:code @state)]
+                                        {:contents code
+                                         :filename "foo.cljs"
+                                         :range (:range @state)})
+                        :on-eval eval-result})
+        (then (fn [st]
+                (.. ((-> @st :editor/commands :connect-embedded :command))
+                    (then #(if %
+                             st
+                             (prn :ERRRORRR!!!!!))))))
+        (then (fn [st]
+                (swap! state assoc
+                       :commands (:editor/commands @st)
+                       :stdout "" :stderr ""))))))
 
 (defn- evaluate []
-  (some-> @state :repl
-      (eval/evaluate (-> @state :code)
-                     {}
-                     #(prn (helpers/parse-result %)))))
-  ; (let [lines (-> @state :code str/split-lines)
-  ;       eval-sel (-> @state :commands :evaluate-selection :command)]
-  ;   (swap! state assoc :range [[0 0] [(-> lines count dec) (-> lines last count dec)]])
-  ;   (eval-sel)))
+  ((-> @state :commands :evaluate-top-block :command)))
 
 (defn fake-editor [state]
   [:div
-   [:h4 "Socket REPL connections"]
+   [:h4 "Socket REPL connection"]
    [:p [:b "Hostname: "] [:input {:type "text" :value (:host @state)
                                   :on-change #(->> % .-target .-value (swap! state assoc :host))}]
        [:b " Port: "] [:input {:type "text" :value (:port @state)
@@ -74,13 +77,13 @@
                :value (:code @state)
                :on-change #(->> % .-target .-value (swap! state assoc :code))}]
    [:p
-    (if (-> @state :repl)
+    (if (-> @state :commands)
       [:span
        [:button {:on-click evaluate}
         "Evaluate"] " "
        [:button {:on-click disconnect!} "Disconnect!"]]
       [:button {:on-click connect!} "Connect!"])]
-   [:p (if (-> @state :repl) "Connected" "Disconnected")]
+   [:p (if (-> @state :commands) "Connected" "Disconnected")]
    [:div
     (when-let [res @(:eval-result @state)]
       [:div
@@ -103,7 +106,7 @@
      (pr-str
       (walk/prewalk
        #(if (satisfies? IDeref %)
-          (cond-> @% (map? @%) (dissoc :repl))
+          @%
           %)
        @result))])
   (:eval-result @state)
@@ -126,7 +129,7 @@
 
 (defn- type-in [txt] (swap! state assoc :code txt))
 (defn- type-and-eval [txt]
-  (swap! state assoc :code txt)
+  (swap! state assoc :code txt :range [[0 0]])
   (evaluate))
 (defn- txt-in-stdout [reg]
   (wait-for #(re-find reg (:stdout @state))))
@@ -153,51 +156,54 @@
   (-> js/document (.querySelector sel) .click))
 
 (set! cards/test-timeout 8000)
-#_
+
 (cards/deftest repl-evaluation
   (async done
     (async/go
      (connect!)
-     (async/<! (wait-for #(-> @state :repl)))
+     (async/<! (wait-for #(-> @state :commands)))
 
      (testing "evaluation works"
        (type-and-eval "(+ 2 3)")
-       (check (async/<! (txt-in-stdout #"=> 5")) => "=> 5")
+       (async/<! (change-stdout))
        (check (txt-for-selector "#result") => "5"))
-     ;
-     ; (testing "evaluate blocks"
-     ;   (swap! state assoc
-     ;          :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
-     ;          :range [[3 3]])
-     ;   ((-> @state :commands :evaluate-block :command))
-     ;   (async/<! (change-stdout))
-     ;   (check (txt-for-selector "#result") => "7"))
-     ;
-     ; (testing "evaluate top blocks"
-     ;   (swap! state assoc
-     ;          :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
-     ;          :range [[3 3]])
-     ;   ((-> @state :commands :evaluate-top-block :command))
-     ;   (async/<! (change-stdout))
-     ;   (check (txt-for-selector "#result") => "9"))
-     ;
-     ; (testing "displays booleans"
-     ;   (ui/assert-out "true" "true")
-     ;   (ui/assert-out "false" "false")
-     ;   (ui/assert-out "nil" "nil"))
-     ;
-     ; (testing "captures STDOUT"
-     ;   (type-and-eval "(println :FOOBAR)")
-     ;   (check (async/<! (change-stdout)) => #":FOOBAR"))
-     ;
-     ; (testing "captures STDERR"
-     ;   (type-and-eval "(.write *err* \"Error\")")
-     ;   (check (async/<! (change-stderr)) => #"Error"))
-     ;
-     ; (testing "detects NS on file"
-     ;   (type-and-eval "(do (ns clojure.string)\n(upper-case \"this is upper\"))")
-     ;   (check (async/<! (change-stdout)) => #"THIS IS UPPER"))
-     ;
+
+     (testing "evaluate blocks"
+       (swap! state assoc
+              :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
+              :range [[3 3]])
+       ((-> @state :commands :evaluate-block :command))
+       (async/<! (change-stdout))
+       (check (txt-for-selector "#result") => "7"))
+
+     (testing "evaluate top blocks"
+       (swap! state assoc
+              :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
+              :range [[3 3]])
+       ((-> @state :commands :evaluate-top-block :command))
+       (async/<! (change-stdout))
+       (check (txt-for-selector "#result") => "9"))
+
+     (testing "displays booleans"
+       (ui/assert-out "true" "true")
+       (ui/assert-out "false" "false")
+       (ui/assert-out "nil" "nil"))
+
+     ; TODO: Node.JS target don't redirect the console
+     #_
+     (testing "captures STDOUT"
+       (type-and-eval "(println :FOOBAR)")
+       (check (async/<! (change-stdout)) => #":FOOBAR"))
+
+     (testing "detects NS on file"
+       (swap! state assoc
+              :code "(ns clojure.string)\n(upper-case \"this is upper\")"
+              :range [[1 1]])
+       ((-> @state :commands :evaluate-block :command))
+       (async/<! (change-stdout))
+       (check (:stdout @state) => #"THIS IS UPPER"))
+
+     ; TODO: All of these!
      ; (testing "evaluates and presents big strings"
      ;   (ui/assert-out (str "\"01234567891011121314151617181920212223242526272829"
      ;                       "303132333435363738394041424344 ... \"")

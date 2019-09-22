@@ -23,16 +23,16 @@
                                             (resolve ret))
                        :else (do
                                (resolve {:error :unknown})
-                               (client/disconnect! evaluator)))))))
+                               (client/disconnect! :cljs-aux)))))))
 
-(defn auto-connect-embedded!
+(defn ^:deprecated auto-connect-embedded!
   "Given a host, port, and project paths, try to parse shadow-cljs.edn and
 connects to the first build-id found on file. Returns an evaluator for CLJS
 
 Callbacks expects :on-stdout and :on-stderr"
   [host port project-paths callbacks]
   (let [code (shadow-cljs/command-for project-paths)
-        repl (delay (clj-repl/repl :clj-aux host port
+        repl (delay (clj-repl/repl :cljs-aux host port
                                    #(do
                                       (cond
                                        (or (contains? % :result) (contains? % :error))
@@ -46,3 +46,23 @@ Callbacks expects :on-stdout and :on-stderr"
          (resolve code)
          (.. (clj-repl/self-host @repl code)
              (then #(treat-result @repl resolve %))))))))
+
+(defn connect!
+  "Given a host, port, and a clojure command, connects on a Clojure REPL,
+runs the command to change it to CLJS, and returns an evaluator for CLJS.
+Callbacks expects :on-stdout and :on-result"
+  ([host port code callbacks] (connect! :cljs-aux host port code callbacks))
+  ([identifier host port code callbacks]
+   (let [repl (delay (clj-repl/repl identifier host port
+                                    #(do
+                                       (cond
+                                          (or (contains? % :result) (contains? % :error))
+                                          ((:on-result callbacks) (helpers/parse-result %))
+
+                                          (:out %)
+                                          ((:on-stdout callbacks) (:out %))))))]
+     (js/Promise. (fn [resolve]
+                    (if (:error code)
+                      (resolve code)
+                      (.. (clj-repl/self-host @repl code)
+                          (then #(treat-result @repl resolve %)))))))))

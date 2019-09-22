@@ -15,7 +15,9 @@
             [repl-tooling.repl-client.textual-representation-test]
             [repl-tooling.integration.clojurescript-ui]
             [repl-tooling.repl-client.evaluation-test]
-            [repl-tooling.features.definition-test]))
+            [repl-tooling.features.definition-test]
+            [repl-tooling.features.autocomplete-test]
+            [repl-tooling.editor-integration.autocomplete-test]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
@@ -50,8 +52,7 @@
                       :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
                       :on-eval res
                       :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
-                      :editor-data #(let [code (:code @state)
-                                          lines (str/split-lines code)]
+                      :editor-data #(let [code (:code @state)]
                                       {:contents code
                                        :filename "foo.clj"
                                        :range (:range @state)})})
