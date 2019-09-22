@@ -12,11 +12,11 @@ jobs:
           command: ./scripts/ci
           when: always
 
-  # publish:
-  #   <<: *defaults
-  #   steps:
-  #     - checkout
-  #     - run: ./scripts/ci-prepare-release
+  publish:
+    <<: *defaults
+    steps:
+      - checkout
+      - run: ./scripts/deploy.sh
 
 workflows:
   version: 2
@@ -24,9 +24,13 @@ workflows:
     jobs:
       - test
 
-      # - publish:
-      #     requires:
-      #       - test
-      #     filters:
-      #       branches:
-      #         only: /^release-v.*/
+      - publish:
+          requires:
+            - test
+          filters:
+            tags:
+              only:
+                - /^v.+/
+            branches:
+              only:
+                - master

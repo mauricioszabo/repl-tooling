@@ -8,5 +8,5 @@ else
     lein change version str "-SNAPSHOT"
 fi
 
-lein change :deploy-repositories concat '[["releases" {:url "https://clojars.org/repo/" :username :env :password :env}]]'
+lein change :deploy-repositories concat '[["releases" {:url "https://clojars.org/repo/" :username :env/clojars_login :password :env/clojars_password}]]'
 lein deploy releases
