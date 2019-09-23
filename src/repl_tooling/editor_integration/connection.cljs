@@ -39,30 +39,24 @@
     (. data-or-promise then #(call %))
     (call data-or-promise)))
 
+(defn- eval-range [state {:keys [contents range] :as data} opts function]
+  (let [[start] range
+        [eval-range code] (function contents start)
+        [_ namespace] (helpers/ns-range-for contents (first eval-range))]
+    (e-eval/eval-cmd state code namespace eval-range data opts)))
+
 (defn- eval-block [state data opts]
-  (ensure-data data
-               (fn [{:keys [contents range] :as data}]
-                 (let [[start] range
-                       [blk-range code] (helpers/block-for contents start)
-                       [_ namespace] (helpers/ns-range-for contents (first blk-range))]
-                   (e-eval/eval-cmd state code namespace blk-range data opts)))))
+  (ensure-data data #(eval-range state % opts helpers/block-for)))
 
 (defn- eval-top-block [state data opts]
-  (ensure-data data
-               (fn [{:keys [contents range] :as data}]
-                 (let [[start] range
-                       [eval-range code] (helpers/top-block-for contents start)
-                       [[s-row s-col]] eval-range
-                       [_ namespace] (helpers/ns-range-for contents [s-row s-col])]
-                   (e-eval/eval-cmd state code namespace eval-range data opts)))))
+  (ensure-data data #(eval-range state % opts helpers/top-block-for)))
 
 (defn- eval-selection [state data opts]
   (ensure-data data
-               (fn [{:keys [contents range] :as data}]
-                 (let [[[row col]] range
-                       code (helpers/text-in-range contents range)
-                       [_ namespace] (helpers/ns-range-for contents [row col])]
-                   (e-eval/eval-cmd state code namespace range data opts)))))
+    (fn [{:keys [range] :as data}]
+      (eval-range state data opts
+                  (fn [contents _]
+                    [range (helpers/text-in-range contents range)])))))
 
 (defn- cmds-for [state {:keys [editor-data] :as opts}]
   {:evaluate-top-block {:name "Evaluate Top Block"
