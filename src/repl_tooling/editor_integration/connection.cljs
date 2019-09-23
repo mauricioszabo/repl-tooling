@@ -84,7 +84,10 @@
 
 (defn- features-for [state {:keys [editor-data] :as opts}]
   {:autocomplete #(ensure-data (editor-data)
-                               (fn [data] (autocomplete/command state opts data)))})
+                               (fn [data] (autocomplete/command state opts data)))
+   :eval-and-render (fn [code range]
+                      (ensure-data (editor-data)
+                                   #(eval-range state % opts (constantly [range code]))))})
 
 (defn- disable-limits! [aux]
   (eval/evaluate aux
