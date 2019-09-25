@@ -208,7 +208,9 @@
           (reset! buffer nil)
           ((:callback pendency) (assoc (:pass pendency) key parsed))
           (swap! pending dissoc id)
-          (when-not (:ignore pendency) (output-fn {:as-text out key parsed})))
+          (when-not (:ignore pendency) (output-fn (assoc (:pass pendency)
+                                                         :as-text out
+                                                         key parsed))))
         (swap! buffer str out))
       (do
         (reset! buffer nil)
