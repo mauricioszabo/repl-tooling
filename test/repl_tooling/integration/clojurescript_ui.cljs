@@ -35,7 +35,7 @@
 (defn- eval-result [{:keys [result]}]
   (reset! (:eval-result @state)
           (render/parse-result result nil))
-  (swap! state update :stdout (fn [e] (str e "=> "
+  (swap! state update :stdout (fn [e] (str e "-> "
                                            (pr-str (or (:result result)
                                                        (:error result)))
                                            "\n"))))
@@ -44,6 +44,9 @@
   (when-not (-> @state :commands)
     (.. (conn/connect! (:host @state) (:port @state)
                        {:on-disconnect handle-disconnect
+                        :on-stdout #(swap! state update :stdout (fn [e] (str e % "\n")))
+                        :on-result prn
+                        :on-stderr prn
                         :notify prn
                         :prompt (constantly (. js/Promise resolve "fixture"))
                         :get-config (constantly {:eval-mode :prefer-cljs
@@ -94,7 +97,7 @@
    (when-let [out (:stdout @state)]
      [:div
       [:h5 "STDOUT"]
-      [:pre out]])
+      [:pre {:id "stdout"} out]])
    (when-let [out (:stderr @state)]
      [:div
       [:h5 "STDERR"]
@@ -157,16 +160,23 @@
 
 (set! cards/test-timeout 8000)
 
+(txt-for-selector "#stdout")
 (cards/deftest repl-evaluation
   (async done
     (async/go
      (connect!)
      (async/<! (wait-for #(-> @state :commands)))
 
-     (testing "evaluation works"
+     (testing "evaluation works for nil"
+       (type-and-eval "nil")
+       (async/<! (change-stdout))
+       (check (txt-for-selector "#result") => "nil"))
+
+     (testing "evaluation works, but doesn't print something on STDOUT"
        (type-and-eval "(+ 2 3)")
        (async/<! (change-stdout))
-       (check (txt-for-selector "#result") => "5"))
+       (check (txt-for-selector "#result") => "5")
+       (is (not (re-find #"=>" (txt-for-selector "#stdout")))))
 
      (testing "evaluate blocks"
        (swap! state assoc
