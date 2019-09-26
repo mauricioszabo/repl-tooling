@@ -40,7 +40,7 @@
          :stdout nil :stderr nil
          :commands {}))
 
-(defn- res [result]
+(defn- res [{:keys [result]}]
   (reset! (:eval-result @state) (render/parse-result result (-> @state :repls :eval)))
   (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
 
@@ -57,9 +57,9 @@
                                        :filename "foo.clj"
                                        :range (:range @state)})})
       (then (fn [res]
-              (swap! state assoc :repls {:eval (:clj/repl res)
-                                         :aux (:clj/aux res)}
-                     :commands (:editor/commands res)
+              (swap! state assoc :repls {:eval (:clj/repl @res)
+                                         :aux (:clj/aux @res)}
+                     :commands (:editor/commands @res)
                      :stdout "" :stderr ""))))))
 
 (defn- evaluate []
@@ -281,6 +281,10 @@
      (testing "division by zero renders an exception"
        (ui/assert-out #"java.lang.ArithmeticException : \"Divide by zero\""
                       "(/ 10 0)"))
+
+     (testing "shows exceptions on unidentified elements"
+       (ui/assert-out #"Unable to resolve classname: SomeUnknownObject"
+                      "(SomeUnknownObject.)"))
 
      (disconnect!)
      (done))))

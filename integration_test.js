@@ -22,6 +22,8 @@ const runTestAndCollectResult = async (client, idx, numTests, numFailures) => {
     .catch(() => console.log("   No errors on test"))
   const totalFailures = failures.length + numFailures
   if(idx >= numTests) {
+    const numPasses = await client.$(`${selector} button`).getText()
+    console.log(`   ${numPasses} test(s) passed`)
     return totalFailures
   } else {
     return runTestAndCollectResult(client, idx + 1, numTests, totalFailures)
@@ -48,17 +50,24 @@ const collectTest = async (client, idx, numTests, totalFailures) => {
 }
 
 const runAllTests = async (app) => {
-  await app.client.waitForText('a.com-rigsomelight-devcards-list-group-item')
-  const tsts = await app.client.$$('a.com-rigsomelight-devcards-list-group-item')
-  console.log(`Running ${tsts.length} testcases`)
-  const failures = await collectTest(app.client, 1, tsts.length, 0)
-  console.log(`\nTOTAL Failures:`, failures)
+  try {
+    await app.client.waitForText('a.com-rigsomelight-devcards-list-group-item')
+    const tsts = await app.client.$$('a.com-rigsomelight-devcards-list-group-item')
+    console.log(`Running ${tsts.length} testcases`)
+    const failures = await collectTest(app.client, 1, tsts.length, 0)
+    console.log(`\nTOTAL Failures:`, failures)
 
-  await app.stop()
-  if(failures == 0) {
-    process.exit(0)
-  } else {
-    process.exit(1)
+    await app.stop()
+    if(failures == 0) {
+      process.exit(0)
+    } else {
+      process.exit(1)
+    }
+  } catch(e) {
+    console.log("ERRORS ocurred when running tests")
+    console.log(e)
+    app.stop()
+    process.exit(2)
   }
 }
 

@@ -13,6 +13,7 @@
 ## 0.2.1
 - Fixed prompt appearing on ClojureScript
 - Fixed `:pass` opts not being redirected to editor (fixes doc)
+- Fixed exception messages
 
 ## 0.2.0
 - Clojure socket REPL with UnREPL

@@ -56,7 +56,7 @@
 
 (defrecord Error [type message add-data trace])
 (defn- parse-error [{:keys [via trace cause] :as error}]
-  (let [info (or (first via) error)
+  (let [info (or (some-> via reverse first) error)
         {:keys [type message]} info]
     (->Error type (or cause message) (dissoc info :type :message :at :trace) trace)))
 
@@ -79,7 +79,7 @@
       (->browseable pr-str-obj (get (:bean params) {:repl-tooling/... nil}))
       (->browseable (str (:object browseable) "@" obj-id) (get (:bean params) {:repl-tooling/... nil})))))
 
-(defn read-result [res]
+(defn- read-result [res]
   (try
     (edn/read-string {:readers {'unrepl/string #(IncompleteStr. %)
                                 'js #(WithTag. % "js")
