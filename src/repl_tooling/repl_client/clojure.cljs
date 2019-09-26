@@ -205,7 +205,7 @@
         (let [[_ key parsed] (->> full-out
                                   reader/read-string
                                   (reader/read-string {:default default-tags}))]
-          (reset! buffer nil)
+          (reset! buffer ::ignore-next)
           ((:callback pendency) (assoc (:pass pendency) key parsed))
           (swap! pending dissoc id)
           (when-not (:ignore pendency) (output-fn (assoc (:pass pendency)
@@ -218,10 +218,18 @@
 
 (defn- pending-evals-for-cljs [pending output-fn buffer]
   (fn [{:keys [out]}]
-    (if (or @buffer (and out (str/starts-with? out "\"[")))
+    (cond
+      (and (= @buffer ::ignore-next) (re-find #"=> \n?$" (str out)))
+      (reset! buffer nil)
+
+      (or @buffer (and out (str/starts-with? out "\"[")))
       (treat-result-of-call out pending output-fn buffer)
-      (when-not (or (= out "nil\n") (re-matches #"\[\d+:1\]~.+=>\s*" (str out)))
-        (output-fn {:out out})))))
+
+      (= out "nil\n")
+      (reset! buffer ::ignore-next)
+
+      :else
+      (output-fn {:out out}))))
 
 (defn self-host [clj-evaluator command]
   (let [pending (atom {})

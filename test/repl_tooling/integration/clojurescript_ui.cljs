@@ -45,7 +45,7 @@
     (.. (conn/connect! (:host @state) (:port @state)
                        {:on-disconnect handle-disconnect
                         :on-stdout #(swap! state update :stdout (fn [e] (str e % "\n")))
-                        :on-result prn
+                        ; :on-result prn
                         :on-stderr prn
                         :notify prn
                         :prompt (constantly (. js/Promise resolve "fixture"))
