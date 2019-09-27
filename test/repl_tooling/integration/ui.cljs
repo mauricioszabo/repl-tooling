@@ -15,7 +15,9 @@
             [repl-tooling.repl-client.textual-representation-test]
             [repl-tooling.integration.clojurescript-ui]
             [repl-tooling.repl-client.evaluation-test]
-            [repl-tooling.features.definition-test]))
+            [repl-tooling.features.definition-test]
+            [repl-tooling.features.autocomplete-test]
+            [repl-tooling.editor-integration.autocomplete-test]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
@@ -38,7 +40,7 @@
          :stdout nil :stderr nil
          :commands {}))
 
-(defn- res [result]
+(defn- res [{:keys [result]}]
   (reset! (:eval-result @state) (render/parse-result result (-> @state :repls :eval)))
   (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
 
@@ -50,15 +52,14 @@
                       :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
                       :on-eval res
                       :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
-                      :editor-data #(let [code (:code @state)
-                                          lines (str/split-lines code)]
+                      :editor-data #(let [code (:code @state)]
                                       {:contents code
                                        :filename "foo.clj"
                                        :range (:range @state)})})
       (then (fn [res]
-              (swap! state assoc :repls {:eval (:clj/repl res)
-                                         :aux (:clj/aux res)}
-                     :commands (:editor/commands res)
+              (swap! state assoc :repls {:eval (:clj/repl @res)
+                                         :aux (:clj/aux @res)}
+                     :commands (:editor/commands @res)
                      :stdout "" :stderr ""))))))
 
 (defn- evaluate []
@@ -280,6 +281,10 @@
      (testing "division by zero renders an exception"
        (ui/assert-out #"java.lang.ArithmeticException : \"Divide by zero\""
                       "(/ 10 0)"))
+
+     (testing "shows exceptions on unidentified elements"
+       (ui/assert-out #"Unable to resolve classname: SomeUnknownObject"
+                      "(SomeUnknownObject.)"))
 
      (disconnect!)
      (done))))

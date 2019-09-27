@@ -56,7 +56,7 @@
 
 (defrecord Error [type message add-data trace])
 (defn- parse-error [{:keys [via trace cause] :as error}]
-  (let [info (or (first via) error)
+  (let [info (or (some-> via reverse first) error)
         {:keys [type message]} info]
     (->Error type (or cause message) (dissoc info :type :message :at :trace) trace)))
 
@@ -79,7 +79,7 @@
       (->browseable pr-str-obj (get (:bean params) {:repl-tooling/... nil}))
       (->browseable (str (:object browseable) "@" obj-id) (get (:bean params) {:repl-tooling/... nil})))))
 
-(defn read-result [res]
+(defn- read-result [res]
   (try
     (edn/read-string {:readers {'unrepl/string #(IncompleteStr. %)
                                 'js #(WithTag. % "js")
@@ -226,10 +226,14 @@ that the cursor is in row and col (0-based)"
     (-> all-nodes zip-base/edn)))
 
 (defn current-var [code [row col]]
-  (-> code
-      zip-from-code
-      (zip/find-last-by-pos {:row (inc row) :col (inc col)})
-      zip/string))
+  (let [node (-> code
+                 zip-from-code
+                 (zip/find-last-by-pos {:row (inc row) :col (inc col)})
+                 zip/node)]
+    (when (and node (-> node node/whitespace-or-comment? not))
+      (let [{:keys [row col end-row end-col]} (meta node)]
+        [[[(dec row) (dec col)] [(dec end-row) (- end-col 2)]]
+         (node/string node)]))))
 
 (defn block-for
   "Gets the current block from the code (a string) to the current row and col (0-based)"

@@ -22,10 +22,3 @@
 
     (swap! sessions assoc session-name socket)
     [in out]))
-
-(defn integrate-repl [in out repl]
-  (let [n-in (async/chan)]
-    (go-loop []
-      (>! in (repl/cmd-to-send repl (str (<! n-in))))
-      (recur))
-    [n-in out]))
