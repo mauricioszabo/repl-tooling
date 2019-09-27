@@ -98,16 +98,6 @@
                            (contains? output :error)))
     (on-result (helpers/parse-result output))))
 
-(defn connect-evaluator!
-  ""
-  [evaluators {:keys [on-stdout on-stderr on-result on-disconnect
-                      editor-data on-start-eval on-eval] :as opts}]
-  (js/Promise.
-   (fn [resolve]
-     (let [state (atom evaluators)]
-       (swap! state assoc :editor/commands (cmds-for state opts))
-       (resolve state)))))
-
 (def ^:private default-opts
   {:on-start-eval identity
    :on-eval identity
@@ -115,6 +105,20 @@
    :notify identity
    :get-config identity ;FIXME
    :prompt (js/Promise. (fn []))})
+
+(defn connect-evaluator!
+  ""
+  [evaluators {:keys [on-stdout on-stderr on-result on-disconnect
+                      editor-data on-start-eval on-eval] :as opts}]
+  (js/Promise.
+   (fn [resolve]
+     (let [state (atom evaluators)
+           options (merge default-opts opts)]
+
+       (swap! state assoc
+              :editor/commands (cmds-for state options)
+              :editor/features (features-for state options))
+       (resolve state)))))
 
 (defn connect-unrepl!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
