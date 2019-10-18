@@ -7,11 +7,32 @@
             [reagent.core :as r]))
 
 (set! cards/test-timeout 8000)
-(cards/deftest repl-evaluation)
+(defonce state (atom nil))
+(defn- buffer [] (some-> @state :buffer deref))
 
-(defonce state (r/atom nil))
+(defn check-string [regexp]
+  (async/go-loop [n 0]
+    (when (< n 10)
+      (let [s (-> (buffer) last last)]
+        (if (re-find regexp (str s))
+          s
+          (do
+            (async/<! (async/timeout 100))
+            (recur (inc n))))))))
+
+(cards/deftest repl-evaluation
+  (async done
+    (async/go
+     (some-> @state :conn .end)
+     (reset! state (c/connect! "localhost" 2233))
+
+     (check (async/<! (check-string #"shadow.user"))
+            => #"shadow.user")
+     (some-> @state :conn .end)
+     (done))))
+
 (cards/defcard-rg buffers
   (fn [buffer]
     [:div (pr-str @buffer)])
-  (some-> @state deref :buffer)
+  (some-> @state :buffer)
   {:watch-atom true})
