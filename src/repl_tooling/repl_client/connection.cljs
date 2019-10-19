@@ -27,7 +27,6 @@
 (defn- treat-new-state [control buffer new-state on-line on-fragment]
   (let [has-newline? #(re-find #"\n" (str %))
         [frags [last-line & rest]] (split-with (complement has-newline?) new-state)]
-    (prn :NEW-STATE new-state (= [:closed] new-state))
 
     (cond
       (= [:closed] new-state)
