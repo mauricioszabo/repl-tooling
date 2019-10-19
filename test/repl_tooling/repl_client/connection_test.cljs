@@ -25,7 +25,6 @@
     (let [buffer (atom [])
           lines (async/chan)
           frags (async/chan)]
-          ; res {:conn nil :buffer buffer}
       (async/go
         (c/treat-buffer! buffer #(async/put! lines (str %)) #(async/put! frags (str %)))
 
