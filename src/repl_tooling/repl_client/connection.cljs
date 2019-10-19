@@ -8,9 +8,9 @@
   (let [[fst snd] (str/split last-line #"\n" 2)]
     (on-line (apply str (concat (:emitted-frags @control) frags [fst])))
     (on-fragment (apply str (concat frags [fst "\n"])))
-    (swap! buffer #(-> %
-                       (subvec (count frags))
-                       (assoc 0 snd)))))
+    (swap! buffer #(if (empty? snd)
+                     (subvec % (-> frags count inc))
+                     (-> % (subvec (count frags)) (assoc 0 snd))))))
 
 (defn- schedule-fragment! [control on-fragment buffer new-state]
   (let [frags (cond-> new-state (-> new-state peek (= :closed)) pop)]

@@ -28,11 +28,17 @@
           ; res {:conn nil :buffer buffer}
       (async/go
         (c/treat-buffer! buffer #(async/put! lines (str %)) #(async/put! frags (str %)))
-        (swap! buffer conj "foo")
-        (swap! buffer conj "bar")
-        (swap! buffer conj "b\nbaz")
 
         (testing "emmits line"
+          (swap! buffer conj "foo\n")
+          (check (async/<! lines) => "foo")
+          (check (async/<! frags) => "foo\n")
+          (check @buffer => []))
+
+        (testing "emmits complex line"
+          (swap! buffer conj "foo")
+          (swap! buffer conj "bar")
+          (swap! buffer conj "b\nbaz")
           (check (async/<! lines) => "foobarb")
           (check @buffer => ["baz"]))
 
