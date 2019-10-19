@@ -13,12 +13,30 @@
 (defn check-string [regexp]
   (async/go-loop [n 0]
     (when (< n 10)
-      (let [s (-> (buffer) last last)]
+      (let [s (peek (buffer))]
         (if (re-find regexp (str s))
           s
           (do
             (async/<! (async/timeout 100))
             (recur (inc n))))))))
+
+(cards/deftest buffer-treatment
+  (async done
+    (let [buffer (atom [])
+          lines (async/chan)
+          frags (async/chan)]
+          ; res {:conn nil :buffer buffer}
+      (async/go
+        (c/treat-buffer! buffer #(async/put! lines %) #(async/put! frags %))
+        (swap! buffer conj "foo")
+        (swap! buffer conj "bar")
+        (swap! buffer conj "b\nbaz")
+        (check (async/<! lines) => "foobarb")
+        (check @buffer => ["baz"])
+
+        (async/close! lines)
+        (async/close! frags)
+        (done)))))
 
 (cards/deftest repl-evaluation
   (async done
