@@ -3,21 +3,45 @@
             [clojure.string :as str]
             ["net" :as net]))
 
-(defn- emit-line! [on-line buffer frags last-line]
+(defn- emit-line! [control on-line on-fragment buffer frags last-line]
+  (js/clearTimeout (:timeout-id @control))
   (let [[fst snd] (str/split last-line #"\n" 2)]
-    (on-line (apply str (concat frags [fst])))
+    (on-line (apply str (concat (:emitted-frags @control) frags [fst])))
+    (on-fragment (apply str (concat frags [fst "\n"])))
     (swap! buffer #(-> %
                        (subvec (count frags))
                        (assoc 0 snd)))))
 
-(defn- treat-new-state [buffer new-state on-line on-fragment]
+(defn- schedule-fragment! [control on-fragment buffer new-state]
+  (let [frags (cond-> new-state (-> new-state peek (= :closed)) pop)]
+    (js/clearTimeout (:timeout-id @control))
+    (swap! control assoc
+           :timeout-id
+           (js/setTimeout
+            (fn []
+              (on-fragment (apply str frags))
+              (swap! control update :emitted-frags into frags)
+              (swap! buffer #(subvec % (count frags))))
+            1000))))
+
+(defn- treat-new-state [control buffer new-state on-line on-fragment]
   (let [has-newline? #(re-find #"\n" (str %))
         [frags [last-line & rest]] (split-with (complement has-newline?) new-state)]
-    (if (has-newline? last-line)
-      (emit-line! on-line buffer frags last-line))))
+    (prn :NEW-STATE new-state (= [:closed] new-state))
+
+    (cond
+      (= [:closed] new-state)
+      (do (on-line nil) (on-fragment nil))
+
+      (has-newline? last-line)
+      (emit-line! control on-line on-fragment buffer frags last-line)
+
+      (not-empty new-state)
+      (schedule-fragment! control on-fragment buffer new-state))))
 
 (defn treat-buffer! [buffer on-line on-fragment]
-  (add-watch buffer :on-add #(treat-new-state buffer %4 on-line on-fragment)))
+  (let [control (atom {:emitted-frags []})]
+    (add-watch buffer :on-add #(treat-new-state control buffer %4 on-line on-fragment))))
 
 (defn connect! [host port]
   (let [buffer (atom [])

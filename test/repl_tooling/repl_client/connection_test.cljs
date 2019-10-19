@@ -27,12 +27,29 @@
           frags (async/chan)]
           ; res {:conn nil :buffer buffer}
       (async/go
-        (c/treat-buffer! buffer #(async/put! lines %) #(async/put! frags %))
+        (c/treat-buffer! buffer #(async/put! lines (str %)) #(async/put! frags (str %)))
         (swap! buffer conj "foo")
         (swap! buffer conj "bar")
         (swap! buffer conj "b\nbaz")
-        (check (async/<! lines) => "foobarb")
-        (check @buffer => ["baz"])
+
+        (testing "emmits line"
+          (check (async/<! lines) => "foobarb")
+          (check @buffer => ["baz"]))
+
+        (testing "emmits fragments"
+          (check (async/<! frags) => "foobarb\n")
+          (check (async/<! frags) => "baz")
+          (check @buffer => []))
+
+        (testing "emmits lines of already emitted frags"
+          (swap! buffer conj "aar\n")
+          (check (async/<! lines) => "bazaar")
+          (check (async/<! frags) => "aar\n"))
+
+        (testing "emmits nil when closed connection"
+          (swap! buffer conj :closed)
+          (check (async/<! frags) => "")
+          (check (async/<! lines) => ""))
 
         (async/close! lines)
         (async/close! frags)
