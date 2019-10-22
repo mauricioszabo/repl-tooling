@@ -63,7 +63,7 @@
       (on-output output))))
 
 (defn- treat-output [output control on-output on-result]
-  (if-let [idx (.. #"\[tooling\$eval-res" (exec output) -index)]
+  (if-let [idx (some-> #"\[tooling\$eval-res" (.exec output) .-index)]
     (if (zero? idx)
       (send-output output control on-output on-result)
       (do
