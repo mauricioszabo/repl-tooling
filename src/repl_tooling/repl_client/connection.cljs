@@ -65,27 +65,39 @@
         (send-output new-output control on-output))
       (on-output output))))
 
+(defn- parse-edn-string [output control]
+  (try
+    (str (parser/parse-string output))
+    (catch :default ex
+      (when (re-find #"^Unexpected EOF" (.-message ex))
+        (swap! control assoc :incomplete-result output)
+        "[nil :ignore]"))))
+
 (defn- send-result [output control on-output on-result]
-  (let [edn-str (str (parser/parse-string output))
+  (let [edn-str (parse-edn-string output control)
         [_ id res] (edn/read-string edn-str)
         exist? (:pending-evals @control)]
-    (if (exist? id)
-      (let [edn-size (count edn-str)]
-        (swap! control update :pending-evals disj id)
-        (when (:ignore-prompt @control) (swap! control update :ignore-output
-                                               conj #"^\n?.*?=> " #"\n"))
-        (on-result [id res])
-        (send-output (subs output edn-size) control on-output))
-      (send-output output control on-output))))
+    (when-not (= :ignore id)
+      (swap! control dissoc :incomplete-result)
+      (if (exist? id)
+        (let [edn-size (count edn-str)]
+          (swap! control update :pending-evals disj id)
+          (when (:ignore-prompt @control) (swap! control update :ignore-output
+                                                 conj #"^\n?.*?=> " #"\n"))
+          (on-result [id res])
+          (send-output (subs output edn-size) control on-output))
+        (send-output output control on-output)))))
 
 (defn- treat-output [output control on-output on-result]
-  (if-let [idx (some-> #"\[tooling\$eval-res" (.exec output) .-index)]
-    (if (zero? idx)
-      (send-result output control on-output on-result)
+  (let [new-output (str (:incomplete-result @control) output)
+        idx (some-> #"\[tooling\$eval-res" (.exec new-output) .-index)]
+    (case idx
+      nil (send-output new-output control on-output)
+      0 (send-result new-output control on-output on-result)
       (do
-        (send-output (subs output 0 idx) control on-output)
-        (send-result (subs output idx) control on-output on-result)))
-    (send-output output control on-output)))
+        (send-output (subs new-output 0 idx) control on-output)
+        (send-result (subs new-output idx) control on-output on-result)))))
+
 
 (defn prepare-evals [control on-output on-result]
   (swap! control assoc

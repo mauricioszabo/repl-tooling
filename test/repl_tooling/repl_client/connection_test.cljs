@@ -108,6 +108,13 @@
          (check (async/<! results) => '[id01 ":foo"])
          (check (async/<! output) => "bar"))
 
+       (testing "captures output in different fragments"
+         (swap! control update :pending-evals conj 'id01)
+         (swap! buffer conj "[tooling$eval-res id01 \"[\n")
+         (swap! buffer conj "1 2\n")
+         (swap! buffer conj "]\"]")
+         (check (async/<! results) => '[id01 "[\n1 2\n]"]))
+
        (async/close! output)
        (async/close! results)
        (done)))))
