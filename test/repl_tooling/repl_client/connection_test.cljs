@@ -60,6 +60,46 @@
         (async/close! frags)
         (done)))))
 
+(cards/deftest eval-cycle
+  (async done
+    (let [buffer (atom [])
+          output (async/chan)
+          results (async/chan)
+          control (c/treat-buffer! buffer identity identity)]
+
+      (async/go
+       (c/prepare-evals control
+                        #(async/put! output (or % :closed))
+                        #(async/put! results (or % :closed)))
+
+       (testing "captures the result of output"
+         (swap! buffer conj ":foobar")
+         (check (async/<! output) => ":foobar"))
+
+       (testing "captures results of simple evaluations"
+         (swap! control update :pending-evals conj 'id01)
+         (swap! buffer conj "[tooling$eval-res id01 \":foo\"]")
+         (check (async/<! results) => '[id01 ":foo"])
+
+         (swap! buffer conj "[tooling$eval-res id01 \":foo\"]")
+         (check (async/<! output) => "[tooling$eval-res id01 \":foo\"]"))
+
+       (testing "captures results of results mixed with stdout"
+         (swap! control update :pending-evals conj 'id01)
+         (swap! buffer conj "lol[tooling$eval-res id01 \":foo\"]")
+         (check (async/<! results) => '[id01 ":foo"])
+         (check (async/<! output) => "lol")
+
+         (swap! control update :pending-evals conj 'id01)
+         (swap! buffer conj "lol[tooling$eval-res id01 \":foo\"]bar")
+         (check (async/<! results) => '[id01 ":foo"])
+         (check (async/<! output) => "lol")
+         (check (async/<! output) => "bar"))
+
+       (async/close! output)
+       (async/close! results)
+       (done)))))
+
 (cards/deftest repl-evaluation
   (async done
     (async/go
