@@ -96,6 +96,18 @@
          (check (async/<! output) => "lol")
          (check (async/<! output) => "bar"))
 
+       (testing "ignores prompt after a result"
+         (swap! control assoc :ignore-prompt true)
+         (swap! control update :pending-evals conj 'id01)
+         (swap! buffer conj "lol[tooling$eval-res id01 \":foo\"]\n user.cljs=> ")
+         (check (async/<! results) => '[id01 ":foo"])
+         (check (async/<! output) => "lol")
+
+         (swap! control update :pending-evals conj 'id01)
+         (swap! buffer conj "[tooling$eval-res id01 \":foo\"] user.cljs=> bar")
+         (check (async/<! results) => '[id01 ":foo"])
+         (check (async/<! output) => "bar"))
+
        (async/close! output)
        (async/close! results)
        (done)))))
