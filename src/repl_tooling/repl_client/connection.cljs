@@ -50,26 +50,42 @@
     (add-watch buffer :on-add #(treat-new-state control buffer %4))
     control))
 
-(defn- send-output [output control on-output on-result]
+(defn- calculate-match [output control]
+  (when-let [re (-> @control :ignore-output first)]
+    (if-let [match (re-find re output)]
+      match
+      (do
+        (swap! control update :ignore-output rest)
+        (recur output control)))))
+
+(defn- send-output [output control on-output]
+  (when (not-empty output)
+    (if-let [match (calculate-match output control)]
+      (let [new-output (subs output (count match))]
+        (send-output new-output control on-output))
+      (on-output output))))
+
+(defn- send-result [output control on-output on-result]
   (let [edn-str (str (parser/parse-string output))
         [_ id res] (edn/read-string edn-str)
         exist? (:pending-evals @control)]
     (if (exist? id)
       (let [edn-size (count edn-str)]
         (swap! control update :pending-evals disj id)
+        (when (:ignore-prompt @control) (swap! control update :ignore-output
+                                               conj #"^\n?.*?=> " #"\n"))
         (on-result [id res])
-        (when (< edn-size (count output))
-          (on-output (subs output edn-size))))
-      (on-output output))))
+        (send-output (subs output edn-size) control on-output))
+      (send-output output control on-output))))
 
 (defn- treat-output [output control on-output on-result]
   (if-let [idx (some-> #"\[tooling\$eval-res" (.exec output) .-index)]
     (if (zero? idx)
-      (send-output output control on-output on-result)
+      (send-result output control on-output on-result)
       (do
-        (on-output (subs output 0 idx))
-        (send-output (subs output idx) control on-output on-result)))
-    (on-output output)))
+        (send-output (subs output 0 idx) control on-output)
+        (send-result (subs output idx) control on-output on-result)))
+    (send-output output control on-output)))
 
 (defn prepare-evals [control on-output on-result]
   (swap! control assoc
