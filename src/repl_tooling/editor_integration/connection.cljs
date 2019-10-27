@@ -7,7 +7,8 @@
             [repl-tooling.editor-integration.loaders :as loaders]
             [repl-tooling.editor-integration.evaluation :as e-eval]
             [repl-tooling.editor-integration.embedded-clojurescript :as embedded]
-            [repl-tooling.editor-integration.autocomplete :as autocomplete]))
+            [repl-tooling.editor-integration.autocomplete :as autocomplete]
+            [repl-tooling.integrations.repls :as repls]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -15,7 +16,11 @@
   (repl-client/disconnect! :clj-eval)
   (repl-client/disconnect! :clj-aux)
   (repl-client/disconnect! :cljs-aux)
-  (repl-client/disconnect! :cljs-eval))
+  (repl-client/disconnect! :cljs-eval)
+  (repls/disconnect! :clj-eval)
+  (repls/disconnect! :clj-aux)
+  (repls/disconnect! :cljs-aux)
+  (repls/disconnect! :cljs-eval))
 
 (defn- handle-disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -173,6 +178,22 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 (defn connect!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
 callbacks:
+* on-start-eval -> a function that'll be called when an evaluation starts
+* on-eval -> a function that'll be called when an evaluation ends
+* editor-data -> a function that'll be called when a command needs editor's data.
+  Editor's data is a map (or a promise that resolves to a map) with the arguments:
+    :contents - the editor's contents.
+    :filename - the current file's name. Can be nil if file was not saved yet.
+    :range - a vector containing [[start-row start-col] [end-row end-col]], representing
+      the current selection
+* notify -> when something needs to be notified, this function will be called with a map
+  containing :type (one of :info, :warning, or :error), :title and :message
+* get-config -> when some function needs the configuration from the editor, this fn
+  is called without arguments. Need to return a map with the config options.
+* prompt -> when some function needs an answer from the editor, it'll call this
+  callback passing :title, :message, and :arguments (a vector that is composed by
+  :key and :value). The callback needs to return a `Promise` with one of the
+  :key from the :arguments, or nil if nothing was selected.
 * on-stdout -> a function that receives a string when some code prints to stdout
 * on-stderr -> a function that receives a string when some code prints to stderr
 * on-result -> returns a clojure EDN with the result of code
@@ -181,5 +202,20 @@ than once
 
 Returns a promise that will resolve to a map with two repls: :clj/aux will be used
 to autocomplete/etc, :clj/repl will be used to evaluate code."
-  [host port opts]
-  (connect-unrepl! host port opts))
+  [host port {:keys [on-stdout on-stderr on-result on-disconnect
+                     editor-data on-start-eval on-eval] :as opts}]
+  (let [state (r/atom nil)
+        callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
+        aux (repls/connect-repl! :clj-aux host port callback)
+        primary (repls/connect-repl! :clj-eval host port callback)
+        options (merge default-opts opts)]
+
+    (.. js/Promise
+        (all #js [primary aux])
+        (then (fn [[primary aux]]
+                (reset! state {:clj/aux aux
+                               :clj/repl primary
+                               :repl/info {:host host :port port}
+                               :editor/commands (cmds-for state options)
+                               :editor/features (features-for state options)})
+                state)))))
