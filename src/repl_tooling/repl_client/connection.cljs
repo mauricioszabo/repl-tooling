@@ -34,8 +34,8 @@
       (= [:closed] new-state)
       (do
         (remove-watch buffer :on-add)
-        (on-line nil)
-        (on-fragment nil))
+        (on-fragment nil)
+        (on-line nil))
 
       (has-newline? last-line)
       (emit-line! control on-line on-fragment buffer frags last-line)
@@ -89,14 +89,16 @@
         (send-output output control on-output)))))
 
 (defn- treat-output [output control on-output on-result]
-  (let [new-output (str (:incomplete-result @control) output)
-        idx (some-> #"\[tooling\$eval-res" (.exec new-output) .-index)]
-    (case idx
-      nil (send-output new-output control on-output)
-      0 (send-result new-output control on-output on-result)
-      (do
-        (send-output (subs new-output 0 idx) control on-output)
-        (send-result (subs new-output idx) control on-output on-result)))))
+  (if output
+    (let [new-output (str (:incomplete-result @control) output)
+          idx (some-> #"\[tooling\$eval-res" (.exec new-output) .-index)]
+      (case idx
+        nil (send-output new-output control on-output)
+        0 (send-result new-output control on-output on-result)
+        (do
+          (send-output (subs new-output 0 idx) control on-output)
+          (send-result (subs new-output idx) control on-output on-result))))
+    (on-output nil)))
 
 (defn prepare-evals [control on-output on-result]
   (swap! control assoc
