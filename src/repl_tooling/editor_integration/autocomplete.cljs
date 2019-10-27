@@ -82,7 +82,7 @@
   (async/go
    (when (nil? @cljs-autocomplete)
      (reset! cljs-autocomplete
-             (if (async/<! (detect-cljs-compliment (:clj/aux @state)))
+             (if (some-> (:clj/aux @state) detect-cljs-compliment async/<!)
                :compliment
                :simple)))
    (resolve (async/<! (autocomplete-cljs (:clj/aux @state)

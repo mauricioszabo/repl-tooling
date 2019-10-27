@@ -40,21 +40,22 @@
           {:keys [on-start-eval on-eval]} opts
           [[row col]] range
           cljs? (need-cljs? ((:get-config opts)) filename)
-          repl (if cljs? (:cljs/repl @state) (:clj/repl @state))
-          eval-data (delay {:id @id
-                            :editor-data editor-data
-                            :range range})]
+          repl (if cljs? (:cljs/repl @state) (:clj/repl @state))]
 
       (if (nil? repl)
         (treat-error (:notify opts) cljs? (:clj/repl @state))
-        (do
-          (reset! id (eval/evaluate repl
-                                    code
-                                    {:filename filename
-                                     :row (inc row)
-                                     :col (inc col)
-                                     :namespace namespace}
-                                    #(and on-eval
-                                          (on-eval (assoc @eval-data
-                                                          :result (helpers/parse-result %))))))
-          (and on-start-eval (on-start-eval @eval-data)))))))
+        (let [id (gensym)
+              eval-data {:id id
+                         :editor-data editor-data
+                         :range range}]
+          (and on-start-eval (on-start-eval eval-data))
+          (eval/evaluate repl
+                         code
+                         {:filename filename
+                          :id id
+                          :row (inc row)
+                          :col (inc col)
+                          :namespace namespace}
+                         #(and on-eval
+                               (on-eval (assoc eval-data
+                                               :result (helpers/parse-result %))))))))))

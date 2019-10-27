@@ -11,9 +11,10 @@
 
 (def ^:private valid-prefix #"/?([a-zA-Z0-9\-.$!?\/><*=\?_]+)")
 
-(defn- normalize-results [{:keys [result]}]
+(defn- normalize-results [result]
   (vec (some->> result
-                helpers/read-result
+                helpers/parse-result
+                :result
                 (map (fn [c] {:type :function :candidate c})))))
 
 (defn for-clj [repl ns-name txt-prefix]

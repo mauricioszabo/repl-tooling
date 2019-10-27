@@ -55,7 +55,7 @@
 (defrecord Evaluator [session]
   eval/Evaluator
   (evaluate [this command opts callback]
-    (let [id (gensym)
+    (let [id (or (:id opts) (gensym))
           chan (async/promise-chan)
           state (:state @session)]
       (prepare-opts this opts)
@@ -179,7 +179,7 @@
 (defrecord SelfHostedCljs [evaluator pending]
   eval/Evaluator
   (evaluate [_ command opts callback]
-    (let [id (gensym)
+    (let [id (or (:id opts) (gensym))
           in (-> evaluator :session deref :state deref :channel-in)
           code (str "(cljs.core/pr-str (try (clojure.core/let [res (do\n" command
                     "\n)] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
