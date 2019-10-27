@@ -74,7 +74,6 @@
                      "['tooling$eval-res '" id " {:result (clojure.core/pr-str res)}]) "
                      "(catch " ex-type " e "
                     "['tooling$eval-res '" id " {:error (clojure.core/pr-str e)}]))\n")]
-    (prn :CMD command)
     (swap! control update :pending-evals conj id)
     (.write conn command)))
 
@@ -103,11 +102,10 @@
     (.then ^js repl-kind #(instantiate-correct-evaluator % conn control on-output))))
 
 (comment
-  (. (connect-repl! :bb "localhost" 2211 prn) then #(def evaluator %))
-  (eval/evaluate evaluator "(/ 20 2)" {} #(prn :RESULT %))
-
-  (disconnect! :bb))
+  (. (connect-repl! :bb "localhost" 2211 #(prn :OUTPUT %)) then #(def evaluator %))
+  (disconnect! :bb)
+  (eval/evaluate evaluator "(/ 20 2)" {} #(prn :RESULT %)))
 
 (defn disconnect! [id]
-  (let [conn ^js (get @connections id)]
+  (when-let [conn ^js (get @connections id)]
     (.end conn)))
