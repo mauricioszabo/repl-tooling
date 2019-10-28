@@ -13,14 +13,14 @@
 
                             (clojure.core/keyword? res)
                             (clojure.core/symbol (clojure.core/str "#unrepl/bad-keyword ["
-                                                      (clojure.core/pr-str (#?(:bb namespace :clj clojure.core/namespace) res)) " "
+                                                      (clojure.core/pr-str (namespace res)) " "
                                                       (clojure.core/pr-str (clojure.core/name res))
                                                       "]"))
 
-                            (clojure.core/->> res type str (clojure.core/re-find #"BigDecimal"))
+                            (clojure.core/->> res type str (clojure.core/re-find #"Big(Decimal|Float)"))
                             (clojure.core/symbol (clojure.core/str "#unrepl/bigdec "res))
 
-                            (clojure.core/->> res type str (clojure.core/re-find #"BigIng"))
+                            (clojure.core/->> res type str (clojure.core/re-find #"BigInt"))
                             (clojure.core/symbol (clojure.core/str "#unrepl/bigint "res))
 
                             :else res)]

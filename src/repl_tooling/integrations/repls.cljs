@@ -77,14 +77,17 @@
     (callback msg)))
 
 (def ^:private template (generic-eval-wrapper))
+(defn- wrap-command [id cmd ex-type]
+  (-> template
+      (str/replace-all #"__COMMAND__" cmd)
+      (str/replace-all #"__ID__" id)
+      (str/replace-all #"__EX_TYPE__" ex-type)
+      (parse-command true)
+      :result
+      (str "\n")))
+
 (defn- send-command! [^js conn id cmd control ex-type]
-  (let [command (-> template
-                    (str/replace-all #"__COMMAND__" cmd)
-                    (str/replace-all #"__ID__" id)
-                    (str/replace-all #"__EX_TYPE__" ex-type)
-                    (parse-command true)
-                    :result
-                    (str "\n"))]
+  (let [command (wrap-command id cmd ex-type)]
     (swap! control update :pending-evals conj id)
     (.write conn command)))
 
@@ -95,6 +98,13 @@
         eval-command (case repl-kind
                        :bb (fn [{:keys [command id]}]
                              (cmd! id command "Exception"))
+                       :joker (fn [{:keys [command namespace id]}]
+                               (when namespace (.write conn (str "(in-ns '" namespace ")")))
+                               (let [command (str/replace-all (wrap-command id command "Error")
+                                                              #"clojure\.core/"
+                                                              "joker.core/")]
+                                 (swap! control update :pending-evals conj id)
+                                 (.write conn command)))
                        :cljs (fn [{:keys [command namespace id]}]
                                (when namespace (.write conn (str "(in-ns '" namespace ")")))
                                (cmd! id command ":default"))
