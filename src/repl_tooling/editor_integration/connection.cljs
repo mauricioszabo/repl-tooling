@@ -175,6 +175,26 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
        (eval/evaluate aux ":aux-connected" {:ignore true}
                       #(connect-primary))))))
 
+(defn- prepare-cljs [primary host port state options]
+  (reset! state {:cljs/repl primary
+                 :repl/info {:host host :port port :kind :cljs}
+                 :editor/commands (cmds-for state options)
+                 :editor/features (features-for state options)}))
+
+(defn- prepare-joker [primary host port state options]
+  (reset! state {:clj/repl primary
+                 :clj/aux primary
+                 :repl/info {:host host :port port :kind :cljs}
+                 :editor/commands (cmds-for state options)
+                 :editor/features (features-for state options)}))
+
+(defn- prepare-generic [primary aux host port state options kind]
+  (reset! state {:clj/aux aux
+                 :clj/repl primary
+                 :repl/info {:host host :port port :kind kind}
+                 :editor/commands (cmds-for state options)
+                 :editor/features (features-for state options)}))
+
 (defn connect!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
 callbacks:
@@ -207,15 +227,16 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
   (let [state (r/atom nil)
         callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
         primary (repls/connect-repl! :clj-eval host port callback)
-        aux (repls/connect-repl! :clj-aux host port callback)
+        aux (delay (repls/connect-repl! :clj-aux host port callback))
         options (merge default-opts opts)]
 
-    (.. js/Promise
-        (all #js [primary aux])
-        (then (fn [[primary aux]]
-                (reset! state {:clj/aux aux
-                               :clj/repl primary
-                               :repl/info {:host host :port port}
-                               :editor/commands (cmds-for state options)
-                               :editor/features (features-for state options)})
-                state)))))
+    (.then primary (fn [[kind primary]]
+                     (.. js/Promise
+                         (resolve
+                          (case kind
+                            :cljs (prepare-cljs primary host port state options)
+                            :joker (prepare-joker primary host port state options)
+                            (.then @aux (fn [[_ aux]]
+                                          (prepare-generic primary aux host port state
+                                                           options kind)))))
+                         (then (fn [] state)))))))

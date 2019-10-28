@@ -127,7 +127,9 @@
 (defn connect-repl! [id host port on-output]
   (let [{:keys [conn control repl-kind]} (connect-and-detect! host port)]
     (swap! connections assoc id conn)
-    (.then ^js repl-kind #(instantiate-correct-evaluator % conn control on-output))))
+    (.then ^js repl-kind
+           (fn [kind]
+             [kind (instantiate-correct-evaluator kind conn control on-output)]))))
 
 (defn disconnect! [id]
   (when-let [conn ^js (get @connections id)]
