@@ -96,13 +96,13 @@
                        :bb (fn [{:keys [command id]}]
                              (cmd! id command "Exception"))
                        :cljs (fn [{:keys [command namespace id]}]
-                               (when namespace (.write conn (str "(in-ns " namespace ")")))
+                               (when namespace (.write conn (str "(in-ns '" namespace ")")))
                                (cmd! id command ":default"))
                        :cljr (fn [{:keys [command namespace id]}]
-                               (when namespace (.write conn (str "(in-ns " namespace ")")))
+                               (when namespace (.write conn (str "(in-ns '" namespace ")")))
                                (cmd! id command "System.Exception"))
                        (fn [{:keys [command namespace id]}]
-                         (when namespace (.write conn (str "(in-ns " namespace ")")))
+                         (when namespace (.write conn (str "(in-ns '" namespace ")")))
                          (cmd! id command "Throwable")))]
 
     (when-not (= repl-kind :clj)
