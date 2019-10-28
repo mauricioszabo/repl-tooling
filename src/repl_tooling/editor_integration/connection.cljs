@@ -206,8 +206,8 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                      editor-data on-start-eval on-eval] :as opts}]
   (let [state (r/atom nil)
         callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
-        aux (repls/connect-repl! :clj-aux host port callback)
         primary (repls/connect-repl! :clj-eval host port callback)
+        aux (repls/connect-repl! :clj-aux host port callback)
         options (merge default-opts opts)]
 
     (.. js/Promise
