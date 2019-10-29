@@ -21,7 +21,7 @@
                      (-> s
                          (update :pending #(-> % rest vec))
                          (assoc :processing cmd :state :evaluating))))
-      (async/put! (:channel-in @state) (:cmd cmd)))))
+      ((:in-command @state) (:cmd cmd)))))
 
 (defn- add-to-eval-queue! [state opts]
   (swap! state update :pending conj opts)
@@ -46,11 +46,10 @@
                           {:cmd (unrepl-cmd state :set-source params) :ignore-result? true}))))
 
 (declare repl)
-(defrecord Evaluator [session in-command]
+(defrecord Evaluator [session]
   eval/Evaluator
   (evaluate [this command opts callback]
     (let [id (or (:id opts) (gensym))
-          chan (async/promise-chan)
           state (:state @session)]
       (prepare-opts this opts)
       (add-to-eval-queue! state
@@ -160,7 +159,7 @@
         state (atom {:state :starting
                      :processing nil
                      :pending []
-                     :channel-in in
+                     :in-command #(async/put! in %)
                      :on-output on-output})
         session (atom {:state state})]
     (async/put! in blob)
@@ -170,13 +169,13 @@
           (treat-all-output! string state)
           (recur (<! out)))
         (on-output nil)))
-    (->Evaluator session #(async/put! in blob))))
+    (->Evaluator session)))
 
 (defrecord SelfHostedCljs [evaluator pending]
   eval/Evaluator
   (evaluate [_ command opts callback]
     (let [id (or (:id opts) (gensym))
-          in (-> evaluator :session deref :state deref :channel-in)
+          in (-> evaluator :session deref :state deref :in-command)
           code (str "(cljs.core/pr-str (try (clojure.core/let [res (do\n" command
                     "\n)] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
                     "['" id " :error (cljs.core/pr-str e)])))\n")]
@@ -185,9 +184,9 @@
                                :pass (:pass opts)})
 
       (when-let [ns-name (:namespace opts)]
-        (async/put! in (str "(in-ns '" ns-name ")")))
+        (in (str "(in-ns '" ns-name ")")))
 
-      (async/put! in code)
+      (in code)
       (swap! (:session evaluator) assoc :pending [])
       id))
 
