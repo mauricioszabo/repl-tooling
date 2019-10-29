@@ -5,6 +5,7 @@
             [clojure.core.async :include-macros true :as async]
             [rewrite-clj.node :as node]
             [rewrite-clj.parser :as parser]
+            [repl-tooling.repl-client.clojure :as clj]
             [repl-tooling.eval :as eval]))
 
 (declare normalize-command)
@@ -21,9 +22,11 @@
   (cond-> command (contains? command :children) (update :children #(map conv-node %))))
 
 (defn parse-command [command remove-lines?]
-  (let [cmd (try
+  (let [command (str command)
+        cmd (try
               {:result (parser/parse-string command)}
               (catch :default e
+                (prn e)
                 {:error (.-message e)}))]
     (if-let [res (:result cmd)]
       (if (= (str res) (str/trim command))
@@ -91,6 +94,11 @@
     (swap! control update :pending-evals conj id)
     (.write conn command)))
 
+(defn- send-namespace [^js conn ns-command namespace control]
+  (when namespace
+    (swap! control update :ignore-output conj #"^\n?.*?=> " #"nil\n")
+    (.write conn (str "(" ns-command namespace ")"))))
+
 (defn- instantiate-correct-evaluator [repl-kind ^js conn control on-output]
   (let [pending-evals (atom {})
         cmd! (fn [id command ex]
@@ -99,29 +107,32 @@
                        :bb (fn [{:keys [command id]}]
                              (cmd! id command "Exception"))
                        :joker (fn [{:keys [command namespace id]}]
-                               (when namespace (.write conn (str "(in-ns '" namespace ")")))
-                               (let [command (str/replace-all (wrap-command id command "Error")
-                                                              #"clojure\.core/"
-                                                              "joker.core/")]
-                                 (swap! control update :pending-evals conj id)
-                                 (.write conn command)))
+                                (send-namespace conn "joker.core/ns " namespace control)
+                                (let [command (str/replace-all (wrap-command id command "Error")
+                                                               #"clojure\.core/"
+                                                               "joker.core/")]
+                                  (swap! control update :pending-evals conj id)
+                                  (.write conn command)))
                        :cljs (fn [{:keys [command namespace id]}]
-                               (when namespace (.write conn (str "(in-ns '" namespace ")")))
+                               (println "Sending NS")
+                               (send-namespace conn "in-ns '" namespace control)
+                               (println "\nSending command")
                                (cmd! id command ":default"))
                        :cljr (fn [{:keys [command namespace id]}]
-                               (when namespace (.write conn (str "(in-ns '" namespace ")")))
+                               (send-namespace conn "in-ns '" namespace control)
                                (cmd! id command "System.Exception"))
                        (fn [{:keys [command namespace id]}]
-                         (when namespace (.write conn (str "(in-ns '" namespace ")")))
+                         (send-namespace conn "ns " namespace control)
                          (cmd! id command "Throwable")))]
 
-    (when-not (= repl-kind :clj)
-      (swap! control assoc :ignore-prompt true))
-
-    (connection/prepare-evals control
-                              #(if-let [out %] (on-output {:out out}) (on-output nil))
-                              #(capture-eval-result pending-evals on-output %))
-    (->Generic pending-evals eval-command)))
+    (if (= :clj repl-kind)
+      (clj/prepare-unrepl-evaluator conn control on-output)
+      (do
+        (swap! control assoc :ignore-prompt true)
+        (connection/prepare-evals control
+                                  #(if-let [out %] (on-output {:out out}) (on-output nil))
+                                  #(capture-eval-result pending-evals on-output %))
+        (->Generic pending-evals eval-command)))))
 
 (defonce connections (atom {}))
 (defn connect-repl! [id host port on-output]
