@@ -184,11 +184,14 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 (defn- prepare-joker [primary host port state options]
   (reset! state {:clj/repl primary
                  :clj/aux primary
-                 :repl/info {:host host :port port :kind :cljs}
+                 :repl/info {:host host :port port :kind :joker}
                  :editor/commands (cmds-for state options)
                  :editor/features (features-for state options)}))
 
 (defn- prepare-generic [primary aux host port state options kind]
+  (when (= :clj kind)
+    (eval/evaluate aux ":aux-connected" {:ignore true} #(disable-limits! aux)))
+
   (reset! state {:clj/aux aux
                  :clj/repl primary
                  :repl/info {:host host :port port :kind kind}
