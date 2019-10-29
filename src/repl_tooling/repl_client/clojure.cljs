@@ -7,7 +7,8 @@
             [cljs.core.async :as async :refer-macros [go go-loop]]
             [cljs.reader :as reader]
             [clojure.string :as str]
-            [clojure.walk :as walk]))
+            [clojure.walk :as walk]
+            [rewrite-clj.parser :as parser]))
 
 (def blob (blob-contents))
 
@@ -40,7 +41,7 @@
                 :unrepl/line (-> row (or 1) dec)}]
     (when namespace
       (add-to-eval-queue! state
-                          {:cmd (str "(in-ns '" namespace ")") :ignore-result? true}))
+                          {:cmd (str "(ns " namespace ")") :ignore-result? true}))
     (when (or filename row col)
       (add-to-eval-queue! state
                           {:cmd (unrepl-cmd state :set-source params) :ignore-result? true}))))
@@ -115,8 +116,8 @@
     (when-not (-> @state :processing :ignore-result?)
       (on-out msg))
     (when-let [callback (-> @state :processing :callback)]
-      (swap! state assoc :processing nil)
-      (callback msg))))
+      (callback msg))
+    (swap! state assoc :processing nil)))
 
 (defn- send-output! [out state err?]
   (let [on-out (:on-output @state)]
@@ -152,14 +153,27 @@
       (treat-unrepl-message! raw-out state)
       (some-> @state :session deref :on-output (#(% {:unexpected (str raw-out)}))))))
 
-(defn prepare-unrepl [conn])
+(defn prepare-unrepl-evaluator [conn control on-output]
+  (let [state (atom {:state :starting
+                     :processing nil
+                     :pending []
+                     :in-command #(.write conn (str % "\n"))
+                     :on-output on-output})
+        session (atom {:state state})]
+    (.write conn blob)
+    (swap! control assoc
+           :on-line #(if %
+                       (treat-all-output! % state)
+                       (on-output nil))
+           :on-fragment identity)
+    (->Evaluator session)))
 
 (defn repl [session-name host port on-output]
   (let [[in out] (client/socket2! session-name host port)
         state (atom {:state :starting
                      :processing nil
                      :pending []
-                     :in-command #(async/put! in %)
+                     :in-command #(async/put! in (str % "\n"))
                      :on-output on-output})
         session (atom {:state state})]
     (async/put! in blob)
