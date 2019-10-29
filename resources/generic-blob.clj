@@ -13,7 +13,7 @@
 
                             (clojure.core/keyword? res)
                             (clojure.core/symbol (clojure.core/str "#unrepl/bad-keyword ["
-                                                      (clojure.core/pr-str (namespace res)) " "
+                                                      (clojure.core/pr-str (clojure.core/namespace res)) " "
                                                       (clojure.core/pr-str (clojure.core/name res))
                                                       "]"))
 
