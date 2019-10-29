@@ -23,12 +23,8 @@
                          (assoc :processing cmd :state :evaluating))))
       (async/put! (:channel-in @state) (:cmd cmd)))))
 
-(defn- add-to-eval-queue! [id chan cmd state ignore? opts]
-  (swap! state update :pending conj {:cmd cmd
-                                     :channel chan
-                                     :id id
-                                     :ignore-result? ignore?
-                                     :opts opts})
+(defn- add-to-eval-queue! [state opts]
+  (swap! state update :pending conj opts)
   (next-eval! state))
 
 (defn unrepl-cmd [state command params]
@@ -43,24 +39,26 @@
                 :unrepl/column (-> col (or 1) dec)
                 :unrepl/line (-> row (or 1) dec)}]
     (when namespace
-      (add-to-eval-queue! (gensym) (async/promise-chan) (str "(ns " namespace ")") state true {}))
+      (add-to-eval-queue! state
+                          {:cmd (str "(in-ns '" namespace ")") :ignore-result? true}))
     (when (or filename row col)
-      (add-to-eval-queue! (gensym) (async/promise-chan)
-                          (unrepl-cmd state :set-source params)
-                          state
-                          true
-                          {}))))
+      (add-to-eval-queue! state
+                          {:cmd (unrepl-cmd state :set-source params) :ignore-result? true}))))
 
 (declare repl)
-(defrecord Evaluator [session]
+(defrecord Evaluator [session in-command]
   eval/Evaluator
   (evaluate [this command opts callback]
     (let [id (or (:id opts) (gensym))
           chan (async/promise-chan)
           state (:state @session)]
       (prepare-opts this opts)
-      (add-to-eval-queue! id chan (str "(do\n" command "\n)") state (:ignore opts) (:pass opts))
-      (go (callback (<! chan)))
+      (add-to-eval-queue! state
+                          {:id id
+                           :cmd (str "(do\n" command "\n)")
+                           :callback callback
+                           :ignore-result? (:ignore opts)
+                           :opts (:pass opts)})
       id))
 
   (break [this repl]
@@ -117,9 +115,9 @@
         on-out (:on-output @state)]
     (when-not (-> @state :processing :ignore-result?)
       (on-out msg))
-    (when-let [chan (-> @state :processing :channel)]
+    (when-let [callback (-> @state :processing :callback)]
       (swap! state assoc :processing nil)
-      (async/put! chan msg))))
+      (callback msg))))
 
 (defn- send-output! [out state err?]
   (let [on-out (:on-output @state)]
@@ -155,6 +153,8 @@
       (treat-unrepl-message! raw-out state)
       (some-> @state :session deref :on-output (#(% {:unexpected (str raw-out)}))))))
 
+(defn prepare-unrepl [conn])
+
 (defn repl [session-name host port on-output]
   (let [[in out] (client/socket2! session-name host port)
         state (atom {:state :starting
@@ -162,11 +162,7 @@
                      :pending []
                      :channel-in in
                      :on-output on-output})
-        session (atom {:state state
-                       :session-name session-name
-                       :host host
-                       :port port})
-        pending-cmds (atom {})]
+        session (atom {:state state})]
     (async/put! in blob)
     (go-loop [string (<! out)]
       (if string
@@ -174,7 +170,7 @@
           (treat-all-output! string state)
           (recur (<! out)))
         (on-output nil)))
-    (->Evaluator session)))
+    (->Evaluator session #(async/put! in blob))))
 
 (defrecord SelfHostedCljs [evaluator pending]
   eval/Evaluator
