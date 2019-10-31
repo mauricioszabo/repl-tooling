@@ -177,21 +177,16 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                       #(connect-primary))))))
 
 
-(defn- tr-kind [kind]
-  (let [kinds {:clj "Clojure" :cljs "ClojureScript" :cljr "ClojureCLR" :bb "Babaska"}]
-    (kinds kind (-> kind name (str/replace-first #"." str/upper-case)))))
-
 (defn- prepare-cljs [primary host port state options]
   (reset! state {:cljs/repl primary
-                 :repl/info {:host host :port port :kind :cljs :kind-name (tr-kind :cljs)}
+                 :repl/info {:host host :port port :kind :cljs}
                  :editor/commands (cmds-for state options)
                  :editor/features (features-for state options)}))
 
 (defn- prepare-joker [primary host port state options]
   (reset! state {:clj/repl primary
                  :clj/aux primary
-                 :repl/info {:host host :port port
-                             :kind :joker :kind-name (tr-kind :joker)}
+                 :repl/info {:host host :port port :kind :joker}
                  :editor/commands (cmds-for state options)
                  :editor/features (features-for state options)}))
 
@@ -201,9 +196,13 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 
   (reset! state {:clj/aux aux
                  :clj/repl primary
-                 :repl/info {:host host :port port :kind kind :kind-name (tr-kind kind)}
+                 :repl/info {:host host :port port :kind kind}
                  :editor/commands (cmds-for state options)
                  :editor/features (features-for state options)}))
+
+(defn- tr-kind [kind]
+  (let [kinds {:clj "Clojure" :cljs "ClojureScript" :cljr "ClojureCLR" :bb "Babaska"}]
+    (kinds kind (-> kind name (str/replace-first #"." str/upper-case)))))
 
 (defn connect!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
