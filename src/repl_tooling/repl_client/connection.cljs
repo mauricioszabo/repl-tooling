@@ -106,9 +106,11 @@
          :on-fragment #(treat-output % control on-output on-result)))
 
 (defn connect! [host port]
-  (let [buffer (atom [])
-        conn (doto (. net createConnection port host)
-                   (.on "data" #(swap! buffer conj (str %)))
-                   (.on "close" #(swap! buffer conj :closed)))]
-    {:buffer buffer
-     :conn conn}))
+  (js/Promise.
+   (fn [resolve fail]
+     (let [buffer (atom [])
+           conn (. net createConnection port host)]
+       (.on conn "connect" #(resolve {:buffer buffer :conn conn}))
+       (.on conn "data" #(swap! buffer conj (str %)))
+       (.on conn "error" #(fail (. ^js % -errno)))
+       (.on conn "close" #(swap! buffer conj :closed))))))

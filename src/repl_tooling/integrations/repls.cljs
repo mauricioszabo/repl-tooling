@@ -42,17 +42,20 @@
     (async/put! chan (keyword (second row-kind)))))
 
 (defn connect-and-detect! [host port]
-  (let [{:keys [conn buffer] :as a} (connection/connect! host port)
-        kind-chan (async/promise-chan)]
-    (.write conn "\n")
-    (.write conn (str "#?(:cljs :using-cljs-repl :clj :using-clj-repl "
-                      ":cljr :using-cljr-repl "
-                      ":joker :using-joker-repl "
-                      ":bb :using-bb-repl)\n"))
-    (.write conn ":using-unknown-repl\n")
-    {:conn conn
-     :control (connection/treat-buffer! buffer #(detect-output-kind % kind-chan) identity)
-     :repl-kind (js/Promise. (fn [resolve] (-> kind-chan async/<! resolve async/go)))}))
+  (. (connection/connect! host port)
+    then
+    #(let [{:keys [conn buffer]} %
+           kind-chan (async/promise-chan)]
+       (.write conn "\n")
+       (.write conn (str "#?(:cljs :using-cljs-repl :clj :using-clj-repl "
+                         ":cljr :using-cljr-repl "
+                         ":joker :using-joker-repl "
+                         ":bb :using-bb-repl)\n"))
+       (.write conn ":using-unknown-repl\n")
+       {:conn conn
+        :control (connection/treat-buffer!
+                  buffer (fn [out] (detect-output-kind out kind-chan)) identity)
+        :repl-kind (js/Promise. (fn [resolve] (-> kind-chan async/<! resolve async/go)))})))
 
 ;; REPLs
 (defn add-to-eval-queue [command opts callback pending-evals eval-cmd]
@@ -136,11 +139,14 @@
 
 (defonce connections (atom {}))
 (defn connect-repl! [id host port on-output]
-  (let [{:keys [conn control repl-kind]} (connect-and-detect! host port)]
-    (swap! connections assoc id conn)
-    (.then ^js repl-kind
-           (fn [kind]
-             [kind (instantiate-correct-evaluator kind conn control on-output)]))))
+  (.. (connect-and-detect! host port)
+      (then (fn [{:keys [conn control repl-kind]}]
+              (prn :ONE)
+              (swap! connections assoc id conn)
+              (.then ^js repl-kind
+                     (fn [kind]
+                       (prn :TWO)
+                       [kind (instantiate-correct-evaluator kind conn control on-output)]))))))
 
 (defn disconnect! [id]
   (when-let [conn ^js (get @connections id)]

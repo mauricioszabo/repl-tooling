@@ -1,5 +1,6 @@
 (ns repl-tooling.editor-integration.connection
   (:require [reagent.core :as r]
+            [clojure.string :as str]
             [repl-tooling.repl-client :as repl-client]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
@@ -175,16 +176,22 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
        (eval/evaluate aux ":aux-connected" {:ignore true}
                       #(connect-primary))))))
 
+
+(defn- tr-kind [kind]
+  (let [kinds {:clj "Clojure" :cljs "ClojureScript" :cljr "ClojureCLR" :bb "Babaska"}]
+    (kinds kind (-> kind name (str/replace-first #"." str/upper-case)))))
+
 (defn- prepare-cljs [primary host port state options]
   (reset! state {:cljs/repl primary
-                 :repl/info {:host host :port port :kind :cljs}
+                 :repl/info {:host host :port port :kind :cljs :kind-name (tr-kind :cljs)}
                  :editor/commands (cmds-for state options)
                  :editor/features (features-for state options)}))
 
 (defn- prepare-joker [primary host port state options]
   (reset! state {:clj/repl primary
                  :clj/aux primary
-                 :repl/info {:host host :port port :kind :joker}
+                 :repl/info {:host host :port port
+                             :kind :joker :kind-name (tr-kind :joker)}
                  :editor/commands (cmds-for state options)
                  :editor/features (features-for state options)}))
 
@@ -194,7 +201,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 
   (reset! state {:clj/aux aux
                  :clj/repl primary
-                 :repl/info {:host host :port port :kind kind}
+                 :repl/info {:host host :port port :kind kind :kind-name (tr-kind kind)}
                  :editor/commands (cmds-for state options)
                  :editor/features (features-for state options)}))
 
@@ -225,21 +232,34 @@ than once
 
 Returns a promise that will resolve to a map with two repls: :clj/aux will be used
 to autocomplete/etc, :clj/repl will be used to evaluate code."
-  [host port {:keys [on-stdout on-stderr on-result on-disconnect
-                     editor-data on-start-eval on-eval] :as opts}]
+  [host port {:keys [on-stdout on-stderr on-result on-disconnect notify] :as opts}]
   (let [state (r/atom nil)
         callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
         primary (repls/connect-repl! :clj-eval host port callback)
         aux (delay (repls/connect-repl! :clj-aux host port callback))
         options (merge default-opts opts)]
 
-    (.then primary (fn [[kind primary]]
-                     (.. js/Promise
-                         (resolve
-                          (case kind
-                            :cljs (prepare-cljs primary host port state options)
-                            :joker (prepare-joker primary host port state options)
-                            (.then @aux (fn [[_ aux]]
-                                          (prepare-generic primary aux host port state
-                                                           options kind)))))
-                         (then (fn [] state)))))))
+    (.. primary
+        (then (fn [[kind primary]]
+                (notify {:type :info
+                         :title (str (tr-kind kind) " REPL Connected")})
+                (.. js/Promise
+                    (resolve
+                     (case kind
+                       :cljs (prepare-cljs primary host port state options)
+                       :joker (prepare-joker primary host port state options)
+                       (.then @aux (fn [[_ aux]]
+                                     (prepare-generic primary aux host port state
+                                                      options kind)))))
+                    (then (fn [] state)))))
+        (catch (fn [error]
+                 (if (= "ECONNREFUSED")
+                   (notify {:type :error
+                            :title "REPL not connected"
+                            :message (str "Connection refused. Ensure that you have a "
+                                          "Socket REPL started on this host/port")})
+                   (notify {:type :error
+                            :title "REPL not connected"
+                            :message (str "Unknow error while connecting to the REPL: "
+                                          error)}))
+                 nil)))))
