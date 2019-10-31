@@ -69,7 +69,11 @@
    :load-file {:name "Load File"
                :description "Loads current file on a Clojure REPL"
                :command (fn [] (ensure-data (editor-data)
-                                            #(loaders/load-file opts (:clj/aux @state) %)))}
+                                            #(loaders/load-file opts
+                                                                {:repl-kind (-> @state :repl/info :kind)
+                                                                 :repl-name (-> @state :repl/info :kind-name)
+                                                                 :repl (:clj/aux @state)
+                                                                 :editor-data %})))}
    :connect-embedded {:name "Connect Embedded ClojureScript REPL"
                       :description "Connects to a ClojureScript REPL inside a Clojure one"
                       :command #(embedded/connect! state opts)}
@@ -177,16 +181,21 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                       #(connect-primary))))))
 
 
+(defn- tr-kind [kind]
+  (let [kinds {:clj "Clojure" :cljs "ClojureScript" :cljr "ClojureCLR" :bb "Babaska"}]
+    (kinds kind (-> kind name (str/replace-first #"." str/upper-case)))))
+
 (defn- prepare-cljs [primary host port state options]
   (reset! state {:cljs/repl primary
-                 :repl/info {:host host :port port :kind :cljs}
+                 :repl/info {:host host :port port :kind :cljs :kind-name (tr-kind :cljs)}
                  :editor/commands (cmds-for state options)
                  :editor/features (features-for state options)}))
 
 (defn- prepare-joker [primary host port state options]
   (reset! state {:clj/repl primary
                  :clj/aux primary
-                 :repl/info {:host host :port port :kind :joker}
+                 :repl/info {:host host :port port
+                             :kind :joker :kind-name (tr-kind :joker)}
                  :editor/commands (cmds-for state options)
                  :editor/features (features-for state options)}))
 
@@ -196,13 +205,9 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 
   (reset! state {:clj/aux aux
                  :clj/repl primary
-                 :repl/info {:host host :port port :kind kind}
+                 :repl/info {:host host :port port :kind kind :kind-name (tr-kind kind)}
                  :editor/commands (cmds-for state options)
                  :editor/features (features-for state options)}))
-
-(defn- tr-kind [kind]
-  (let [kinds {:clj "Clojure" :cljs "ClojureScript" :cljr "ClojureCLR" :bb "Babaska"}]
-    (kinds kind (-> kind name (str/replace-first #"." str/upper-case)))))
 
 (defn connect!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
