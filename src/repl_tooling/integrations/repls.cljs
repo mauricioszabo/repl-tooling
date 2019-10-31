@@ -1,38 +1,10 @@
 (ns repl-tooling.integrations.repls
-  (:require-macros [repl-tooling.repl-client.clj-helper :refer [generic-eval-wrapper]])
   (:require [repl-tooling.repl-client.connection :as connection]
             [clojure.string :as str]
             [clojure.core.async :include-macros true :as async]
-            [rewrite-clj.node :as node]
-            [rewrite-clj.parser :as parser]
+            [repl-tooling.repl-client.source :as source]
             [repl-tooling.repl-client.clojure :as clj]
             [repl-tooling.eval :as eval]))
-
-(declare normalize-command)
-(defn- conv-node [node]
-  (cond
-    (or (node/whitespace-or-comment? node)
-        (node/linebreak? node))
-    (node/whitespace-node " ")
-
-    :else
-    (normalize-command node)))
-
-(defn- normalize-command [command]
-  (cond-> command (contains? command :children) (update :children #(map conv-node %))))
-
-(defn parse-command [command remove-lines?]
-  (let [command (str command)
-        cmd (try
-              {:result (parser/parse-string command)}
-              (catch :default e
-                (prn e)
-                {:error (.-message e)}))]
-    (if-let [res (:result cmd)]
-      (if (= (str res) (str/trim command))
-        {:result (str (cond-> res remove-lines? normalize-command))}
-        {:error "Unexpected Token."})
-      cmd)))
 
 ;; Detection
 
@@ -59,7 +31,7 @@
 
 ;; REPLs
 (defn add-to-eval-queue [command opts callback pending-evals eval-cmd]
-  (let [command (parse-command command true)
+  (let [command (source/parse-command command true)
         id (or (:id opts) (gensym))]
     (if-let [result (:result command)]
       (let [pending (assoc opts :command result :callback callback :id id)]
@@ -82,18 +54,8 @@
     (when-not ignore (on-output msg))
     (callback msg)))
 
-(def ^:private template (generic-eval-wrapper))
-(defn- wrap-command [id cmd ex-type]
-  (-> template
-      (str/replace-all #"__COMMAND__" cmd)
-      (str/replace-all #"__ID__" id)
-      (str/replace-all #"__EX_TYPE__" ex-type)
-      (parse-command true)
-      :result
-      (str "\n")))
-
 (defn- send-command! [^js conn id cmd control ex-type]
-  (let [command (wrap-command id cmd ex-type)]
+  (let [command (source/wrap-command id cmd ex-type)]
     (swap! control update :pending-evals conj id)
     (.write conn command)))
 
@@ -111,7 +73,7 @@
                              (cmd! id command "Exception"))
                        :joker (fn [{:keys [command namespace id]}]
                                 (send-namespace conn "joker.core/ns " namespace control)
-                                (let [command (str/replace-all (wrap-command id command "Error")
+                                (let [command (str/replace-all (source/wrap-command id command "Error")
                                                                #"clojure\.core/"
                                                                "joker.core/")]
                                   (swap! control update :pending-evals conj id)
