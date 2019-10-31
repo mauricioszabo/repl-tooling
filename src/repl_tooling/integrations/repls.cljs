@@ -145,7 +145,6 @@
               (swap! connections assoc id conn)
               (.then ^js repl-kind
                      (fn [kind]
-                       (prn :TWO)
                        [kind (instantiate-correct-evaluator kind conn control on-output)]))))))
 
 (defn disconnect! [id]
