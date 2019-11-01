@@ -8,6 +8,7 @@
             [cljs.reader :as reader]
             [clojure.string :as str]
             [clojure.walk :as walk]
+            [repl-tooling.repl-client.source :as source]
             [rewrite-clj.parser :as parser]))
 
 (def blob (blob-contents))
@@ -47,24 +48,6 @@
                           {:cmd (unrepl-cmd state :set-source params) :ignore-result? true}))))
 
 (declare repl)
-(defrecord Evaluator [session]
-  eval/Evaluator
-  (evaluate [this command opts callback]
-    (let [id (or (:id opts) (gensym))
-          state (:state @session)]
-      (prepare-opts this opts)
-      (add-to-eval-queue! state
-                          {:id id
-                           :cmd (str "(do\n" command "\n)")
-                           :callback callback
-                           :ignore-result? (:ignore opts)
-                           :opts (:pass opts)})
-      id))
-
-  (break [this repl]
-    (when-let [interrupt (-> @session :state deref :processing :interrupt)]
-      (eval/evaluate repl interrupt {:ignore true} identity))))
-
 (defn- default-tags [tag data]
   (helpers/WithTag. data tag))
 
@@ -118,6 +101,30 @@
     (when-let [callback (-> @state :processing :callback)]
       (callback msg))
     (swap! state assoc :processing nil)))
+
+(defrecord Evaluator [session]
+  eval/Evaluator
+  (evaluate [this command opts callback]
+    (let [id (or (:id opts) (gensym))
+          state (:state @session)
+          err (try (parser/parse-string-all (str command)) nil
+                (catch :default e (.-message e)))]
+      (if err
+        (send-result! err true state)
+        (do
+          (prepare-opts this opts)
+          (add-to-eval-queue! state
+                              {:id id
+                               :cmd (str "(do\n" command "\n)")
+                               :callback callback
+                               :ignore-result? (:ignore opts)
+                               :opts (:pass opts)})))
+      id))
+
+  (break [this repl]
+    (when-let [interrupt (-> @session :state deref :processing :interrupt)]
+      (eval/evaluate repl interrupt {:ignore true} identity))))
+
 
 (defn- send-output! [out state err?]
   (let [on-out (:on-output @state)]
@@ -190,6 +197,7 @@
   (evaluate [_ command opts callback]
     (let [id (or (:id opts) (gensym))
           in (-> evaluator :session deref :state deref :in-command)
+          ;FIXME: use evaluator
           code (str "(cljs.core/pr-str (try (clojure.core/let [res (do\n" command
                     "\n)] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
                     "['" id " :error (cljs.core/pr-str e)])))\n")]

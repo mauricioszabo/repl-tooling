@@ -71,7 +71,6 @@
     :else
     (->Browseable object (:repl-tooling/... additional-data) nil)))
 
-(declare read-result)
 (defn as-obj [data]
   (let [params (last data)
         [browseable pr-str-obj obj-id repr] data]
@@ -101,6 +100,7 @@
       (symbol res))))
 
 (defn parse-result [result]
+  (prn :RESULT result)
   (assoc (if (:result result)
            (update result :result #(if (:parsed? result)
                                      %
