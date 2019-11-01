@@ -29,7 +29,7 @@
                    #(notify {:type :info :title "Loaded file" :message filename}))))
 
 (defn load-file [{:keys [notify get-config] :as opts}
-                 {:keys [repl-kind repl-name repl editor-data] :as foo}]
+                 {:keys [repl-kind repl-name repl editor-data]}]
   (if-let [filename (:filename editor-data)]
     (cond
       (e-eval/need-cljs? (get-config) filename)
