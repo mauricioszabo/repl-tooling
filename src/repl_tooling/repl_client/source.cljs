@@ -39,3 +39,11 @@
       (parse-command true)
       :result
       (str "\n")))
+
+(defn wrap-command2 [id cmd ex-type strip-newlines?]
+  (-> template
+      (str/replace-all #"__COMMAND__" cmd)
+      (str/replace-all #"__ID__" id)
+      (str/replace-all #"__EX_TYPE__" ex-type)
+      (parse-command strip-newlines?)
+      (update :result #(and % (str % "\n")))))

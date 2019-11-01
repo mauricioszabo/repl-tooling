@@ -55,9 +55,9 @@
     (callback msg)))
 
 (defn- send-command! [^js conn id cmd control ex-type]
-  (let [command (source/wrap-command id cmd ex-type)]
+  (let [command (source/wrap-command2 id cmd ex-type true)]
     (swap! control update :pending-evals conj id)
-    (.write conn command)))
+    (.write conn (:result command))))
 
 (defn- send-namespace [^js conn ns-command namespace control]
   (when namespace
@@ -79,9 +79,7 @@
                                   (swap! control update :pending-evals conj id)
                                   (.write conn command)))
                        :cljs (fn [{:keys [command namespace id]}]
-                               (println "Sending NS")
                                (send-namespace conn "in-ns '" namespace control)
-                               (println "\nSending command")
                                (cmd! id command ":default"))
                        :cljr (fn [{:keys [command namespace id]}]
                                (send-namespace conn "in-ns '" namespace control)
