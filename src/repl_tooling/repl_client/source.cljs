@@ -20,14 +20,11 @@
 (defn parse-command [command remove-lines?]
   (let [command (str command)
         cmd (try
-              {:result (parser/parse-string command)}
+              {:result (parser/parse-string-all command)}
               (catch :default e
-                (prn e)
-                {:error (.-message e)}))]
+                {:error (pr-str (.-message e))}))]
     (if-let [res (:result cmd)]
-      (if (= (str res) (str/trim command))
-        {:result (str (cond-> res remove-lines? normalize-command))}
-        {:error "Unexpected Token."})
+      {:result (str (cond-> res remove-lines? normalize-command))}
       cmd)))
 
 (def ^:private template (generic-eval-wrapper))
@@ -41,9 +38,15 @@
       (str "\n")))
 
 (defn wrap-command2 [id cmd ex-type strip-newlines?]
-  (-> template
-      (str/replace-all #"__COMMAND__" cmd)
-      (str/replace-all #"__ID__" id)
-      (str/replace-all #"__EX_TYPE__" ex-type)
-      (parse-command strip-newlines?)
-      (update :result #(and % (str % "\n")))))
+  (let [cmd (parse-command cmd strip-newlines?)]
+    (if-let [res (:result cmd)]
+      (-> template
+          (str/replace-all #"__COMMAND__" res)
+          (str/replace-all #"__ID__" id)
+          (str/replace-all #"__EX_TYPE__" ex-type)
+          (parse-command strip-newlines?)
+          (update :result #(str "(do "
+                                %
+                                (when-not strip-newlines? "\n")
+                                ")" "\n"))))
+    cmd))

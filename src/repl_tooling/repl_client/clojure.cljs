@@ -195,42 +195,46 @@
         (on-output nil)))
     (->Evaluator session)))
 
+(defn- eval-code [{:keys [evaluator id callback in code]} opts]
+  (swap! (:pending evaluator) assoc id {:callback callback
+                                        :ignore (:ignore opts)
+                                        :pass (:pass opts)})
+  (when-let [ns-name (:namespace opts)] (in (str "(in-ns '" ns-name ")")))
+  (in (:result code))
+  (swap! (-> evaluator :evaluator :session) assoc :pending []))
+
 (defrecord SelfHostedCljs [evaluator pending]
   eval/Evaluator
-  (evaluate [_ command opts callback]
+  (evaluate [self command opts callback]
     (let [id (or (:id opts) (gensym))
-          in (-> evaluator :session deref :state deref :in-command)
-          ;FIXME: use evaluator
-          code (str "(cljs.core/pr-str (try (clojure.core/let [res (do\n" command
-                    "\n)] ['" id " :result (cljs.core/pr-str res)]) (catch :default e "
-                    "['" id " :error (cljs.core/pr-str e)])))\n")]
+          state (-> evaluator :session deref :state deref)
+          in (:in-command state)
+          code (source/wrap-command2 id command ":default" false)]
 
-      (swap! pending assoc id {:callback callback :ignore (:ignore opts)
-                               :pass (:pass opts)})
-
-      (when-let [ns-name (:namespace opts)]
-        (in (str "(in-ns '" ns-name ")")))
-
-      (in code)
-      (swap! (:session evaluator) assoc :pending [])
+      (if (:error code)
+        (let [output (:on-output state)]
+          (prn :ERROR code output)
+          (output code)
+          (callback code))
+        (eval-code {:evaluator self :id id :callback callback :in in :code code}
+                   opts))
       id))
 
   (break [this repl]))
 
 (defn- treat-result-of-call [out pending output-fn buffer]
   (let [full-out (str @buffer out)
-        [_ id] (re-find #"^\"\[(.+?) " full-out)]
+        [_ id] (re-find #"^\[tooling\$eval-res (.+?) " full-out)]
     (if-let [pendency (some->> id symbol (get @pending))]
       (if (str/ends-with? full-out "\n")
-        (let [[_ key parsed] (->> full-out
-                                  reader/read-string
-                                  (reader/read-string {:default default-tags}))]
+        (let [[_ _ parsed] (->> full-out
+                                (reader/read-string {:default default-tags}))]
           (reset! buffer ::ignore-next)
-          ((:callback pendency) (assoc (:pass pendency) key parsed))
+          ((:callback pendency) (merge (:pass pendency) parsed))
           (swap! pending dissoc id)
-          (when-not (:ignore pendency) (output-fn (assoc (:pass pendency)
-                                                         :as-text out
-                                                         key parsed))))
+          (when-not (:ignore pendency) (output-fn (merge (:pass pendency)
+                                                         {:as-text out}
+                                                         parsed))))
         (swap! buffer str out))
       (do
         (reset! buffer nil)
@@ -242,7 +246,7 @@
       (and (= @buffer ::ignore-next) (re-find #"=> \n?$" (str out)))
       (reset! buffer nil)
 
-      (or @buffer (and out (str/starts-with? out "\"[")))
+      (or @buffer (and out (str/starts-with? out "[tooling$eval-res")))
       (treat-result-of-call out pending output-fn buffer)
 
       (= out "nil\n")
