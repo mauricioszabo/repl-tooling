@@ -108,17 +108,20 @@
     (let [id (or (:id opts) (gensym))
           state (:state @session)
           err (try (parser/parse-string-all (str command)) nil
-                (catch :default e (.-message e)))]
+                (catch :default e {:error (pr-str (.-message e))
+                                   :as-text (.-message e)}))
+          eval-opts {:id id
+                     :cmd (str "(do\n" command "\n)")
+                     :callback callback
+                     :ignore-result? (:ignore opts)
+                     :opts (:pass opts)}]
       (if err
-        (send-result! err true state)
+        (do
+          ((:on-output @state) err)
+          (callback err))
         (do
           (prepare-opts this opts)
-          (add-to-eval-queue! state
-                              {:id id
-                               :cmd (str "(do\n" command "\n)")
-                               :callback callback
-                               :ignore-result? (:ignore opts)
-                               :opts (:pass opts)})))
+          (add-to-eval-queue! state eval-opts)))
       id))
 
   (break [this repl]

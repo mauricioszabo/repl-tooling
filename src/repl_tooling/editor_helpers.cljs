@@ -100,7 +100,6 @@
       (symbol res))))
 
 (defn parse-result [result]
-  (prn :RESULT result)
   (assoc (if (:result result)
            (update result :result #(if (:parsed? result)
                                      %
