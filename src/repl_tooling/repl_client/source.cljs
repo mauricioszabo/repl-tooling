@@ -41,12 +41,9 @@
   (let [cmd (parse-command cmd strip-newlines?)]
     (if-let [res (:result cmd)]
       (-> template
-          (str/replace-all #"__COMMAND__" res)
+          (str/replace-all #"__COMMAND__" (str res "\n"))
           (str/replace-all #"__ID__" id)
           (str/replace-all #"__EX_TYPE__" ex-type)
           (parse-command strip-newlines?)
-          (update :result #(str "(do "
-                                %
-                                (when-not strip-newlines? "\n")
-                                ")" "\n"))))
-    cmd))
+          (update :result str "\n"))
+      cmd)))
