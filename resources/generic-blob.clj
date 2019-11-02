@@ -1,5 +1,5 @@
 (try
-  (clojure.core/let [res __COMMAND__
+  (clojure.core/let [res (do __COMMAND__)
                      res (clojure.core/cond
                             #?(:cljs false :default (clojure.core/ratio? res))
                             (clojure.core/symbol

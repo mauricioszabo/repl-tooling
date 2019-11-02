@@ -100,7 +100,6 @@
       (symbol res))))
 
 (defn parse-result [result]
-  (prn :RESULT result)
   (assoc (if (:result result)
            (update result :result #(if (:parsed? result)
                                      %
@@ -113,7 +112,7 @@
   (let [lines (str/split-lines text)
         rows-offset (- row2 row1)]
     (-> lines
-        (subvec row1 (inc row2))
+        (subvec row1 (min (count lines) (inc row2)))
         (update 0 #(str/join "" (drop col1 %)))
         (update rows-offset #(str/join "" (take (inc (if (zero? rows-offset)
                                                        (- col2 col1)
