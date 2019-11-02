@@ -101,7 +101,6 @@
 (defn connect-repl! [id host port on-output]
   (.. (connect-and-detect! host port)
       (then (fn [{:keys [conn control repl-kind]}]
-              (prn :ONE)
               (swap! connections assoc id conn)
               (.then ^js repl-kind
                      (fn [kind]
