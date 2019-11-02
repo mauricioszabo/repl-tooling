@@ -209,11 +209,10 @@
     (let [id (or (:id opts) (gensym))
           state (-> evaluator :session deref :state deref)
           in (:in-command state)
-          code (source/wrap-command2 id command ":default" false)]
+          code (source/wrap-command id command ":default" false)]
 
       (if (:error code)
         (let [output (:on-output state)]
-          (prn :ERROR code output)
           (output code)
           (callback code))
         (eval-code {:evaluator self :id id :callback callback :in in :code code}
