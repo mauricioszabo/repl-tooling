@@ -30,9 +30,9 @@
         :repl-kind (js/Promise. (fn [resolve] (-> kind-chan async/<! resolve async/go)))})))
 
 ;; REPLs
-(defn add-to-eval-queue [command opts callback pending-evals eval-cmd]
-  (let [command (source/parse-command command true)
-        id (or (:id opts) (gensym))]
+(defn add-to-eval-queue [cmd-for command opts callback pending-evals eval-cmd]
+  (let [id (or (:id opts) (gensym))
+        command (cmd-for {:command command :id id})]
     (if-let [result (:result command)]
       (let [pending (assoc opts :command result :callback callback :id id)]
         (swap! pending-evals assoc id pending)
@@ -40,10 +40,10 @@
       (callback command))
     id))
 
-(defrecord Generic [pending-evals eval-cmd]
+(defrecord Generic [pending-evals cmd-for eval-cmd]
   eval/Evaluator
   (evaluate [_ command opts callback]
-    (add-to-eval-queue command opts callback pending-evals eval-cmd))
+    (add-to-eval-queue cmd-for command opts callback pending-evals eval-cmd))
   (break [_ _]))
 
 ;; Integrations, at last
@@ -55,7 +55,7 @@
     (callback msg)))
 
 (defn- send-command! [^js conn id cmd control ex-type]
-  (let [command (source/wrap-command2 id cmd ex-type true)]
+  (let [command (source/wrap-command id cmd ex-type true)]
     (swap! control update :pending-evals conj id)
     (.write conn (:result command))))
 
@@ -68,25 +68,33 @@
   (let [pending-evals (atom {})
         cmd! (fn [id command ex]
                (send-command! conn id command control ex))
+        cmd-for (case repl-kind
+                  :bb (fn [{:keys [command id]}]
+                        (source/wrap-command id command "Exception" true))
+                  :joker (fn [{:keys [command id]}]
+                           (let [o (source/wrap-command id command "Error" false)
+                                 res (:result o)]
+                             (if res
+                               {:result (str/replace-all res #"clojure\.core/" "joker.core/")}
+                               o)))
+                  :cljs (fn [{:keys [command id]}]
+                          (source/wrap-command id command ":default" true))
+                  :cljr (fn [{:keys [command id]}]
+                          (source/wrap-command id command "System.Exception" true))
+                  (fn [{:keys [command id]}]
+                    (source/wrap-command id command "Exception" true)))
         eval-command (case repl-kind
-                       :bb (fn [{:keys [command id]}]
-                             (cmd! id command "Exception"))
-                       :joker (fn [{:keys [command namespace id]}]
+                       :bb (fn [{:keys [id command]}]
+                             (swap! control update :pending-evals conj id)
+                             (.write conn command))
+                       :joker (fn [{:keys [id command namespace]}]
                                 (send-namespace conn "joker.core/ns " namespace control)
-                                (let [command (str/replace-all (source/wrap-command id command "Error")
-                                                               #"clojure\.core/"
-                                                               "joker.core/")]
-                                  (swap! control update :pending-evals conj id)
-                                  (.write conn command)))
-                       :cljs (fn [{:keys [command namespace id]}]
-                               (send-namespace conn "in-ns '" namespace control)
-                               (cmd! id command ":default"))
-                       :cljr (fn [{:keys [command namespace id]}]
-                               (send-namespace conn "in-ns '" namespace control)
-                               (cmd! id command "System.Exception"))
-                       (fn [{:keys [command namespace id]}]
-                         (send-namespace conn "ns " namespace control)
-                         (cmd! id command "Throwable")))]
+                                (swap! control update :pending-evals conj id)
+                                (.write conn command))
+                       (fn [{:keys [id command namespace]}]
+                         (send-namespace conn "in-ns '" namespace control)
+                         (swap! control update :pending-evals conj id)
+                         (.write conn command)))]
 
     (if (= :clj repl-kind)
       (clj/prepare-unrepl-evaluator conn control on-output)
@@ -95,7 +103,7 @@
         (connection/prepare-evals control
                                   #(if-let [out %] (on-output {:out out}) (on-output nil))
                                   #(capture-eval-result pending-evals on-output %))
-        (->Generic pending-evals eval-command)))))
+        (->Generic pending-evals cmd-for eval-command)))))
 
 (defonce connections (atom {}))
 (defn connect-repl! [id host port on-output]
