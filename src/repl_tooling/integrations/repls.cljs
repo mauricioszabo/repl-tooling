@@ -105,10 +105,15 @@
                                   #(capture-eval-result pending-evals on-output %))
         (->Generic pending-evals cmd-for eval-command)))))
 
+(defn- ignore-output-on-control [control repl-kind]
+  (if-not (= :unknown repl-kind)
+    (swap! control update :ignore-output conj #":using-unknown-repl" #"^\n?.*?=> ")))
+
 (defonce connections (atom {}))
 (defn connect-repl! [id host port on-output]
   (.. (connect-and-detect! host port)
       (then (fn [{:keys [conn control repl-kind]}]
+              (ignore-output-on-control control repl-kind)
               (swap! connections assoc id conn)
               (.then ^js repl-kind
                      (fn [kind]
