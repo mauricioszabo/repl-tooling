@@ -53,37 +53,43 @@
                   (fn [contents _]
                     [range (helpers/text-in-range contents range)])))))
 
-(defn- cmds-for [state {:keys [editor-data] :as opts}]
-  {:evaluate-top-block {:name "Evaluate Top Block"
-                        :description "Evaluates top block block on current editor's selection"
-                        :command #(eval-top-block state (editor-data) opts)}
-   :evaluate-block {:name "Evaluate Block"
-                    :description "Evaluates current block on editor's selection"
-                    :command #(eval-block state (editor-data) opts)}
-   :evaluate-selection {:name "Evaluate Selection"
-                        :description "Evaluates current editor's selection"
-                        :command #(eval-selection state (editor-data) opts)}
-   :break-evaluation {:name "Break Evaluation"
-                      :description "Break current running eval"
-                      :command #(eval/break (:clj/repl @state) (:clj/aux @state))}
-   :load-file {:name "Load File"
-               :description "Loads current file on a Clojure REPL"
-               :command (fn [] (ensure-data (editor-data)
-                                            #(loaders/load-file opts
-                                                                {:repl-kind (-> @state :repl/info :kind)
-                                                                 :repl-name (-> @state :repl/info :kind-name)
-                                                                 :repl (:clj/aux @state)
-                                                                 :editor-data %})))}
-   :connect-embedded {:name "Connect Embedded ClojureScript REPL"
-                      :description "Connects to a ClojureScript REPL inside a Clojure one"
-                      :command #(embedded/connect! state opts)}
-   :disconnect {:name "Disconnect REPLs"
-                :description "Disconnect all current connected REPLs"
-                :command #(handle-disconnect! state)}})
+(defn- cmds-for [state {:keys [editor-data] :as opts} repl-kind]
+  (cond->
+   {:evaluate-top-block {:name "Evaluate Top Block"
+                         :description "Evaluates top block block on current editor's selection"
+                         :command #(eval-top-block state (editor-data) opts)}
+    :evaluate-block {:name "Evaluate Block"
+                     :description "Evaluates current block on editor's selection"
+                     :command #(eval-block state (editor-data) opts)}
+    :evaluate-selection {:name "Evaluate Selection"
+                         :description "Evaluates current editor's selection"
+                         :command #(eval-selection state (editor-data) opts)}
+    :disconnect {:name "Disconnect REPLs"
+                 :description "Disconnect all current connected REPLs"
+                 :command #(handle-disconnect! state)}}
 
-(defn- features-for [state {:keys [editor-data] :as opts}]
-  {:autocomplete #(ensure-data (editor-data)
-                               (fn [data] (autocomplete/command state opts data)))
+   (= :clj repl-kind)
+   (assoc
+    :break-evaluation {:name "Break Evaluation"
+                       :description "Break current running eval"
+                       :command #(eval/break (:clj/repl @state) (:clj/aux @state))}
+    :load-file {:name "Load File"
+                :description "Loads current file on a Clojure REPL"
+                :command (fn [] (ensure-data (editor-data)
+                                             #(loaders/load-file
+                                               opts {:repl-kind (-> @state :repl/info :kind)
+                                                     :repl-name (-> @state :repl/info :kind-name)
+                                                     :repl (:clj/aux @state)
+                                                     :editor-data %})))}
+    :connect-embedded {:name "Connect Embedded ClojureScript REPL"
+                       :description "Connects to a ClojureScript REPL inside a Clojure one"
+                       :command #(embedded/connect! state opts)})))
+
+(defn- features-for [state {:keys [editor-data] :as opts} repl-kind]
+  {:autocomplete (if (= :bb repl-kind)
+                   (constantly (. js/Promise resolve []))
+                   #(ensure-data (editor-data)
+                                (fn [data] (autocomplete/command state opts data))))
    :eval-and-render (fn [code range]
                       (ensure-data (editor-data)
                                    #(eval-range state % opts (constantly [range code]))))})
@@ -125,9 +131,10 @@
      (let [state (atom evaluators)
            options (merge default-opts opts)]
 
+       ; TODO: Check this last parameter
        (swap! state assoc
-              :editor/commands (cmds-for state options)
-              :editor/features (features-for state options))
+              :editor/commands (cmds-for state options :clj)
+              :editor/features (features-for state options :clj))
        (resolve state)))))
 
 (defn connect-unrepl!
@@ -173,8 +180,8 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                                   (reset! state {:clj/aux aux
                                                  :clj/repl @primary
                                                  :repl/info {:host host :port port}
-                                                 :editor/commands (cmds-for state options)
-                                                 :editor/features (features-for state options)})
+                                                 :editor/commands (cmds-for state options :clj)
+                                                 :editor/features (features-for state options :clj)})
                                   (resolve state))))]
 
        (eval/evaluate aux ":aux-connected" {:ignore true}
@@ -188,16 +195,16 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 (defn- prepare-cljs [primary host port state options]
   (reset! state {:cljs/repl primary
                  :repl/info {:host host :port port :kind :cljs :kind-name (tr-kind :cljs)}
-                 :editor/commands (cmds-for state options)
-                 :editor/features (features-for state options)}))
+                 :editor/commands (cmds-for state options :cljs)
+                 :editor/features (features-for state options :cljs)}))
 
 (defn- prepare-joker [primary host port state options]
   (reset! state {:clj/repl primary
                  :clj/aux primary
                  :repl/info {:host host :port port
                              :kind :joker :kind-name (tr-kind :joker)}
-                 :editor/commands (cmds-for state options)
-                 :editor/features (features-for state options)}))
+                 :editor/commands (cmds-for state options :joker)
+                 :editor/features (features-for state options :joker)}))
 
 (defn- prepare-generic [primary aux host port state options kind]
   (when (= :clj kind)
@@ -206,8 +213,8 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
   (reset! state {:clj/aux aux
                  :clj/repl primary
                  :repl/info {:host host :port port :kind kind :kind-name (tr-kind kind)}
-                 :editor/commands (cmds-for state options)
-                 :editor/features (features-for state options)}))
+                 :editor/commands (cmds-for state options kind)
+                 :editor/features (features-for state options kind)}))
 
 (defn connect!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
