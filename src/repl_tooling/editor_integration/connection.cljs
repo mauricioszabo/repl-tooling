@@ -216,6 +216,18 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                  :editor/commands (cmds-for state options kind)
                  :editor/features (features-for state options kind)}))
 
+(defn- connection-error! [error notify]
+  (if (= "ECONNREFUSED")
+    (notify {:type :error
+             :title "REPL not connected"
+             :message (str "Connection refused. Ensure that you have a "
+                           "Socket REPL started on this host/port")})
+    (notify {:type :error
+             :title "REPL not connected"
+             :message (str "Unknow error while connecting to the REPL: "
+                           error)}))
+  nil)
+
 (defn connect!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
 callbacks:
@@ -263,14 +275,4 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                                      (prepare-generic primary aux host port state
                                                       options kind)))))
                     (then (fn [] state)))))
-        (catch (fn [error]
-                 (if (= "ECONNREFUSED")
-                   (notify {:type :error
-                            :title "REPL not connected"
-                            :message (str "Connection refused. Ensure that you have a "
-                                          "Socket REPL started on this host/port")})
-                   (notify {:type :error
-                            :title "REPL not connected"
-                            :message (str "Unknow error while connecting to the REPL: "
-                                          error)}))
-                 nil)))))
+        (catch #(connection-error! % notify)))))
