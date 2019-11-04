@@ -10,6 +10,7 @@
                 [devcards "0.2.5"]]
 
  :builds {:integration {:target :browser
+                        :js-options {:js-provider :require}
                         :output-dir "target/integration"
                         :asset-path "target/integration"
                         :modules {:main {:entries [repl-tooling.integration.ui]}}

@@ -8,7 +8,6 @@
             [repl-tooling.editor-helpers :as helpers]))
 
 (def blob (cljs-blob-contents))
-
 (defn- lumo-autocomplete [repl ns-name prefix]
   (js/Promise. (fn [resolve]
                  (eval/evaluate repl

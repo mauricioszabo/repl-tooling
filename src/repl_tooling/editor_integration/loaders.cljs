@@ -28,13 +28,22 @@
                    {:namespace "user" :ignore true}
                    #(notify {:type :info :title "Loaded file" :message filename}))))
 
-(defn load-file [{:keys [notify get-config] :as opts} repl editor-data]
+(defn load-file [{:keys [notify get-config] :as opts}
+                 {:keys [repl-kind repl-name repl editor-data]}]
   (if-let [filename (:filename editor-data)]
-    (if (e-eval/need-cljs? (get-config) filename)
+    (cond
+      (e-eval/need-cljs? (get-config) filename)
       (notify {:type :error
                :title "Can't load-file in a CLJS file"
                :message "ClojureScript files are not supported to load file"})
-      (do-load-file filename repl notify))
+
+      (= :clj repl-kind)
+      (do-load-file filename repl notify)
+
+      :else
+      (notify {:type :error
+               :title "Can't load file for this kind of REPL"
+               :message (str "Loading files on " repl-name " is not supported.")}))
     (notify {:type :error
              :title "No file to load"
              :message (str "Can't find a file to load. Please, ensure that "
