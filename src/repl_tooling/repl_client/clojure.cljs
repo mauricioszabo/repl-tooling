@@ -222,6 +222,7 @@
   (break [this repl]))
 
 (defn- treat-result-of-call [out pending output-fn buffer]
+  (when (= ::ignore-next @buffer) (reset! buffer nil))
   (let [full-out (str @buffer out)
         [_ id] (re-find #"^\[tooling\$eval-res (.+?) " full-out)]
     (if-let [pendency (some->> id symbol (get @pending))]
