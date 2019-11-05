@@ -38,7 +38,7 @@ const runTestAndCollectResult = async (client, idx, numTests, numFailures) => {
     totalFailures += 1
   }
   if(idx >= numTests) {
-    console.log(`   ${numPasses} test(s) passed`)
+    if(!isNaN(numPasses)) console.log(`   ${numPasses} test(s) passed`)
     return totalFailures
   } else {
     return runTestAndCollectResult(client, idx + 1, numTests, totalFailures)
