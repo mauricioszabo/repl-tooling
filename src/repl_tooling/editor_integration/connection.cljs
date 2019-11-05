@@ -179,7 +179,9 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                                 (fn []
                                   (reset! state {:clj/aux aux
                                                  :clj/repl @primary
-                                                 :repl/info {:host host :port port}
+                                                 :repl/info {:host host :port port
+                                                             :kind :clj
+                                                             :kind-name "Clojure"}
                                                  :editor/commands (cmds-for state options :clj)
                                                  :editor/features (features-for state options :clj)})
                                   (resolve state))))]
