@@ -17,10 +17,10 @@
                                                       (clojure.core/pr-str (clojure.core/name res))
                                                       "]"))
 
-                            (clojure.core/->> res type str (clojure.core/re-find #"Big(Decimal|Float)"))
+                            (clojure.core/->> res clojure.core/type clojure.core/str (clojure.core/re-find #"Big(Decimal|Float)"))
                             (clojure.core/symbol (clojure.core/str "#unrepl/bigdec "res))
 
-                            (clojure.core/->> res type str (clojure.core/re-find #"BigInt"))
+                            (clojure.core/->> res clojure.core/type clojure.core/str (clojure.core/re-find #"BigInt"))
                             (clojure.core/symbol (clojure.core/str "#unrepl/bigint "res))
 
                             :else res)]
