@@ -17,6 +17,7 @@
      (client/disconnect! :clj-simple)
      (let [repl (clj/repl :clj-simple "localhost" 2233 identity)
            chan (async/promise-chan)]
+       (clj/disable-limits! repl)
 
        (testing "completing core functions"
          (let [res (simple/for-clj repl 'repl-tooling.integration.fixture-app "prn")]
