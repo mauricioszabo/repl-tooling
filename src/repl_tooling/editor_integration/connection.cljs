@@ -179,7 +179,9 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                                 (fn []
                                   (reset! state {:clj/aux aux
                                                  :clj/repl @primary
-                                                 :repl/info {:host host :port port}
+                                                 :repl/info {:host host :port port
+                                                             :kind :clj
+                                                             :kind-name "Clojure"}
                                                  :editor/commands (cmds-for state options :clj)
                                                  :editor/features (features-for state options :clj)})
                                   (resolve state))))]
@@ -215,6 +217,18 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                  :repl/info {:host host :port port :kind kind :kind-name (tr-kind kind)}
                  :editor/commands (cmds-for state options kind)
                  :editor/features (features-for state options kind)}))
+
+(defn- connection-error! [error notify]
+  (if (= "ECONNREFUSED")
+    (notify {:type :error
+             :title "REPL not connected"
+             :message (str "Connection refused. Ensure that you have a "
+                           "Socket REPL started on this host/port")})
+    (notify {:type :error
+             :title "REPL not connected"
+             :message (str "Unknow error while connecting to the REPL: "
+                           error)}))
+  nil)
 
 (defn connect!
   "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
@@ -263,14 +277,4 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                                      (prepare-generic primary aux host port state
                                                       options kind)))))
                     (then (fn [] state)))))
-        (catch (fn [error]
-                 (if (= "ECONNREFUSED")
-                   (notify {:type :error
-                            :title "REPL not connected"
-                            :message (str "Connection refused. Ensure that you have a "
-                                          "Socket REPL started on this host/port")})
-                   (notify {:type :error
-                            :title "REPL not connected"
-                            :message (str "Unknow error while connecting to the REPL: "
-                                          error)}))
-                 nil)))))
+        (catch #(connection-error! % notify)))))

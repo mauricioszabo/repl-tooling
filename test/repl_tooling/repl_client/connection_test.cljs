@@ -119,17 +119,6 @@
        (async/close! results)
        (done)))))
 
-(cards/deftest repl-evaluation
-  (async done
-    (async/go
-     (some-> @state :conn .end)
-     (reset! state (c/connect! "localhost" 2233))
-
-     (check (async/<! (check-string #"shadow.user"))
-            => #"shadow.user")
-     (some-> @state :conn .end)
-     (done))))
-
 (cards/defcard-rg buffers
   (fn [buffer]
     [:div (pr-str @buffer)])

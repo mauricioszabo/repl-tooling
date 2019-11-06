@@ -11,19 +11,34 @@ const newApp = () => {
   return app.start()
 }
 
+const sleep = num => new Promise(resolve => {
+  setTimeout(resolve, num)
+})
+
 const runTestAndCollectResult = async (client, idx, numTests, numFailures) => {
   const selector = `.com-rigsomelight-devcard:nth-child(${idx})`
   const testName = await client.$(selector + " a").getText()
   const failures = await client.$$(selector + ' .com-rigsomelight-devcards-fail')
 
   console.log(`  ${testName}`)
+
+  let numPasses = 0, i = 0
+  for(; i < 50; i++) {
+    const num = await client.$(`${selector} button`).getText().catch(_ => "")
+    numPasses = parseInt(num)
+    if(numPasses != 0) { break; } else { await sleep(100) }
+  }
   await client.$(selector + ' .com-rigsomelight-devcards-fail').getText()
     .then(console.log)
     .catch(() => console.log("   No errors on test"))
-  const totalFailures = failures.length + numFailures
+
+  let totalFailures = failures.length + numFailures
+  if(numPasses == 0) {
+    console.log("   Nothing passed on this testcase")
+    totalFailures += 1
+  }
   if(idx >= numTests) {
-    const numPasses = await client.$(`${selector} button`).getText()
-    console.log(`   ${numPasses} test(s) passed`)
+    if(!isNaN(numPasses)) console.log(`   ${numPasses} test(s) passed`)
     return totalFailures
   } else {
     return runTestAndCollectResult(client, idx + 1, numTests, totalFailures)

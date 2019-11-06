@@ -25,7 +25,7 @@
          (let [res (eval-and-parse "(range)")
                ellided (async/promise-chan)
                ellide-fn (eval/get-more-fn (:result res))]
-           (check (:as-text res) => "(0 1 2 3 4 5 6 7 8 9 ...)")
+           (check (:as-text res) => #"\(0 1 2 3 4 5 6 7 8 9 \{:repl-tooling.*\)")
            (check (eval/without-ellision (:result res)) => '(0 1 2 3 4 5 6 7 8 9))
            (ellide-fn repl #(async/put! ellided %))
            (check (eval/without-ellision (async/<! ellided)) =>
@@ -35,7 +35,7 @@
          (let [res (eval-and-parse "(vec (range 100))")
                ellided (async/promise-chan)
                ellide-fn (eval/get-more-fn (:result res))]
-           (check (:as-text res) => "[0 1 2 3 4 5 6 7 8 9 ...]")
+           (check (:as-text res) => #"\[0 1 2 3 4 5 6 7 8 9 \{:repl-tooling.*\]")
            (check (eval/without-ellision (:result res)) => [0 1 2 3 4 5 6 7 8 9])
            (check (eval/without-ellision (:result res)) => vector?)
            (ellide-fn repl #(async/put! ellided %))

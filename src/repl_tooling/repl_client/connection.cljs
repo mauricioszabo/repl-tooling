@@ -9,6 +9,7 @@
   (js/clearTimeout (:timeout-id @control))
   (let [[fst snd] (str/split last-line #"\n" 2)]
     (on-line (apply str (concat (:emitted-frags @control) frags [fst])))
+    (swap! control assoc :emitted-frags [])
     (on-fragment (apply str (concat frags [fst "\n"])))
     (swap! buffer #(if (empty? snd)
                      (subvec % (-> frags count inc))

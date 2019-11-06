@@ -39,7 +39,7 @@
   (let [state (-> repl :session deref :state)
         params {:unrepl/sourcename (str filename)
                 :unrepl/column (-> col (or 1) dec)
-                :unrepl/line (-> row (or 1) dec)}]
+                :unrepl/line (-> row (or 1) dec dec)}]
     (when namespace
       (add-to-eval-queue! state
                           {:cmd (str "(ns " namespace ")") :ignore-result? true}))
