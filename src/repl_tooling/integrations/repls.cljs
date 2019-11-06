@@ -61,7 +61,7 @@
 
 (defn- send-namespace [^js conn ns-command namespace control]
   (when namespace
-    (swap! control update :ignore-output conj #"^\n?.*?=> " #"nil\n")
+    (swap! control update :ignore-output conj #"^\n?.*?=> " #"(?:.+Namespace.+|nil)\n")
     (.write conn (str "(" ns-command namespace ")"))))
 
 (defn- instantiate-correct-evaluator [repl-kind ^js conn control on-output]
