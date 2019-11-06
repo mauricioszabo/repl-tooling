@@ -18,19 +18,21 @@ const sleep = num => new Promise(resolve => {
 const runTestAndCollectResult = async (client, idx, numTests, numFailures) => {
   const selector = `.com-rigsomelight-devcard:nth-child(${idx})`
   const testName = await client.$(selector + " a").getText()
-  const failures = await client.$$(selector + ' .com-rigsomelight-devcards-fail')
+  const failSelector = ' .com-rigsomelight-devcards-fail,.com-rigsomelight-devcards-error'
 
   console.log(`  ${testName}`)
 
   let numPasses = 0, i = 0
-  for(; i < 50; i++) {
+  for(; i < 250; i++) {
     const num = await client.$(`${selector} button`).getText().catch(_ => "")
     numPasses = parseInt(num)
     if(numPasses != 0) { break; } else { await sleep(100) }
   }
-  await client.$(selector + ' .com-rigsomelight-devcards-fail').getText()
+  await client.$(selector + failSelector).getText()
     .then(console.log)
     .catch(() => console.log("   No errors on test"))
+  const failures = await client.$$(selector + failSelector)
+
 
   let totalFailures = failures.length + numFailures
   if(numPasses == 0) {
