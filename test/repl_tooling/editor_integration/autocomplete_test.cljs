@@ -23,6 +23,7 @@
            _ (. (conn/connect! "localhost" 2233
                                {:editor-data #(deref data)
                                 :prompt (constantly (.resolve js/Promise "fixture"))
+                                :notify identity
                                 :get-config
                                 (constantly {:eval-mode :prefer-cljs
                                              :project-paths [(. js/process cwd)]})})

@@ -66,13 +66,7 @@
                          :command #(eval-selection state (editor-data) opts)}
     :disconnect {:name "Disconnect REPLs"
                  :description "Disconnect all current connected REPLs"
-                 :command #(handle-disconnect! state)}}
-
-   (= :clj repl-kind)
-   (assoc
-    :break-evaluation {:name "Break Evaluation"
-                       :description "Break current running eval"
-                       :command #(eval/break (:clj/repl @state) (:clj/aux @state))}
+                 :command #(handle-disconnect! state)}
     :load-file {:name "Load File"
                 :description "Loads current file on a Clojure REPL"
                 :command (fn [] (ensure-data (editor-data)
@@ -80,7 +74,13 @@
                                                opts {:repl-kind (-> @state :repl/info :kind)
                                                      :repl-name (-> @state :repl/info :kind-name)
                                                      :repl (:clj/aux @state)
-                                                     :editor-data %})))}
+                                                     :editor-data %})))}}
+
+   (= :clj repl-kind)
+   (assoc
+    :break-evaluation {:name "Break Evaluation"
+                       :description "Break current running eval"
+                       :command #(eval/break (:clj/repl @state) (:clj/aux @state))}
     :connect-embedded {:name "Connect Embedded ClojureScript REPL"
                        :description "Connects to a ClojureScript REPL inside a Clojure one"
                        :command #(embedded/connect! state opts)})))
@@ -93,16 +93,6 @@
    :eval-and-render (fn [code range]
                       (ensure-data (editor-data)
                                    #(eval-range state % opts (constantly [range code]))))})
-
-(defn- disable-limits! [aux]
-  (eval/evaluate aux
-                 (clj-repl/unrepl-cmd (-> aux :session deref :state)
-                                      :print-limits
-                                      {:unrepl.print/string-length 9223372036854775807
-                                       :unrepl.print/coll-length 9223372036854775807
-                                       :unrepl.print/nesting-depth 9223372036854775807})
-                 {:ignore true}
-                 identity))
 
 (defn- callback-fn [state on-stdout on-stderr on-result on-disconnect output]
   (when (nil? output)
@@ -174,7 +164,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
            primary (delay (clj-repl/repl :clj-eval host port callback))
            options (merge default-opts opts)
            connect-primary (fn []
-                             (disable-limits! aux)
+                             (clj-repl/disable-limits! aux)
                              (eval/evaluate @primary ":primary-connected" {:ignore true}
                                 (fn []
                                   (reset! state {:clj/aux aux
@@ -210,7 +200,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 
 (defn- prepare-generic [primary aux host port state options kind]
   (when (= :clj kind)
-    (eval/evaluate aux ":aux-connected" {:ignore true} #(disable-limits! aux)))
+    (eval/evaluate aux ":aux-connected" {:ignore true} #(clj-repl/disable-limits! aux)))
 
   (reset! state {:clj/aux aux
                  :clj/repl primary
