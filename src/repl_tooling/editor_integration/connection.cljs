@@ -94,16 +94,6 @@
                       (ensure-data (editor-data)
                                    #(eval-range state % opts (constantly [range code]))))})
 
-(defn- disable-limits! [aux]
-  (eval/evaluate aux
-                 (clj-repl/unrepl-cmd (-> aux :session deref :state)
-                                      :print-limits
-                                      {:unrepl.print/string-length 9223372036854775807
-                                       :unrepl.print/coll-length 9223372036854775807
-                                       :unrepl.print/nesting-depth 9223372036854775807})
-                 {:ignore true}
-                 identity))
-
 (defn- callback-fn [state on-stdout on-stderr on-result on-disconnect output]
   (when (nil? output)
     (handle-disconnect! state)
@@ -174,7 +164,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
            primary (delay (clj-repl/repl :clj-eval host port callback))
            options (merge default-opts opts)
            connect-primary (fn []
-                             (disable-limits! aux)
+                             (clj-repl/disable-limits! aux)
                              (eval/evaluate @primary ":primary-connected" {:ignore true}
                                 (fn []
                                   (reset! state {:clj/aux aux
@@ -210,7 +200,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 
 (defn- prepare-generic [primary aux host port state options kind]
   (when (= :clj kind)
-    (eval/evaluate aux ":aux-connected" {:ignore true} #(disable-limits! aux)))
+    (eval/evaluate aux ":aux-connected" {:ignore true} #(clj-repl/disable-limits! aux)))
 
   (reset! state {:clj/aux aux
                  :clj/repl primary
