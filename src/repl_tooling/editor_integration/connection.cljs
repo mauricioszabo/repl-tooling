@@ -66,13 +66,7 @@
                          :command #(eval-selection state (editor-data) opts)}
     :disconnect {:name "Disconnect REPLs"
                  :description "Disconnect all current connected REPLs"
-                 :command #(handle-disconnect! state)}}
-
-   (= :clj repl-kind)
-   (assoc
-    :break-evaluation {:name "Break Evaluation"
-                       :description "Break current running eval"
-                       :command #(eval/break (:clj/repl @state) (:clj/aux @state))}
+                 :command #(handle-disconnect! state)}
     :load-file {:name "Load File"
                 :description "Loads current file on a Clojure REPL"
                 :command (fn [] (ensure-data (editor-data)
@@ -80,7 +74,13 @@
                                                opts {:repl-kind (-> @state :repl/info :kind)
                                                      :repl-name (-> @state :repl/info :kind-name)
                                                      :repl (:clj/aux @state)
-                                                     :editor-data %})))}
+                                                     :editor-data %})))}}
+
+   (= :clj repl-kind)
+   (assoc
+    :break-evaluation {:name "Break Evaluation"
+                       :description "Break current running eval"
+                       :command #(eval/break (:clj/repl @state) (:clj/aux @state))}
     :connect-embedded {:name "Connect Embedded ClojureScript REPL"
                        :description "Connects to a ClojureScript REPL inside a Clojure one"
                        :command #(embedded/connect! state opts)})))
