@@ -52,6 +52,7 @@
                      {:on-disconnect handle-disconnect
                       :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
                       :on-eval res
+                      :notify identity
                       :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
                       :editor-data #(let [code (:code @state)]
                                       {:contents code
@@ -190,6 +191,10 @@
        (ui/assert-out "true" "true")
        (ui/assert-out "false" "false")
        (ui/assert-out "nil" "nil"))
+
+     (testing "displays UUIDs"
+       (ui/assert-out "#uuid \"00000000-0000-0000-0000-000000000000\""
+                      "(java.util.UUID/fromString \"00000000-0000-0000-0000-000000000000\")"))
 
      (testing "captures STDOUT"
        (type-and-eval "(println :FOOBAR)")
