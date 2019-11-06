@@ -5,6 +5,7 @@ const path = require('path')
 
 const newApp = () => {
   const app = new Application({
+    waitTimeout: 15000,
     path: electronPath,
     args: ["integration.js"]
   })
