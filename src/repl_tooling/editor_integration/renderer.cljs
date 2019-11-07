@@ -183,7 +183,7 @@
        [:text "\""]]
       [:text (pr-str string)])))
 
-(defrecord Tagged [tag subelement]
+(defrecord Tagged [tag subelement open?]
   Renderable
   (as-text [_ ratom root?]
     (let [structure (as-text @subelement subelement root?)
@@ -199,8 +199,14 @@
         (update-in structure [2 0] #(str tag %)))))
 
   (as-html [_ ratom root?]
-    [:div {:class "tagged"} [:span {:class "tag"} tag]
-     [as-html @subelement subelement root?]]))
+    (let [will-be-open? (and root? open?)]
+      [:div {:class "tagged"}
+       (when root?
+         [:a {:class ["chevron" (if open? "opened" "closed")] :href "#"
+              :on-click (fn [e] (.preventDefault e) (swap! ratom update :open? not))}])
+       [:div {:class ["tag" (when will-be-open? "row")]} tag
+        [:div {:class [(when will-be-open? "children")]}
+         [as-html @subelement subelement will-be-open?]]]])))
 
 (defrecord IncompleteObj [incomplete repl]
   Renderable
@@ -345,7 +351,7 @@
   (as-renderable [self repl]
     (let [tag (helpers/tag self)
           subelement (-> self helpers/obj (as-renderable repl))]
-      (r/atom (->Tagged tag subelement))))
+      (r/atom (->Tagged tag subelement false))))
 
   default
   (as-renderable [obj repl]
