@@ -53,11 +53,10 @@
 
 (defn- calculate-match [output control]
   (when-let [re (-> @control :ignore-output first)]
+    (swap! control update :ignore-output rest)
     (if-let [match (re-find re output)]
       match
-      (do
-        (swap! control update :ignore-output rest)
-        (recur output control)))))
+      (recur output control))))
 
 (defn- send-output [output control on-output]
   (when (not-empty output)
