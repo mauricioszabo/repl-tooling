@@ -24,11 +24,11 @@
        (testing "textual representation to pure text"
          (check (render/repr->lines [:row [:text "foobar"]]) => [["foobar"] {}])
          (check (render/repr->lines [:row [:text "foobar"] [:button "..." :f]])
-                => [["foobar ..."] {[0 7] :f [0 8] :f [0 9] :f}])
+                => [["foobar..."] {[0 6] :f [0 7] :f [0 8] :f}])
 
          (check (render/repr->lines [:row [:text "foobar"]
                                      [:row [:button "+" :e] [:text "Sub"]]])
-                => [["foobar" "  + Sub"] {[1 2] :e}]))
+                => [["foobar" "  +Sub"] {[1 2] :e}]))
 
        (testing "rendering leafs"
          (check (as-txt (eval-and-parse "10") repl) => [:row [:text "10"]]))
@@ -94,7 +94,7 @@
          (let [parsed (render/parse-result (eval-and-parse "(range 20)") repl)
                [row expand text ellision end] (render/txt-for-result parsed)]
            (check row => :row)
-           (check text => [:text "(0 1 2 3 4 5 6 7 8 9"])
+           (check text => [:text "(0 1 2 3 4 5 6 7 8 9 "])
            (check (take 2 ellision) => [:button "..."])
            (check end => [:text ")"])
            (testing "expanding"
@@ -116,7 +116,63 @@
                [txt funs] (render/repr->lines (render/txt-for-result parsed))]
            (check txt => ["+  [(0 1 2 3 4 5 6 7 8 9 ...)]"])))
 
-       (async/<! (async/timeout 1000))
+       (testing "rendering simple exceptions"
+         (let [parsed (render/parse-result (eval-and-parse "(/ 10 0)") repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+           (check (take 2 txt) => ["java.lang.ArithmeticException: \"Divide by zero\""
+                                   "  in clojure.lang.Numbers.divide (Numbers.java:188)"])))
+
+       (testing "rendering exceptions with big text and data"
+         (let [parsed (render/parse-result
+                       (eval-and-parse "(throw (ex-info (apply str (range 100)) {:foo (range 100)}))")
+                       repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+           (check (take 2 txt) => [(str "clojure.lang.ExceptionInfo: \"012345678910111"
+                                        "2131415161718192021222324252627282930313233"
+                                        "3435363738394041424344...\"")
+                                   "  +  {:data {:foo (0 1 2 3 4 5 6 7 8 9 ...)}}"])))
+
+       (testing "rendering tagged literals for non-collections"
+         (let [parsed (render/parse-result
+                       (eval-and-parse "(tagged-literal 'foobar :FOOBAR)") repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+           (check txt => ["#foobar :FOOBAR"])))
+
+       (testing "rendering tagged literals"
+         (let [parsed (render/parse-result
+                       (eval-and-parse "(tagged-literal 'foobar {:foo :bar})") repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+           (check txt => ["+  #foobar {:foo :bar}"])
+
+           ((get funs [0 0]) identity)
+           (check (-> parsed render/txt-for-result render/repr->lines first)
+                  => ["-  #foobar {:foo :bar}"
+                      "  +  [:foo :bar]"])))
+
+       (testing "rendering browseable objects"
+         (let [parsed (render/parse-result (eval-and-parse "Object") repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))
+               wait (async/promise-chan)]
+           (check txt => ["java.lang.Object..."])
+
+           ((get funs [0 16]) #(async/put! wait :done))
+           (async/<! wait)
+           (-> parsed render/txt-for-result render/repr->lines first first
+               (check => "java.lang.Object"))
+           (-> parsed render/txt-for-result render/repr->lines first second
+               (check => #"new java\.lang\.Object"))))
+
+       #_
+       (testing "rendering incomplete objects"
+         (let [obj (helpers/->IncompleteObj (fn [ & args] ((last args) {:result ":FOO"})))
+               parsed (render/parse-result {:result obj :parsed? true} repl)
+               [txt funs] (render/repr->lines (render/txt-for-result parsed))
+               wait (async/promise-chan)]
+           (check txt => ["..."])
+           ((get funs [0 0]) #(async/put! wait :done))
+           (async/<! wait)
+           (-> parsed render/txt-for-result render/repr->lines first
+               (check => [":FOO"]))))
 
        (client/disconnect! :clj-text-1)
        (done)))))

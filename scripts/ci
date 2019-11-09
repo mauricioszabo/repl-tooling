@@ -1,14 +1,19 @@
 #!/bin/bash
 
-npx shadow-cljs watch integration &
-for n in {1..15}; do
-  ls target/all_tests.js &>/dev/null && break
+sudo apt install libglib2.0-0 libnss3 libgtk3.0 libxss1 libasound2
+npm install
+npx shadow-cljs watch integration fixture &
+for n in {1..25}; do
+  ls target/integration/main.js &>/dev/null && break
   echo "Not compiled yet, waiting..."
-  sleep 10
+  sleep 20
 done
-node target/all_tests.js
+node target/fixture.js &
+
+export DISPLAY=:99
+Xvfb :99 &
+node integration_test.js
 ret=$?
 
 echo -e "(System/exit 0)\n" | nc localhost 2233
-
 exit $ret

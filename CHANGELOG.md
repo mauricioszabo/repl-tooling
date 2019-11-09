@@ -9,14 +9,22 @@
 
 ## Next Version
 - Add support for more than one form eval on Clojure REPL
-- Break on Clojure (https://github.com/mauricioszabo/repl-tooling/issues/6)
-- Fixed "burst commands" (https://github.com/mauricioszabo/repl-tooling/issues/24)
-- Renderer for results and errors
-- Autocomplete for clj with compliment
-- Autocomplete for CLJS (only functions)
+
+## 0.2.1
+- Fixed prompt appearing on ClojureScript
+- Fixed `:pass` opts not being redirected to editor (fixes doc)
+- Fixed exception messages
+- Autocomplete crashing when prefix is null or empty
+
+## 0.2.0
 - Clojure socket REPL with UnREPL
 - ClojureScript self-hosted REPL (run a command to start a CLJS REPL)
-- Preliminary support for detecting forms/comments/namespaces
+- Support for detecting forms/comments/namespaces
+- AutoComplete on ClojureScript with Compliment
+- Renderer for results and errors
+- Autocomplete for clj with compliment
+- Break on Clojure (https://github.com/mauricioszabo/repl-tooling/issues/6)
+- Fixed "burst commands" (https://github.com/mauricioszabo/repl-tooling/issues/24)
 
 ## 0.0.2
 - Fixed a bug when we could interleave REPL commands

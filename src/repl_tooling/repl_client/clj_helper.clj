@@ -6,3 +6,6 @@
 
 (defmacro cljs-blob-contents []
   (slurp (io/resource "cljs-blob.cljs")))
+
+(defmacro generic-eval-wrapper []
+  (slurp (io/resource "generic-blob.clj")))

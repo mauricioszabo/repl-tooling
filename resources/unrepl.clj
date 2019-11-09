@@ -1,7 +1,7 @@
 (clojure.core/let [nop (clojure.core/constantly nil)
 done (promise)
 e (clojure.core/atom eval)]
-(-> (create-ns 'unrepl.repl$LCGtW9Cgr88YHErE3u8GL_79IP4)
+(-> (create-ns 'unrepl.repl$3rcwMcc9rCLOH4gMQfLo21mMbCs)
 (intern '-init-done)
 (alter-var-root
 (fn [v]
@@ -28,7 +28,7 @@ done))))
 *string-length* Long/MAX_VALUE]
 (write x)))
 (declare ^:once ^:dynamic read ^:once ^:dynamic print ^:once ^:dynamic eval)(ns
-unrepl.printer$jCMA$egbRLynqAGdd96gTkVQswU
+unrepl.printer$sLAANOHmMLoxkKB7aCzJx77hbB8
 (:require
 [clojure.string :as str]
 [clojure.edn :as edn]
@@ -57,15 +57,15 @@ Long/MAX_VALUE))
 impl (find-protocol-impl protocol x)]
 (not (identical? impl default)))))
 (def ^:private datafiable?
-(if-some [Datafiable (some-> 'clojure.core.protocols/Datafiable resolve deref)]
-#(or (get (meta %) 'clojure.core.protocols/datafy) (really-satisfies? Datafiable %))
+(if-some [Datafiable (some-> 'clojure.core.protocols/Datafiable resolve)]
+#(or (get (meta %) 'clojure.core.protocols/datafy) (really-satisfies? (deref Datafiable) %))
 (constantly false)))
 (def ^:private datafy
 (or (some-> 'clojure.core.protocols/datafy resolve deref)
 (clojure.lang.Var$Unbound. #'datafy)))
 (def ^:private navigable?
-(if-some [Navigable (some-> 'clojure.core.protocols/Navigable resolve deref)]
-#(or (get (meta %) 'clojure.core.protocols/nav) (really-satisfies? Navigable %))
+(if-some [Navigable (some-> 'clojure.core.protocols/Navigable resolve)]
+#(or (get (meta %) 'clojure.core.protocols/nav) (really-satisfies? (deref Navigable) %))
 (constantly false)))
 (def ^:private nav
 (or (some-> 'clojure.core.protocols/nav resolve deref)
@@ -316,32 +316,6 @@ m)))
 (if (neg? (compare (mapv *clojure-version* [:major :minor]) [1 9]))
 Throwable->map'
 Throwable->map))
-#_
-(let [l (java.util.LinkedList.)]
-(doseq [n (range 100)] (.add l {:taggable n}))
-l)
-#_
-(let [l (java.util.LinkedList.)]
-(doseq [n (range 1)] (.add l (java.util.UUID/randomUUID)))
-l
-(println
-(full-edn-str l)))
-#_
-(doto (java.util.LinkedList.)
-(.add 10)
-(.add 10)
-(.add 10)
-(.add 10)
-(.add 10)
-(.add 10)
-(.add 10)
-(.add 10)
-(.add 10)
-(.add 10)
-(.add 10)
-(.add 10))
-#_
-(println (edn-str (Object.)))
 (extend-protocol MachinePrintable
 clojure.lang.TaggedLiteral
 (-print-on [x write rem-depth]
@@ -353,13 +327,14 @@ unrepl/... (binding
 unrepl/*string-length* Long/MAX_VALUE]
 (write (str "#" (:tag x) " "))
 (print-on write (:form x) Long/MAX_VALUE))
-unrepl/browsable (let [[x thunk] (:form x)
+unrepl/browsable (let [[v thunk] (:form x)
 rem-depth (inc rem-depth)]
 (set! *print-budget* (bump *print-budget* 2))
 (write (str "#" (:tag x) " ["))
-(print-on write (:form x) rem-depth)
+(print-on write v rem-depth)
 (write " ")
-(print-on write (tagged-literal 'unrepl/... (*elide* (lazy-seq [(thunk)]))) rem-depth))
+(print-on write (tagged-literal 'unrepl/... (*elide* (lazy-seq [(thunk)]))) rem-depth)
+(write "]"))
 (print-tag-lit-on write (:tag x) (:form x) rem-depth)))
 clojure.lang.Ratio
 (-print-on [x write rem-depth]
@@ -432,7 +407,6 @@ rest (subs x i)]
 (write open)
 (print-vs write x rem-depth)
 (write close))
-(declare full-edn-str)
 (extend-protocol MachinePrintable
 nil
 (-print-on [_ write _] (write "nil"))
@@ -440,6 +414,8 @@ java.math.BigDecimal
 (-print-on [x write _] (write (str "#unrepl/bigdec \"" x "\"")))
 clojure.lang.BigInt
 (-print-on [x write _] (write (str "#unrepl/bigint \"" x "\"")))
+java.util.UUID
+(-print-on [x write _] (write (str "#uuid \"" x "\"")))
 Object
 (-print-on [x write rem-depth]
 (cond
@@ -480,11 +456,11 @@ bindings (select-keys (get-thread-bindings) [#'*print-length* #'*print-level* #'
 unrepl/*string-length* Integer/MAX_VALUE]
 (edn-str x)))
 (ns
-unrepl.repl$LCGtW9Cgr88YHErE3u8GL_79IP4
+unrepl.repl$3rcwMcc9rCLOH4gMQfLo21mMbCs
 (:require
 [clojure.main :as m]
 [unrepl.core :as unrepl]
-[unrepl.printer$jCMA$egbRLynqAGdd96gTkVQswU :as p]
+[unrepl.printer$sLAANOHmMLoxkKB7aCzJx77hbB8 :as p]
 [clojure.edn :as edn]
 [clojure.java.io :as io]))
 (defn classloader
@@ -644,12 +620,12 @@ ref (java.lang.ref.SoftReference. x refq)]
 (defonce ^:private elision-store (soft-store #(list `fetch %)))
 (defn fetch [id]
 (if-some [[session-id x] ((:get elision-store) id)]
-(unrepl.printer$jCMA$egbRLynqAGdd96gTkVQswU.WithBindings.
+(unrepl.printer$sLAANOHmMLoxkKB7aCzJx77hbB8.WithBindings.
 (select-keys (some-> session-id session :bindings) [#'*print-length* #'*print-level* #'unrepl/*string-length* #'p/*elide*])
 (cond
-(instance? unrepl.printer$jCMA$egbRLynqAGdd96gTkVQswU.ElidedKVs x) x
+(instance? unrepl.printer$sLAANOHmMLoxkKB7aCzJx77hbB8.ElidedKVs x) x
 (string? x) x
-(instance? unrepl.printer$jCMA$egbRLynqAGdd96gTkVQswU.MimeContent x) x
+(instance? unrepl.printer$sLAANOHmMLoxkKB7aCzJx77hbB8.MimeContent x) x
 :else (seq x)))
 p/unreachable))
 (defn interrupt! [session-id eval]
@@ -895,5 +871,5 @@ interrupted? #(.peek actions-queue)]
 ~expr))
 <<<FIN
 (clojure.core/ns user)
-(unrepl.repl$LCGtW9Cgr88YHErE3u8GL_79IP4/start (clojure.edn/read {:default tagged-literal} *in*))
+(unrepl.repl$3rcwMcc9rCLOH4gMQfLo21mMbCs/start (clojure.edn/read {:default tagged-literal} *in*))
 {}

@@ -3,7 +3,6 @@
             [repl-tooling.repl-client.protocols :as repl]
             [clojure.string :as str]))
 
-(def ^:private net (js/require "net"))
 (defonce ^:private sessions (atom {}))
 
 (defn disconnect! [session-name]
@@ -23,10 +22,3 @@
 
     (swap! sessions assoc session-name socket)
     [in out]))
-
-(defn integrate-repl [in out repl]
-  (let [n-in (async/chan)]
-    (go-loop []
-      (>! in (repl/cmd-to-send repl (str (<! n-in))))
-      (recur))
-    [n-in out]))

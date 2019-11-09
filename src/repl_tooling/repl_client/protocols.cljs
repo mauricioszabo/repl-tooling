@@ -2,9 +2,6 @@
   (:require [cljs.core.async :as async :refer [<! >!] :refer-macros [go-loop go]]
             [clojure.string :as str]))
 
-(defprotocol Repl
-  (cmd-to-send [_ command]))
-
 (defn- pause-buffer! [buffer] (swap! buffer assoc :paused true))
 (defn- resume-buffer! [buffer] (swap! buffer assoc :paused false))
 (defn- reset-contents! [buffer] (swap! buffer assoc :contents ""))

@@ -15,7 +15,10 @@
             [repl-tooling.repl-client.textual-representation-test]
             [repl-tooling.integration.clojurescript-ui]
             [repl-tooling.repl-client.evaluation-test]
-            [repl-tooling.features.definition-test]))
+            [repl-tooling.features.definition-test]
+            [repl-tooling.features.autocomplete-test]
+            [repl-tooling.editor-integration.autocomplete-test]
+            [repl-tooling.repl-client.connection-test]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
@@ -38,7 +41,7 @@
          :stdout nil :stderr nil
          :commands {}))
 
-(defn- res [result]
+(defn- res [{:keys [result]}]
   (reset! (:eval-result @state) (render/parse-result result (-> @state :repls :eval)))
   (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
 
@@ -49,16 +52,16 @@
                      {:on-disconnect handle-disconnect
                       :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
                       :on-eval res
+                      :notify identity
                       :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
-                      :editor-data #(let [code (:code @state)
-                                          lines (str/split-lines code)]
+                      :editor-data #(let [code (:code @state)]
                                       {:contents code
                                        :filename "foo.clj"
                                        :range (:range @state)})})
       (then (fn [res]
-              (swap! state assoc :repls {:eval (:clj/repl res)
-                                         :aux (:clj/aux res)}
-                     :commands (:editor/commands res)
+              (swap! state assoc :repls {:eval (:clj/repl @res)
+                                         :aux (:clj/aux @res)}
+                     :commands (:editor/commands @res)
                      :stdout "" :stderr ""))))))
 
 (defn- evaluate []
@@ -189,6 +192,10 @@
        (ui/assert-out "false" "false")
        (ui/assert-out "nil" "nil"))
 
+     (testing "displays UUIDs"
+       (ui/assert-out "#uuid \"00000000-0000-0000-0000-000000000000\""
+                      "(java.util.UUID/fromString \"00000000-0000-0000-0000-000000000000\")"))
+
      (testing "captures STDOUT"
        (type-and-eval "(println :FOOBAR)")
        (check (async/<! (change-stdout)) => #":FOOBAR"))
@@ -246,9 +253,9 @@
        (ui/assert-out #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 ... \) , :b 20 \}"
                       "(do (defrecord Foo [a b]) (->Foo (range 15) 20))")
        (ui/click-nth-link-and-assert
-        #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 \) , :b 20 \}" 2)
-       (ui/click-nth-link-and-assert-children
-        "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 ) ] [ :b 20 ]" 1))
+        #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 \) , :b 20 \}" 2))
+       ; (ui/click-nth-link-and-assert-children
+       ;  "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 ) ] [ :b 20 ]" 1))
 
      (testing "evaluates and presents classes"
        (ui/assert-out "java.lang.Object ..."
@@ -272,14 +279,19 @@
               => #"#foobar.baz/lolnein \.\.\."))
 
      (testing "clicking the ellision for object should render its representation"
-       (click-selector ".children .children div:nth-child(2) a")
+       (click-selector ".children .children div:nth-child(2) div div a")
        (async/<! (change-result))
-       (check (str/replace (txt-for-selector "#result .children") #"(\n|\s+)+" " ")
-              => #"#foobar.baz/lolnein \( 99 99 \) \.\.\."))
+       (check (str/replace (txt-for-selector "#result .children div.tag:nth-child(2)")
+                           #"(\n|\s+)+" " ")
+              => #"#foobar.baz/lolnein \( 99 99 \)"))
 
      (testing "division by zero renders an exception"
-       (ui/assert-out #"java.lang.ArithmeticException : Divide by zero"
+       (ui/assert-out #"java.lang.ArithmeticException : \"Divide by zero\""
                       "(/ 10 0)"))
+
+     (testing "shows exceptions on unidentified elements"
+       (ui/assert-out #"Unable to resolve classname: SomeUnknownObject"
+                      "(SomeUnknownObject.)"))
 
      (disconnect!)
      (done))))
