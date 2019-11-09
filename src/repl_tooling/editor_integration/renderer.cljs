@@ -205,7 +205,7 @@
          [:a {:class ["chevron" (if open? "opened" "closed")] :href "#"
               :on-click (fn [e] (.preventDefault e) (swap! ratom update :open? not))}])
        [:div {:class ["tag" (when will-be-open? "row")]} tag
-        [:div {:class [(when will-be-open? "children")]}
+        [:div {:class [(when will-be-open? "tag children")]}
          [as-html @subelement subelement will-be-open?]]]])))
 
 (defrecord IncompleteObj [incomplete repl]
