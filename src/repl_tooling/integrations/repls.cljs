@@ -7,9 +7,7 @@
             [repl-tooling.eval :as eval]))
 
 ;; Detection
-
 (defn- detect-output-kind [row chan]
-  ; FIXME: Detect closed port here
   (when-let [row-kind (re-find #":using-(.*)-repl" (str row))]
     (async/put! chan (keyword (second row-kind)))))
 
@@ -18,13 +16,17 @@
     then
     #(let [{:keys [conn buffer]} %
            kind-chan (async/promise-chan)]
-       (.write conn "\n")
-       (.write conn (str "#?(:cljs :using-cljs-repl :clj :using-clj-repl "
-                         ":cljr :using-cljr-repl "
-                         ":joker :using-joker-repl "
-                         ":bb :using-bb-repl)\n"))
-       (.write conn ":using-unknown-repl\n")
+       (js/setTimeout
+        (fn []
+          (.write conn (str "#?(:cljs :using-cljs-repl :clj :using-clj-repl "
+                              ":cljr :using-cljr-repl "
+                              ":joker :using-joker-repl "
+                              ":bb :using-bb-repl)\n"))))
+       (js/setTimeout
+        (fn []
+          (.write conn ":using-unknown-repl\n")))
        {:conn conn
+        :buffer buffer
         :control (connection/treat-buffer!
                   buffer (fn [out] (detect-output-kind out kind-chan)) identity)
         :repl-kind (js/Promise. (fn [resolve] (-> kind-chan async/<! resolve async/go)))})))
@@ -112,13 +114,17 @@
 (defonce connections (atom {}))
 (defn connect-repl! [id host port on-output]
   (.. (connect-and-detect! host port)
-      (then (fn [{:keys [conn control repl-kind]}]
+      (then (fn [{:keys [conn control repl-kind buffer]}]
               (ignore-output-on-control control repl-kind)
-              (swap! connections assoc id conn)
+              (swap! connections assoc id {:conn conn :buffer buffer})
               (.then ^js repl-kind
                      (fn [kind]
                        [kind (instantiate-correct-evaluator kind conn control on-output)]))))))
 
 (defn disconnect! [id]
-  (when-let [conn ^js (get @connections id)]
+  (when-let [{:keys [conn buffer]} ^js (get @connections id)]
+    (js/setTimeout (fn []
+                     (when-not (-> @buffer last (= :closed))
+                       (swap! buffer conj :closed)))
+                   1000)
     (.end conn)))
