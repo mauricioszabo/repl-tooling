@@ -32,24 +32,27 @@
          :stdout nil :stderr nil
          :commands {}))
 
-(defn connect! []
-  (when-not (-> @state :repls :eval)
-    (.
-      (conn/connect! (:host @state) (:port @state)
-                     {:on-disconnect handle-disconnect
-                      :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
-                      :on-eval res
-                      :notify identity
-                      :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
-                      :editor-data #(let [code (:code @state)]
-                                      {:contents code
-                                       :filename "foo.clj"
-                                       :range (:range @state)})})
-      (then (fn [res]
-              (swap! state assoc :repls {:eval (:clj/repl @res)
-                                         :aux (:clj/aux @res)}
-                     :commands (:editor/commands @res)
-                     :stdout "" :stderr ""))))))
+(defn connect!
+  ([] (connect! {}))
+  ([additional-callbacks]
+   (when-not (-> @state :repls :eval)
+     (.
+       (conn/connect! (:host @state) (:port @state)
+                      (merge {:on-disconnect handle-disconnect
+                              :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
+                              :on-eval res
+                              :notify identity
+                              :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
+                              :editor-data #(let [code (:code @state)]
+                                              {:contents code
+                                               :filename "foo.clj"
+                                               :range (:range @state)})}
+                             additional-callbacks))
+       (then (fn [res]
+               (swap! state assoc :repls {:eval (:clj/repl @res)
+                                          :aux (:clj/aux @res)}
+                      :commands (:editor/commands @res)
+                      :stdout "" :stderr "")))))))
 
 (defn editor [state]
   [:div
