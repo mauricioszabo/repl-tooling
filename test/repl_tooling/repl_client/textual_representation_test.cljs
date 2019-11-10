@@ -141,7 +141,6 @@
        (testing "rendering tagged literals"
          (let [parsed (render/parse-result
                        (eval-and-parse "(tagged-literal 'foobar {:foo :bar})") repl)
-               _ (prn (render/txt-for-result parsed))
                [txt funs] (render/repr->lines (render/txt-for-result parsed))]
            (check txt => ["+  #foobar {:foo :bar}"])
 
