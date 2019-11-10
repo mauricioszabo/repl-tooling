@@ -136,18 +136,19 @@
          (let [parsed (render/parse-result
                        (eval-and-parse "(tagged-literal 'foobar :FOOBAR)") repl)
                [txt funs] (render/repr->lines (render/txt-for-result parsed))]
-           (check txt => ["#foobar :FOOBAR"])))
+           (check txt => ["+  #foobar :FOOBAR"])))
 
        (testing "rendering tagged literals"
          (let [parsed (render/parse-result
                        (eval-and-parse "(tagged-literal 'foobar {:foo :bar})") repl)
+               _ (prn (render/txt-for-result parsed))
                [txt funs] (render/repr->lines (render/txt-for-result parsed))]
            (check txt => ["+  #foobar {:foo :bar}"])
 
            ((get funs [0 0]) identity)
            (check (-> parsed render/txt-for-result render/repr->lines first)
                   => ["-  #foobar {:foo :bar}"
-                      "  +  [:foo :bar]"])))
+                      "  +  {:foo :bar}"])))
 
        (testing "rendering browseable objects"
          (let [parsed (render/parse-result (eval-and-parse "Object") repl)

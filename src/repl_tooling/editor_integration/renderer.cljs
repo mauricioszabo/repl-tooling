@@ -186,17 +186,13 @@
 (defrecord Tagged [tag subelement open?]
   Renderable
   (as-text [_ ratom root?]
-    (let [structure (as-text @subelement subelement root?)
-          fst (first structure)]
-      (cond
-        (= :text fst)
-        [:text (str tag (second structure))]
-
-        (and (= :row fst) (-> structure second first (= :expand)))
-        (update-in structure [2 1] #(str tag %))
-
-        :else
-        (update-in structure [2 0] #(str tag %)))))
+    (let [structure (as-text @subelement subelement false)
+          toggle #(do (swap! ratom update :open? not) (%))]
+      (if open?
+        [:row [:expand "-" toggle]
+         [:text tag] (as-text @subelement subelement false)
+         (assert-root (as-text @subelement subelement true))]
+        [:row [:expand "+" toggle] [:text tag] (as-text @subelement subelement false)])))
 
   (as-html [_ ratom root?]
     (let [will-be-open? (and root? open?)]
