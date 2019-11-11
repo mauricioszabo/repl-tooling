@@ -1,6 +1,5 @@
 (ns repl-tooling.integration.ui
-  (:require [reagent.core :as r]
-            [clojure.walk :as walk]
+  (:require [clojure.walk :as walk]
             [repl-tooling.integration.fake-editor :refer [editor evaluate state connect!]]
             [repl-tooling.integration.ui-macros :as ui :include-macros true]
             [repl-tooling.editor-integration.renderer :as render]
@@ -19,7 +18,8 @@
             [repl-tooling.features.definition-test]
             [repl-tooling.features.autocomplete-test]
             [repl-tooling.editor-integration.autocomplete-test]
-            [repl-tooling.repl-client.connection-test]))
+            [repl-tooling.repl-client.connection-test]
+            [repl-tooling.integration.rendered-actions]))
 
 (cards/defcard-rg rendered-result
   (fn [result]
