@@ -70,7 +70,7 @@
        [:button {:on-click evaluate}
         "Evaluate"] " "
        [:button {:on-click conn/disconnect!} "Disconnect!"]]
-      [:button {:on-click connect!} "Connect!"])]
+      [:button {:on-click #(connect!)} "Connect!"])]
    [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]
    [:div
     (when-let [res @(:eval-result @state)]
