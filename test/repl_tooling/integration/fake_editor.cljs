@@ -1,8 +1,19 @@
 (ns repl-tooling.integration.fake-editor
   (:require [clojure.string :as str]
             [reagent.core :as r]
+            [clojure.core.async :as async :include-macros true]
             [repl-tooling.editor-integration.renderer :as render]
             [repl-tooling.editor-integration.connection :as conn]))
+
+(defn wait-for [f]
+  (async/go
+   (loop [t 0]
+     (when (< t 100)
+       (if-let [res (f)]
+         res
+         (do
+           (async/<! (async/timeout 100))
+           (recur (inc t))))))))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
@@ -24,6 +35,15 @@
         eval-sel (-> @state :commands :evaluate-selection :command)]
     (swap! state assoc :range [[0 0] [(-> lines count dec) (-> lines last count dec)]])
     (eval-sel)))
+
+(defn type-and-eval [txt]
+  (swap! state assoc :code txt)
+  (evaluate))
+
+(defn change-stdout []
+  (let [old (:stdout @state)]
+    (wait-for #(and (not= old (:stdout @state))
+                    (:stdout @state)))))
 
 (defn handle-disconnect []
   (reset! (:eval-result @state) nil)
