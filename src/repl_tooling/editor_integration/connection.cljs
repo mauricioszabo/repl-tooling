@@ -9,7 +9,8 @@
             [repl-tooling.editor-integration.evaluation :as e-eval]
             [repl-tooling.editor-integration.embedded-clojurescript :as embedded]
             [repl-tooling.editor-integration.autocomplete :as autocomplete]
-            [repl-tooling.integrations.repls :as repls]))
+            [repl-tooling.integrations.repls :as repls]
+            [repl-tooling.editor-integration.renderer :as renderer]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -85,6 +86,12 @@
                        :description "Connects to a ClojureScript REPL inside a Clojure one"
                        :command #(embedded/connect! state opts)})))
 
+(defn- result-for-renderer [res state {:keys [filename]} {:keys [get-config]}]
+  (let [repl (if (e-eval/need-cljs? (get-config) filename)
+               (:cljs/repl @state)
+               (:clj/repl @state))]
+    (renderer/parse-result res repl state)))
+
 (defn- features-for [state {:keys [editor-data] :as opts} repl-kind]
   {:autocomplete (if (= :bb repl-kind)
                    (constantly (. js/Promise resolve []))
@@ -92,7 +99,9 @@
                                 (fn [data] (autocomplete/command state opts data))))
    :eval-and-render (fn [code range]
                       (ensure-data (editor-data)
-                                   #(eval-range state % opts (constantly [range code]))))})
+                                   #(eval-range state % opts (constantly [range code]))))
+   :result-for-renderer #(ensure-data (editor-data)
+                                      (fn [data] (result-for-renderer % state data opts)))})
 
 (defn- callback-fn [state on-stdout on-stderr on-result on-disconnect output]
   (when (nil? output)
@@ -158,7 +167,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                      editor-data on-start-eval on-eval] :as opts}]
   (js/Promise.
    (fn [resolve]
-     (let [state (r/atom nil)
+     (let [state (r/atom {:editor/callbacks opts})
            callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
            aux (clj-repl/repl :clj-aux host port callback)
            primary (delay (clj-repl/repl :clj-eval host port callback))
@@ -167,13 +176,14 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                              (clj-repl/disable-limits! aux)
                              (eval/evaluate @primary ":primary-connected" {:ignore true}
                                 (fn []
-                                  (reset! state {:clj/aux aux
-                                                 :clj/repl @primary
-                                                 :repl/info {:host host :port port
-                                                             :kind :clj
-                                                             :kind-name "Clojure"}
-                                                 :editor/commands (cmds-for state options :clj)
-                                                 :editor/features (features-for state options :clj)})
+                                  (swap! state merge
+                                         {:clj/aux aux
+                                          :clj/repl @primary
+                                          :repl/info {:host host :port port
+                                                      :kind :clj
+                                                      :kind-name "Clojure"}
+                                          :editor/commands (cmds-for state options :clj)
+                                          :editor/features (features-for state options :clj)})
                                   (resolve state))))]
 
        (eval/evaluate aux ":aux-connected" {:ignore true}
@@ -185,28 +195,28 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
     (kinds kind (-> kind name (str/replace-first #"." str/upper-case)))))
 
 (defn- prepare-cljs [primary host port state options]
-  (reset! state {:cljs/repl primary
-                 :repl/info {:host host :port port :kind :cljs :kind-name (tr-kind :cljs)}
-                 :editor/commands (cmds-for state options :cljs)
-                 :editor/features (features-for state options :cljs)}))
+  (swap! state merge {:cljs/repl primary
+                      :repl/info {:host host :port port :kind :cljs :kind-name (tr-kind :cljs)}
+                      :editor/commands (cmds-for state options :cljs)
+                      :editor/features (features-for state options :cljs)}))
 
 (defn- prepare-joker [primary host port state options]
-  (reset! state {:clj/repl primary
-                 :clj/aux primary
-                 :repl/info {:host host :port port
-                             :kind :joker :kind-name (tr-kind :joker)}
-                 :editor/commands (cmds-for state options :joker)
-                 :editor/features (features-for state options :joker)}))
+  (swap! state merge {:clj/repl primary
+                      :clj/aux primary
+                      :repl/info {:host host :port port
+                                  :kind :joker :kind-name (tr-kind :joker)}
+                      :editor/commands (cmds-for state options :joker)
+                      :editor/features (features-for state options :joker)}))
 
 (defn- prepare-generic [primary aux host port state options kind]
   (when (= :clj kind)
     (eval/evaluate aux ":aux-connected" {:ignore true} #(clj-repl/disable-limits! aux)))
 
-  (reset! state {:clj/aux aux
-                 :clj/repl primary
-                 :repl/info {:host host :port port :kind kind :kind-name (tr-kind kind)}
-                 :editor/commands (cmds-for state options kind)
-                 :editor/features (features-for state options kind)}))
+  (swap! state merge {:clj/aux aux
+                      :clj/repl primary
+                      :repl/info {:host host :port port :kind kind :kind-name (tr-kind kind)}
+                      :editor/commands (cmds-for state options kind)
+                      :editor/features (features-for state options kind)}))
 
 (defn- connection-error! [error notify]
   (if (= "ECONNREFUSED")
@@ -248,7 +258,7 @@ than once
 Returns a promise that will resolve to a map with two repls: :clj/aux will be used
 to autocomplete/etc, :clj/repl will be used to evaluate code."
   [host port {:keys [on-stdout on-stderr on-result on-disconnect notify] :as opts}]
-  (let [state (r/atom nil)
+  (let [state (r/atom {:editor/callbacks opts})
         callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
         primary (repls/connect-repl! :clj-eval host port callback)
         aux (delay (repls/connect-repl! :clj-aux host port callback))
