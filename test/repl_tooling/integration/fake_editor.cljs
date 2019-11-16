@@ -27,7 +27,8 @@
                         :eval-result (r/atom nil)}))
 
 (defn- res [{:keys [result]}]
-  (reset! (:eval-result @state) (render/parse-result result (-> @state :repls :eval)))
+  (let [parse (-> @state :features :result-for-renderer)]
+    (reset! (:eval-result @state) (parse result)))
   (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
 
 (defn evaluate []
@@ -72,6 +73,7 @@
                (swap! state assoc :repls {:eval (:clj/repl @res)
                                           :aux (:clj/aux @res)}
                       :commands (:editor/commands @res)
+                      :features (:editor/features @res)
                       :stdout "" :stderr "")))))))
 
 (defn editor [state]
