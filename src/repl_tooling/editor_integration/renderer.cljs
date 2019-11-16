@@ -37,6 +37,21 @@
     txt
     [:row txt]))
 
+(declare txt-for-result)
+(defn textual->text [elements first-line-only?]
+  (let [els (cond->> elements first-line-only? (remove #(and (coll? %) (-> % first (= :row)))))]
+    (->> els
+         flatten
+         (partition 2 1)
+         (filter #(-> % first (= :text)))
+         (map second)
+         (apply str))))
+
+(defn- copy-to-clipboard [ratom editor-state first-line-only?]
+  (def ratom ratom)
+  (let [copy (-> @editor-state :editor/callbacks (:on-copy #()))]
+    (-> ratom txt-for-result (textual->text first-line-only?) copy)))
+
 (defn- obj-with-more-fn [more-fn ratom repl editor-state callback]
   (more-fn repl #(do
                    (swap! ratom assoc
@@ -183,7 +198,7 @@
        [:text "\""]]
       [:text (pr-str string)])))
 
-(defrecord Tagged [tag subelement open?]
+(defrecord Tagged [tag subelement editor-state open?]
   Renderable
   (as-text [_ ratom root?]
     (let [structure (as-text @subelement subelement false)
@@ -206,7 +221,8 @@
        (when root?
          [:a {:class "icon clipboard" :href "#" :on-click (fn [^js evt]
                                                             (.preventDefault evt)
-                                                            (js/alert "FOO"))}])])))
+                                                            (copy-to-clipboard
+                                                             ratom editor-state true))}])])))
 
 (defrecord IncompleteObj [incomplete repl editor-state]
   Renderable
@@ -352,7 +368,7 @@
   (as-renderable [self repl editor-state]
     (let [tag (helpers/tag self)
           subelement (-> self helpers/obj (as-renderable repl editor-state))]
-      (r/atom (->Tagged tag subelement false))))
+      (r/atom (->Tagged tag subelement editor-state false))))
 
   default
   (as-renderable [obj repl editor-state]

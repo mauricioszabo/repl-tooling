@@ -6,6 +6,7 @@
                                                                      change-stdout]]
             [repl-tooling.integration.ui-macros :as ui :include-macros true]
             [clojure.test :refer [async testing is] :include-macros true]
+            [check.core :refer-macros [check]]
             [devcards.core :as cards :include-macros true]))
 
 (cards/defcard-rg fake-editor
@@ -13,16 +14,34 @@
   editor/state
   {:inspect-data true})
 
+(defn click-clipboard [n]
+  (some-> (.. js/document (querySelectorAll "a.icon.clipboard"))
+          (aget n)
+          .click))
+
+(defn click-chevron [n]
+  (some-> (.. js/document (querySelectorAll "a.chevron"))
+          (aget n)
+          .click))
+
+(set! cards/test-timeout 8000)
 (cards/deftest copy-to-clipboard
   (async done
     (async/go
-     (let [copy (async/promise-chan)]
-       (conn/disconnect!)
-       (editor/connect! {:on-copy #(async/put! copy %)})
+     (let [copy (async/chan)]
+       (editor/connect! {:lol "WAT" :on-copy #(async/put! copy %)})
        (async/<! (editor/wait-for #(-> @editor/state :repls :eval)))
 
        (testing "copies tagged literals to clipboard"
-         (type-and-result "(tagged-literal 'foo [1 2])"))
+         (type-and-result "(tagged-literal 'foo [1 2])")
+         (click-clipboard 0)
+         (check (async/<! copy) => "#foo [1 2]"))
+
+       (testing "copy only first line"
+         (click-chevron 0)
+         (click-clipboard 0)
+         (check (async/<! copy) => "#foo [1 2]"))
 
        (conn/disconnect!)
+       (async/close! copy)
        (done)))))
