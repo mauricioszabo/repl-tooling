@@ -10,7 +10,7 @@
   (as-text [this ratom root?]))
 
 (defprotocol Parseable
-  (as-renderable [self repl]))
+  (as-renderable [self repl editor-state]))
 
 (defn- parse-inner-root [objs more-fn a-for-more]
   (let [inner (cond-> (mapv #(as-html (deref %) % false) objs)
@@ -37,21 +37,21 @@
     txt
     [:row txt]))
 
-(defn- obj-with-more-fn [more-fn ratom repl callback]
+(defn- obj-with-more-fn [more-fn ratom repl editor-state callback]
   (more-fn repl #(do
                    (swap! ratom assoc
                           :more-fn nil
                           :expanded? true
-                          :attributes-atom (as-renderable (:attributes %) repl))
+                          :attributes-atom (as-renderable (:attributes %) repl editor-state))
                    (callback))))
 
-(defrecord ObjWithMore [obj-atom more-fn attributes-atom expanded? repl]
+(defrecord ObjWithMore [obj-atom more-fn attributes-atom expanded? repl editor-state]
   Renderable
   (as-text [_ ratom root?]
     (let [obj (assert-root (as-text @obj-atom obj-atom root?))]
       (if expanded?
         (conj obj (as-text @attributes-atom attributes-atom root?))
-        (conj obj [:button "..." #(obj-with-more-fn more-fn ratom repl %)]))))
+        (conj obj [:button "..." #(obj-with-more-fn more-fn ratom repl editor-state %)]))))
 
   (as-html [_ ratom root?]
     [:div {:class ["browseable"]}
@@ -61,7 +61,7 @@
         [:a {:href "#"
              :on-click (fn [e]
                          (.preventDefault e)
-                         (obj-with-more-fn more-fn ratom repl identity))}
+                         (obj-with-more-fn more-fn ratom repl editor-state identity))}
          (when root? "...")])]
      (when (and root? expanded?)
        [:div {:class "row children"}
@@ -149,9 +149,9 @@
   (as-text [_ _ _]
     [:text (pr-str obj)]))
 
-(defn- ->indexed [obj repl]
+(defn- ->indexed [obj repl editor-state]
   (let [more-fn (eval/get-more-fn obj)
-        children (mapv #(as-renderable % repl) (eval/without-ellision obj))]
+        children (mapv #(as-renderable % repl editor-state) (eval/without-ellision obj))]
     (cond
       (vector? obj) (->Indexed "[" children "]" "vector" false more-fn repl)
       (set? obj) (->Indexed "#{" (vec children) "}" "set" false more-fn repl)
@@ -202,15 +202,19 @@
               :on-click (fn [e] (.preventDefault e) (swap! ratom update :open? not))}])
        [:div {:class ["tag" (when will-be-open? "row")]} tag
         [:div {:class [(when will-be-open? "tag children")]}
-         [as-html @subelement subelement will-be-open?]]]])))
+         [as-html @subelement subelement will-be-open?]]]
+       (when root?
+         [:a {:class "icon clipboard" :href "#" :on-click (fn [^js evt]
+                                                            (.preventDefault evt)
+                                                            (js/alert "FOO"))}])])))
 
-(defrecord IncompleteObj [incomplete repl]
+(defrecord IncompleteObj [incomplete repl editor-state]
   Renderable
   (as-text [_ ratom _]
     (let [more (eval/get-more-fn incomplete)]
       [:button "..." (fn [callback]
                        (more repl #(do
-                                     (reset! ratom @(as-renderable % repl))
+                                     (reset! ratom @(as-renderable % repl editor-state))
                                      (callback))))]))
 
   (as-html [_ ratom _]
@@ -218,7 +222,7 @@
       [:div {:class "incomplete-obj"}
        [:a {:href "#" :on-click (fn [e]
                                   (.preventDefault e)
-                                  (more repl #(reset! ratom @(as-renderable % repl))))}
+                                  (more repl #(reset! ratom @(as-renderable % repl editor-state))))}
         "..."]])))
 
 (defn- link-for-more-trace [repl ratom more-trace more-str callback?]
@@ -321,53 +325,55 @@
 
 (extend-protocol Parseable
   helpers/Error
-  (as-renderable [self repl]
+  (as-renderable [self repl editor-state]
     (let [obj (update self :message as-renderable repl)
-          add-data (some-> self :add-data not-empty (as-renderable repl))]
+          add-data (some-> self :add-data not-empty (as-renderable repl editor-state))]
       (r/atom (->ExceptionObj obj add-data repl))))
 
   helpers/IncompleteObj
-  (as-renderable [self repl]
-    (r/atom (->IncompleteObj self repl)))
+  (as-renderable [self repl editor-state]
+    (r/atom (->IncompleteObj self repl editor-state)))
 
   helpers/IncompleteStr
-  (as-renderable [self repl]
+  (as-renderable [self repl editor-state]
     (r/atom (->IncompleteStr self repl)))
 
   helpers/Browseable
-  (as-renderable [self repl]
+  (as-renderable [self repl editor-state]
     (let [{:keys [object attributes]} self]
-      (r/atom (->ObjWithMore (as-renderable object repl)
+      (r/atom (->ObjWithMore (as-renderable object repl editor-state)
                              (eval/get-more-fn self)
-                             (as-renderable attributes repl)
+                             (as-renderable attributes repl editor-state)
                              false
-                             repl))))
+                             repl
+                             editor-state))))
 
   helpers/WithTag
-  (as-renderable [self repl]
+  (as-renderable [self repl editor-state]
     (let [tag (helpers/tag self)
-          subelement (-> self helpers/obj (as-renderable repl))]
+          subelement (-> self helpers/obj (as-renderable repl editor-state))]
       (r/atom (->Tagged tag subelement false))))
 
   default
-  (as-renderable [obj repl]
+  (as-renderable [obj repl editor-state]
     (r/atom
       (cond
-        (coll? obj) (->indexed obj repl)
+        (coll? obj) (->indexed obj repl editor-state)
         :else (->Leaf obj)))))
 
 (defn parse-result
   "Will parse a result that comes from the REPL in a r/atom so that
 it'll be suitable to be rendered with `view-for-result`"
-  [result repl]
-  (let [parsed (helpers/parse-result result)]
-    (if (contains? parsed :result)
-      (as-renderable (:result parsed) repl)
-      (let [error (:error parsed)
-            ex (cond-> error
-                       (:ex error) :ex
-                       (->> error :ex (instance? helpers/Browseable)) :object)]
-        (with-meta (as-renderable ex repl) {:error true})))))
+  ([result repl] (parse-result result repl {}))
+  ([result repl editor-state]
+   (let [parsed (helpers/parse-result result)]
+     (if (contains? parsed :result)
+       (as-renderable (:result parsed) repl editor-state)
+       (let [error (:error parsed)
+             ex (cond-> error
+                        (:ex error) :ex
+                        (->> error :ex (instance? helpers/Browseable)) :object)]
+         (with-meta (as-renderable ex repl editor-state) {:error true}))))))
 
 (defn view-for-result
   "Renders a view for a result. If it's an error, will return a view
