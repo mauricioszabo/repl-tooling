@@ -48,9 +48,7 @@
          (apply str))))
 
 (defn- copy-to-clipboard [ratom editor-state first-line-only?]
-  (def ratom ratom)
   (let [copy (-> @editor-state :editor/callbacks (:on-copy #()))]
-    (prn :COPYING (-> ratom txt-for-result (textual->text first-line-only?)))
     (-> ratom txt-for-result (textual->text first-line-only?) copy)))
 
 (defn- obj-with-more-fn [more-fn ratom repl editor-state callback]
