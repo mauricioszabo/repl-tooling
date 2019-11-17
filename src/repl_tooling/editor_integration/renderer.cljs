@@ -393,7 +393,7 @@
 (defn parse-result
   "Will parse a result that comes from the REPL in a r/atom so that
 it'll be suitable to be rendered with `view-for-result`"
-  ([result repl] (parse-result result repl {}))
+  ([result repl] (parse-result result repl (atom {})))
   ([result repl editor-state]
    (let [parsed (helpers/parse-result result)]
      (if (contains? parsed :result)
