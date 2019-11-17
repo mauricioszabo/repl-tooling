@@ -1,4 +1,4 @@
-(defproject repl-tooling "0.2.1"
+(defproject repl-tooling "0.3.0"
   :dependencies [[org.clojure/core.async "0.4.490"]]
 
   :source-paths ["src"]
