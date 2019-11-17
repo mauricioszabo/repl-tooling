@@ -15,9 +15,13 @@
   {:inspect-data true})
 
 (defn click-clipboard [n]
-  (some-> (.. js/document (querySelectorAll "a.icon.clipboard"))
-          (aget n)
-          .click))
+  (when-let [obj (aget (.. js/document (querySelectorAll "a.icon.clipboard")) n)]
+    (.click obj)
+    obj))
+
+(some-> (.. js/document (querySelectorAll "a.icon.clipboard"))
+        (aget 1)
+        .click)
 
 (defn click-chevron [n]
   (some-> (.. js/document (querySelectorAll "a.chevron"))
@@ -41,6 +45,23 @@
          (click-chevron 0)
          (click-clipboard 0)
          (check (async/<! copy) => "#foo [1 2]"))
+
+       (testing "copies colls"
+         (editor/wait-for #(click-clipboard 1))
+         (check (async/<! copy) => "[1 2]"))
+
+       (testing "copies leafs"
+         (click-chevron 1)
+         (editor/wait-for #(click-clipboard 2))
+         (check (async/<! copy) => "1")
+         (click-clipboard 3)
+         (check (async/<! copy) => "2"))
+
+       (testing "copies incomplete string"
+         (type-and-result "(str (range 80))")
+         (click-clipboard 0)
+         (check (async/<! copy) => #"28 29"))
+
 
        (conn/disconnect!)
        (async/close! copy)

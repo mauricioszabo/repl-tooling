@@ -48,8 +48,8 @@
          (apply str))))
 
 (defn- copy-to-clipboard [ratom editor-state first-line-only?]
-  (def ratom ratom)
   (let [copy (-> @editor-state :editor/callbacks (:on-copy #()))]
+    (prn :COPYING (-> ratom txt-for-result (textual->text first-line-only?)))
     (-> ratom txt-for-result (textual->text first-line-only?) copy)))
 
 (defn- obj-with-more-fn [more-fn ratom repl editor-state callback]
@@ -91,7 +91,15 @@
                     :obj (vec (concat obj (:obj new-idx)))
                     :more-fn (:more-fn new-idx))))))
 
-(defrecord Indexed [open obj close kind expanded? more-fn repl]
+(defn- link-to-copy [ratom editor-state first-line-only?]
+  [:a {:class "icon clipboard" :href "#" :on-click (fn [^js evt]
+                                                     (.preventDefault evt)
+                                                     (copy-to-clipboard
+                                                      ratom
+                                                      editor-state
+                                                      true))}])
+
+(defrecord Indexed [open obj close kind expanded? more-fn repl editor-state]
   Renderable
   (as-html [_ ratom root?]
            (let [a-for-more [:a {:href "#"
@@ -111,7 +119,9 @@
                [:div {:class "inner"} (if (#{"map"} kind)
                                         (parse-inner-for-map obj more-fn a-for-more)
                                         (parse-inner-root obj more-fn a-for-more))]
-               [:div {:class "delim closing"} close]]
+               [:div {:class "delim closing"} close]
+               (when root?
+                 [link-to-copy ratom editor-state true])]
 
               (when (and root? expanded?)
                 [:div {:class "children"}
@@ -151,16 +161,16 @@
                        more-fn (conj [:row [:button "..." more-callback]]))
                rows))))
 
-(defrecord Leaf [obj]
+(defrecord Leaf [obj editor-state]
   Renderable
-  (as-html [_ _ _]
+  (as-html [_ ratom root?]
     (let [tp (cond
                (string? obj) "string"
                (number? obj) "number"
                (boolean? obj) "bool"
                (nil? obj) "nil"
                :else "other")]
-      [:div {:class tp} (pr-str obj)]))
+      [:div {:class tp} (pr-str obj) (when root? [link-to-copy ratom editor-state true])]))
   (as-text [_ _ _]
     [:text (pr-str obj)]))
 
@@ -168,12 +178,12 @@
   (let [more-fn (eval/get-more-fn obj)
         children (mapv #(as-renderable % repl editor-state) (eval/without-ellision obj))]
     (cond
-      (vector? obj) (->Indexed "[" children "]" "vector" false more-fn repl)
-      (set? obj) (->Indexed "#{" (vec children) "}" "set" false more-fn repl)
-      (map? obj) (->Indexed "{" (vec children) "}" "map" false more-fn repl)
-      (seq? obj) (->Indexed "(" children ")" "list" false more-fn repl))))
+      (vector? obj) (->Indexed "[" children "]" "vector" false more-fn repl editor-state)
+      (set? obj) (->Indexed "#{" (vec children) "}" "set" false more-fn repl editor-state)
+      (map? obj) (->Indexed "{" (vec children) "}" "map" false more-fn repl editor-state)
+      (seq? obj) (->Indexed "(" children ")" "list" false more-fn repl editor-state))))
 
-(defrecord IncompleteStr [string repl]
+(defrecord IncompleteStr [string repl editor-state]
   Renderable
   (as-html [_ ratom root?]
     [:div {:class "string big"}
@@ -192,7 +202,7 @@
        [:button "..." #(let [f (eval/get-more-fn string)]
                          (f repl (fn [obj]
                                    (if (string? obj)
-                                     (reset! ratom (->Leaf obj))
+                                     (reset! ratom (->Leaf obj editor-state))
                                      (swap! ratom assoc :string obj))
                                    (%))))]
        [:text "\""]]
@@ -210,19 +220,17 @@
         [:row [:expand "+" toggle] [:text tag] (as-text @subelement subelement false)])))
 
   (as-html [_ ratom root?]
-    (let [will-be-open? (and root? open?)]
+    (let [will-be-open? (and root? open?)
+          copy-elem [link-to-copy ratom editor-state true]]
       [:div {:class "tagged"}
        (when root?
          [:a {:class ["chevron" (if open? "opened" "closed")] :href "#"
               :on-click (fn [e] (.preventDefault e) (swap! ratom update :open? not))}])
-       [:div {:class ["tag" (when will-be-open? "row")]} tag
+       [:div {:class [(when will-be-open? "row")]}
+        [:div {:class "tag"} tag (when will-be-open? copy-elem)]
         [:div {:class [(when will-be-open? "tag children")]}
-         [as-html @subelement subelement will-be-open?]]]
-       (when root?
-         [:a {:class "icon clipboard" :href "#" :on-click (fn [^js evt]
-                                                            (.preventDefault evt)
-                                                            (copy-to-clipboard
-                                                             ratom editor-state true))}])])))
+         [as-html @subelement subelement will-be-open?]]
+        (when (and (not open?) root?) copy-elem)]])))
 
 (defrecord IncompleteObj [incomplete repl editor-state]
   Renderable
@@ -352,7 +360,7 @@
 
   helpers/IncompleteStr
   (as-renderable [self repl editor-state]
-    (r/atom (->IncompleteStr self repl)))
+    (r/atom (->IncompleteStr self repl editor-state)))
 
   helpers/Browseable
   (as-renderable [self repl editor-state]
@@ -375,7 +383,7 @@
     (r/atom
       (cond
         (coll? obj) (->indexed obj repl editor-state)
-        :else (->Leaf obj)))))
+        :else (->Leaf obj editor-state)))))
 
 (defn parse-result
   "Will parse a result that comes from the REPL in a r/atom so that
