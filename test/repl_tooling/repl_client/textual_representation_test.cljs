@@ -136,7 +136,7 @@
          (let [parsed (render/parse-result
                        (eval-and-parse "(tagged-literal 'foobar :FOOBAR)") repl)
                [txt funs] (render/repr->lines (render/txt-for-result parsed))]
-           (check txt => ["#foobar :FOOBAR"])))
+           (check txt => ["+  #foobar :FOOBAR"])))
 
        (testing "rendering tagged literals"
          (let [parsed (render/parse-result
@@ -147,7 +147,7 @@
            ((get funs [0 0]) identity)
            (check (-> parsed render/txt-for-result render/repr->lines first)
                   => ["-  #foobar {:foo :bar}"
-                      "  +  [:foo :bar]"])))
+                      "  +  {:foo :bar}"])))
 
        (testing "rendering browseable objects"
          (let [parsed (render/parse-result (eval-and-parse "Object") repl)
@@ -161,6 +161,11 @@
                (check => "java.lang.Object"))
            (-> parsed render/txt-for-result render/repr->lines first second
                (check => #"new java\.lang\.Object"))))
+
+       (testing "rendering nested browseable objects"
+         (let [parsed (render/parse-result (eval-and-parse "(list 1 (Object.))") repl)
+               [[txt] _] (render/repr->lines (render/txt-for-result parsed))]
+           (check txt => #"\(1 \#object \[java\.lang\.Object.*\]\)")))
 
        #_
        (testing "rendering incomplete objects"

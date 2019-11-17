@@ -10,7 +10,7 @@
   (as-text [this ratom root?]))
 
 (defprotocol Parseable
-  (as-renderable [self repl]))
+  (as-renderable [self repl editor-state]))
 
 (defn- parse-inner-root [objs more-fn a-for-more]
   (let [inner (cond-> (mapv #(as-html (deref %) % false) objs)
@@ -37,21 +37,35 @@
     txt
     [:row txt]))
 
-(defn- obj-with-more-fn [more-fn ratom repl callback]
+(declare txt-for-result)
+(defn textual->text [elements first-line-only?]
+  (let [els (cond->> elements first-line-only? (remove #(and (coll? %) (-> % first (= :row)))))]
+    (->> els
+         flatten
+         (partition 2 1)
+         (filter #(-> % first (= :text)))
+         (map second)
+         (apply str))))
+
+(defn- copy-to-clipboard [ratom editor-state first-line-only?]
+  (let [copy (-> @editor-state :editor/callbacks (:on-copy #()))]
+    (-> ratom txt-for-result (textual->text first-line-only?) copy)))
+
+(defn- obj-with-more-fn [more-fn ratom repl editor-state callback]
   (more-fn repl #(do
                    (swap! ratom assoc
                           :more-fn nil
                           :expanded? true
-                          :attributes-atom (as-renderable (:attributes %) repl))
+                          :attributes-atom (as-renderable (:attributes %) repl editor-state))
                    (callback))))
 
-(defrecord ObjWithMore [obj-atom more-fn attributes-atom expanded? repl]
+(defrecord ObjWithMore [obj-atom more-fn attributes-atom expanded? repl editor-state]
   Renderable
   (as-text [_ ratom root?]
     (let [obj (assert-root (as-text @obj-atom obj-atom root?))]
       (if expanded?
         (conj obj (as-text @attributes-atom attributes-atom root?))
-        (conj obj [:button "..." #(obj-with-more-fn more-fn ratom repl %)]))))
+        (conj obj [:button "..." #(obj-with-more-fn more-fn ratom repl editor-state %)]))))
 
   (as-html [_ ratom root?]
     [:div {:class ["browseable"]}
@@ -61,7 +75,7 @@
         [:a {:href "#"
              :on-click (fn [e]
                          (.preventDefault e)
-                         (obj-with-more-fn more-fn ratom repl identity))}
+                         (obj-with-more-fn more-fn ratom repl editor-state identity))}
          (when root? "...")])]
      (when (and root? expanded?)
        [:div {:class "row children"}
@@ -76,89 +90,101 @@
                     :obj (vec (concat obj (:obj new-idx)))
                     :more-fn (:more-fn new-idx))))))
 
-(defrecord Indexed [open obj close kind expanded? more-fn repl]
+(defn- link-to-copy [ratom editor-state first-line-only?]
+  [:a {:class "icon clipboard" :href "#" :on-click (fn [^js evt]
+                                                     (.preventDefault evt)
+                                                     (copy-to-clipboard
+                                                      ratom
+                                                      editor-state
+                                                      true))}])
+
+(defrecord Indexed [open obj close kind expanded? more-fn repl editor-state]
   Renderable
   (as-html [_ ratom root?]
-           (let [a-for-more [:a {:href "#"
-                                 :on-click (fn [e]
-                                             (.preventDefault e)
-                                             (more-fn repl false #(reset-atom repl ratom obj %)))}
-                             "..."]]
+    (let [a-for-more [:a {:href "#"
+                          :on-click (fn [e]
+                                      (.preventDefault e)
+                                      (more-fn repl false #(reset-atom repl ratom obj %)))}
+                      "..."]]
 
-             [:div {:class ["row" kind]}
-              [:div {:class ["coll" kind]}
-               (when root?
-                 [:a {:class ["chevron" (if expanded? "opened" "closed")] :href "#"
-                      :on-click (fn [e]
-                                  (.preventDefault e)
-                                  (swap! ratom update :expanded? not))}])
-               [:div {:class "delim opening"} open]
-               [:div {:class "inner"} (if (#{"map"} kind)
-                                        (parse-inner-for-map obj more-fn a-for-more)
-                                        (parse-inner-root obj more-fn a-for-more))]
-               [:div {:class "delim closing"} close]]
+      [:div {:class ["row" kind]}
+       [:div {:class ["coll" kind]}
+        (when root?
+          [:a {:class ["chevron" (if expanded? "opened" "closed")] :href "#"
+               :on-click (fn [e]
+                           (.preventDefault e)
+                           (swap! ratom update :expanded? not))}])
+        [:div {:class "delim opening"} open]
+        [:div {:class "inner"} (if (#{"map"} kind)
+                                 (parse-inner-for-map obj more-fn a-for-more)
+                                 (parse-inner-root obj more-fn a-for-more))]
+        [:div {:class "delim closing"} close]
+        (when root?
+          [link-to-copy ratom editor-state true])]
 
-              (when (and root? expanded?)
-                [:div {:class "children"}
-                 [:<>
-                  (cond-> (mapv #(as-html (deref %) % true) obj)
-                          more-fn (conj a-for-more)
-                          :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])]))
+       (when (and root? expanded?)
+         [:div {:class "children"}
+          [:<>
+           (cond-> (mapv #(as-html (deref %) % true) obj)
+                   more-fn (conj a-for-more)
+                   :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])]))
 
   (as-text [_ ratom root?]
-           (let [children (map #(as-text @% % false) obj)
-                 toggle #(do (swap! ratom update :expanded? not) (%))
-                 extract-map #(-> % second (str/replace #"^\[" "") (str/replace #"\]$" ""))
-                 txt (if (= "map" kind)
-                       [:text (->> obj
-                                   (map #(extract-map (as-text @% % false)))
-                                   (str/join ", "))]
-                       [:text (->> children (map second) (str/join " "))])
-                 more-callback (fn [callback]
-                                 (more-fn repl false
-                                          #(do
-                                             (reset-atom repl ratom obj %)
-                                             (callback))))
-                 complete-txt (delay (if more-fn
-                                       (update txt 1 #(str open % " ..." close))
-                                       (update txt 1 #(str open % close))))
-                 root-part (delay [:expand (if expanded? "-" "+") toggle])
-                 rows (cond
-                        (not root?) @complete-txt
-                        more-fn [:row
-                                 @root-part
-                                 (update txt 1 #(str open % " "))
-                                 [:button "..." more-callback]
-                                 [:text close]]
-                        :else [:row @root-part @complete-txt])]
-             (if expanded?
-               (cond-> (apply conj rows (map #(assert-root (as-text @% % true)) obj))
-                       more-fn (conj [:row [:button "..." more-callback]]))
-               rows))))
+    (let [children (map #(as-text @% % false) obj)
+          toggle #(do (swap! ratom update :expanded? not) (%))
+          extract-map #(-> % (textual->text false)
+                           (str/replace #"^\[" "")
+                           (str/replace #"\]$" ""))
+          txt (if (= "map" kind)
+                [:text (->> children
+                            (map extract-map)
+                            (str/join ", "))]
+                [:text (->> children (map textual->text) (str/join " "))])
+          more-callback (fn [callback]
+                          (more-fn repl false
+                                   #(do
+                                      (reset-atom repl ratom obj %)
+                                      (callback))))
+          complete-txt (delay (if more-fn
+                                (update txt 1 #(str open % " ..." close))
+                                (update txt 1 #(str open % close))))
+          root-part (delay [:expand (if expanded? "-" "+") toggle])
+          rows (cond
+                 (not root?) @complete-txt
+                 more-fn [:row
+                          @root-part
+                          (update txt 1 #(str open % " "))
+                          [:button "..." more-callback]
+                          [:text close]]
+                 :else [:row @root-part @complete-txt])]
+      (if expanded?
+        (cond-> (apply conj rows (map #(assert-root (as-text @% % true)) obj))
+                more-fn (conj [:row [:button "..." more-callback]]))
+        rows))))
 
-(defrecord Leaf [obj]
+(defrecord Leaf [obj editor-state]
   Renderable
-  (as-html [_ _ _]
+  (as-html [_ ratom root?]
     (let [tp (cond
                (string? obj) "string"
                (number? obj) "number"
                (boolean? obj) "bool"
                (nil? obj) "nil"
                :else "other")]
-      [:div {:class tp} (pr-str obj)]))
+      [:div {:class tp} (pr-str obj) (when root? [link-to-copy ratom editor-state true])]))
   (as-text [_ _ _]
     [:text (pr-str obj)]))
 
-(defn- ->indexed [obj repl]
+(defn- ->indexed [obj repl editor-state]
   (let [more-fn (eval/get-more-fn obj)
-        children (mapv #(as-renderable % repl) (eval/without-ellision obj))]
+        children (mapv #(as-renderable % repl editor-state) (eval/without-ellision obj))]
     (cond
-      (vector? obj) (->Indexed "[" children "]" "vector" false more-fn repl)
-      (set? obj) (->Indexed "#{" (vec children) "}" "set" false more-fn repl)
-      (map? obj) (->Indexed "{" (vec children) "}" "map" false more-fn repl)
-      (seq? obj) (->Indexed "(" children ")" "list" false more-fn repl))))
+      (vector? obj) (->Indexed "[" children "]" "vector" false more-fn repl editor-state)
+      (set? obj) (->Indexed "#{" (vec children) "}" "set" false more-fn repl editor-state)
+      (map? obj) (->Indexed "{" (vec children) "}" "map" false more-fn repl editor-state)
+      (seq? obj) (->Indexed "(" children ")" "list" false more-fn repl editor-state))))
 
-(defrecord IncompleteStr [string repl]
+(defrecord IncompleteStr [string repl editor-state]
   Renderable
   (as-html [_ ratom root?]
     [:div {:class "string big"}
@@ -169,7 +195,9 @@
                         (.preventDefault e)
                         (get-more repl #(swap! ratom assoc :string %)))}
          "..."])
-     "\""])
+     "\""
+     (when root? [link-to-copy ratom editor-state true])])
+
   (as-text [_ ratom root?]
     (if root?
       [:row
@@ -177,44 +205,43 @@
        [:button "..." #(let [f (eval/get-more-fn string)]
                          (f repl (fn [obj]
                                    (if (string? obj)
-                                     (reset! ratom (->Leaf obj))
+                                     (reset! ratom (->Leaf obj editor-state))
                                      (swap! ratom assoc :string obj))
                                    (%))))]
        [:text "\""]]
       [:text (pr-str string)])))
 
-(defrecord Tagged [tag subelement open?]
+(defrecord Tagged [tag subelement editor-state open?]
   Renderable
   (as-text [_ ratom root?]
-    (let [structure (as-text @subelement subelement root?)
-          fst (first structure)]
-      (cond
-        (= :text fst)
-        [:text (str tag (second structure))]
-
-        (and (= :row fst) (-> structure second first (= :expand)))
-        (update-in structure [2 1] #(str tag %))
-
-        :else
-        (update-in structure [2 0] #(str tag %)))))
+    (let [structure (as-text @subelement subelement false)
+          toggle #(do (swap! ratom update :open? not) (%))]
+      (if open?
+        [:row [:expand "-" toggle]
+         [:text tag] (as-text @subelement subelement false)
+         (assert-root (as-text @subelement subelement true))]
+        [:row [:expand "+" toggle] [:text tag] (as-text @subelement subelement false)])))
 
   (as-html [_ ratom root?]
-    (let [will-be-open? (and root? open?)]
+    (let [will-be-open? (and root? open?)
+          copy-elem [link-to-copy ratom editor-state true]]
       [:div {:class "tagged"}
        (when root?
          [:a {:class ["chevron" (if open? "opened" "closed")] :href "#"
               :on-click (fn [e] (.preventDefault e) (swap! ratom update :open? not))}])
-       [:div {:class ["tag" (when will-be-open? "row")]} tag
+       [:div {:class [(when will-be-open? "row")]}
+        [:div {:class "tag"} tag (when will-be-open? copy-elem)]
         [:div {:class [(when will-be-open? "tag children")]}
-         [as-html @subelement subelement will-be-open?]]]])))
+         [as-html @subelement subelement will-be-open?]]
+        (when (and (not open?) root?) copy-elem)]])))
 
-(defrecord IncompleteObj [incomplete repl]
+(defrecord IncompleteObj [incomplete repl editor-state]
   Renderable
   (as-text [_ ratom _]
     (let [more (eval/get-more-fn incomplete)]
       [:button "..." (fn [callback]
                        (more repl #(do
-                                     (reset! ratom @(as-renderable % repl))
+                                     (reset! ratom @(as-renderable % repl editor-state))
                                      (callback))))]))
 
   (as-html [_ ratom _]
@@ -222,7 +249,7 @@
       [:div {:class "incomplete-obj"}
        [:a {:href "#" :on-click (fn [e]
                                   (.preventDefault e)
-                                  (more repl #(reset! ratom @(as-renderable % repl))))}
+                                  (more repl #(reset! ratom @(as-renderable % repl editor-state))))}
         "..."]])))
 
 (defn- link-for-more-trace [repl ratom more-trace more-str callback?]
@@ -325,53 +352,55 @@
 
 (extend-protocol Parseable
   helpers/Error
-  (as-renderable [self repl]
+  (as-renderable [self repl editor-state]
     (let [obj (update self :message as-renderable repl)
-          add-data (some-> self :add-data not-empty (as-renderable repl))]
+          add-data (some-> self :add-data not-empty (as-renderable repl editor-state))]
       (r/atom (->ExceptionObj obj add-data repl))))
 
   helpers/IncompleteObj
-  (as-renderable [self repl]
-    (r/atom (->IncompleteObj self repl)))
+  (as-renderable [self repl editor-state]
+    (r/atom (->IncompleteObj self repl editor-state)))
 
   helpers/IncompleteStr
-  (as-renderable [self repl]
-    (r/atom (->IncompleteStr self repl)))
+  (as-renderable [self repl editor-state]
+    (r/atom (->IncompleteStr self repl editor-state)))
 
   helpers/Browseable
-  (as-renderable [self repl]
+  (as-renderable [self repl editor-state]
     (let [{:keys [object attributes]} self]
-      (r/atom (->ObjWithMore (as-renderable object repl)
+      (r/atom (->ObjWithMore (as-renderable object repl editor-state)
                              (eval/get-more-fn self)
-                             (as-renderable attributes repl)
+                             (as-renderable attributes repl editor-state)
                              false
-                             repl))))
+                             repl
+                             editor-state))))
 
   helpers/WithTag
-  (as-renderable [self repl]
+  (as-renderable [self repl editor-state]
     (let [tag (helpers/tag self)
-          subelement (-> self helpers/obj (as-renderable repl))]
-      (r/atom (->Tagged tag subelement false))))
+          subelement (-> self helpers/obj (as-renderable repl editor-state))]
+      (r/atom (->Tagged tag subelement editor-state false))))
 
   default
-  (as-renderable [obj repl]
+  (as-renderable [obj repl editor-state]
     (r/atom
       (cond
-        (coll? obj) (->indexed obj repl)
-        :else (->Leaf obj)))))
+        (coll? obj) (->indexed obj repl editor-state)
+        :else (->Leaf obj editor-state)))))
 
 (defn parse-result
   "Will parse a result that comes from the REPL in a r/atom so that
 it'll be suitable to be rendered with `view-for-result`"
-  [result repl]
-  (let [parsed (helpers/parse-result result)]
-    (if (contains? parsed :result)
-      (as-renderable (:result parsed) repl)
-      (let [error (:error parsed)
-            ex (cond-> error
-                       (:ex error) :ex
-                       (->> error :ex (instance? helpers/Browseable)) :object)]
-        (with-meta (as-renderable ex repl) {:error true})))))
+  ([result repl] (parse-result result repl (atom {})))
+  ([result repl editor-state]
+   (let [parsed (helpers/parse-result result)]
+     (if (contains? parsed :result)
+       (as-renderable (:result parsed) repl editor-state)
+       (let [error (:error parsed)
+             ex (cond-> error
+                        (:ex error) :ex
+                        (->> error :ex (instance? helpers/Browseable)) :object)]
+         (with-meta (as-renderable ex repl editor-state) {:error true}))))))
 
 (defn view-for-result
   "Renders a view for a result. If it's an error, will return a view
