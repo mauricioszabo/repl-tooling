@@ -62,6 +62,10 @@
          (click-clipboard 0)
          (check (async/<! copy) => #"28 29"))
 
+       (testing "copies objects"
+         (type-and-result "(Object.)")
+         (click-clipboard 0)
+         (check (async/<! copy) => #"#object.*java\.lang\.Object"))
 
        (conn/disconnect!)
        (async/close! copy)
