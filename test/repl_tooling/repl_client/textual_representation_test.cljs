@@ -162,6 +162,11 @@
            (-> parsed render/txt-for-result render/repr->lines first second
                (check => #"new java\.lang\.Object"))))
 
+       (testing "rendering nested browseable objects"
+         (let [parsed (render/parse-result (eval-and-parse "(list 1 (Object.))") repl)
+               [[txt] _] (render/repr->lines (render/txt-for-result parsed))]
+           (check txt => #"\(1 \#object \[java\.lang\.Object.*\]\)")))
+
        #_
        (testing "rendering incomplete objects"
          (let [obj (helpers/->IncompleteObj (fn [ & args] ((last args) {:result ":FOO"})))
