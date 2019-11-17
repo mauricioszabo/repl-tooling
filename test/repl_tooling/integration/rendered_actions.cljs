@@ -19,14 +19,10 @@
     (.click obj)
     obj))
 
-(some-> (.. js/document (querySelectorAll "a.icon.clipboard"))
-        (aget 1)
-        .click)
-
 (defn click-chevron [n]
-  (some-> (.. js/document (querySelectorAll "a.chevron"))
-          (aget n)
-          .click))
+  (when-let [elem (aget (.. js/document (querySelectorAll "a.chevron")) n)]
+    (.click elem)
+    elem))
 
 (set! cards/test-timeout 8000)
 (cards/deftest copy-to-clipboard

@@ -74,7 +74,12 @@
                     (txt-for-selector "#result")))))
 
 (defn- click-selector [sel]
-  (-> js/document (.querySelector sel) .click))
+  (some-> js/document (.querySelector sel) .click))
+
+(defn click-chevron [n]
+  (when-let [elem (aget (.. js/document (querySelectorAll "a.chevron")) n)]
+    (.click elem)
+    elem))
 
 (set! cards/test-timeout 8000)
 (cards/deftest repl-evaluation
@@ -186,21 +191,23 @@
                                                              (.add %)
                                                              (.add %)))))
      (into {}))"))
-     (click-selector "#result a")
+     (click-chevron 0)
      (async/<! (change-result))
 
      (testing "map is too deep, we show just the ellision for object"
-       (click-selector ".children div:nth-child(5) a")
+       (click-chevron 5)
        (async/<! (change-result))
-       (check (str/replace (txt-for-selector "#result .children") #"(\n|\s+)+" " ")
+       (check (str/replace (txt-for-selector "#result div:nth-child(5) div:nth-child(2) div.tagged")
+                           #"(\n|\s+)+" " ")
               => #"#foobar.baz/lolnein \.\.\."))
 
      (testing "clicking the ellision for object should render its representation"
        (click-selector ".children .children div:nth-child(2) div div a")
+       (wait-for #(click-chevron 6))
        (async/<! (change-result))
        (check (str/replace (txt-for-selector "#result .children div.tag:nth-child(2)")
                            #"(\n|\s+)+" " ")
-              => #"#foobar.baz/lolnein \( 99 99 \)"))
+              => #"\( 99 99 \)"))
 
      (testing "division by zero renders an exception"
        (ui/assert-out #"java.lang.ArithmeticException : \"Divide by zero\""
