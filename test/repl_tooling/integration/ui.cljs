@@ -127,8 +127,8 @@
        (check (async/<! (change-stderr)) => #"Error"))
 
      (testing "detects NS on file"
-       (type-and-eval "(do (ns clojure.string)\n(upper-case \"this is upper\"))")
-       (check (async/<! (change-stdout)) => #"THIS IS UPPER"))
+       (type-and-eval "(do (ns clojure.walk)\n(stringify-keys {:foo 10}))")
+       (check (async/<! (change-stdout)) => #"\"foo\" 10"))
 
      (testing "evaluates and presents big strings"
        (ui/assert-out (str "\"01234567891011121314151617181920212223242526272829"

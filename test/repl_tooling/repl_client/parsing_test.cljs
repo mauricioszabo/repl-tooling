@@ -104,7 +104,7 @@
            (check (-> more-data async/<! :attributes count) => 11)
 
            ((-> more-data async/<! eval/get-more-fn) repl #(async/put! even-more-data %))
-           (check (-> even-more-data async/<! :attributes count) => 21)))
+           (check (-> even-more-data async/<! :attributes count) => #(> % 11))))
 
        (client/disconnect! :clj-ellisions-1)
        (done)))))
