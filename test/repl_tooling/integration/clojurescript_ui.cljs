@@ -6,12 +6,8 @@
             [repl-tooling.editor-integration.renderer :as render]
             [clojure.test :refer [async testing is] :include-macros true]
             [check.core :refer-macros [check]]
-            [check.async :include-macros true]
             [clojure.core.async :as async :include-macros true]
-            [devcards.core :as cards :include-macros true]
-            [clojure.string :as str]
-            [repl-tooling.eval :as eval]
-            [repl-tooling.editor-helpers :as helpers]))
+            [devcards.core :as cards :include-macros true]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233
@@ -34,7 +30,7 @@
 
 (defn- eval-result [{:keys [result]}]
   (reset! (:eval-result @state)
-          (render/parse-result result nil))
+          (render/parse-result result nil (atom {})))
   (swap! state update :stdout (fn [e] (str e "-> "
                                            (pr-str (or (:result result)
                                                        (:error result)))
