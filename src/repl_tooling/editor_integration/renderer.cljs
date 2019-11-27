@@ -2,7 +2,6 @@
   (:require [reagent.core :as r]
             [clojure.string :as str]
             [repl-tooling.eval :as eval]
-            [clojure.walk :as walk]
             [repl-tooling.editor-helpers :as helpers]))
 
 (defprotocol Renderable
@@ -82,8 +81,8 @@
         [as-html @attributes-atom attributes-atom true]])]))
 
 (declare ->indexed)
-(defn- reset-atom [repl ratom obj result]
-  (let [new-idx (->indexed result repl)]
+(defn- reset-atom [repl ratom obj result editor-state]
+  (let [new-idx (->indexed result repl editor-state)]
     (swap! ratom
            (fn [indexed]
              (assoc indexed
@@ -104,7 +103,8 @@
     (let [a-for-more [:a {:href "#"
                           :on-click (fn [e]
                                       (.preventDefault e)
-                                      (more-fn repl false #(reset-atom repl ratom obj %)))}
+                                      (more-fn repl false #(reset-atom repl ratom obj
+                                                                       % editor-state)))}
                       "..."]]
 
       [:div {:class ["row" kind]}
@@ -115,7 +115,7 @@
                            (.preventDefault e)
                            (swap! ratom update :expanded? not))}])
         [:div {:class "delim opening"} open]
-        [:div {:class "inner"} (if (#{"map"} kind)
+        [:div {:class "inner"} (if (= "map" kind)
                                  (parse-inner-for-map obj more-fn a-for-more)
                                  (parse-inner-root obj more-fn a-for-more))]
         [:div {:class "delim closing"} close]
@@ -143,7 +143,7 @@
           more-callback (fn [callback]
                           (more-fn repl false
                                    #(do
-                                      (reset-atom repl ratom obj %)
+                                      (reset-atom repl ratom obj % editor-state)
                                       (callback))))
           complete-txt (delay (if more-fn
                                 (update txt 1 #(str open % " ..." close))
@@ -214,8 +214,7 @@
 (defrecord Tagged [tag subelement editor-state open?]
   Renderable
   (as-text [_ ratom root?]
-    (let [structure (as-text @subelement subelement false)
-          toggle #(do (swap! ratom update :open? not) (%))]
+    (let [toggle #(do (swap! ratom update :open? not) (%))]
       (if open?
         [:row [:expand "-" toggle]
          [:text tag] (as-text @subelement subelement false)
@@ -353,7 +352,7 @@
 (extend-protocol Parseable
   helpers/Error
   (as-renderable [self repl editor-state]
-    (let [obj (update self :message as-renderable repl)
+    (let [obj (update self :message as-renderable repl editor-state)
           add-data (some-> self :add-data not-empty (as-renderable repl editor-state))]
       (r/atom (->ExceptionObj obj add-data repl))))
 
@@ -391,16 +390,15 @@
 (defn parse-result
   "Will parse a result that comes from the REPL in a r/atom so that
 it'll be suitable to be rendered with `view-for-result`"
-  ([result repl] (parse-result result repl (atom {})))
-  ([result repl editor-state]
-   (let [parsed (helpers/parse-result result)]
-     (if (contains? parsed :result)
-       (as-renderable (:result parsed) repl editor-state)
-       (let [error (:error parsed)
-             ex (cond-> error
-                        (:ex error) :ex
-                        (->> error :ex (instance? helpers/Browseable)) :object)]
-         (with-meta (as-renderable ex repl editor-state) {:error true}))))))
+  [result repl editor-state]
+  (let [parsed (helpers/parse-result result)]
+    (if (contains? parsed :result)
+      (as-renderable (:result parsed) repl editor-state)
+      (let [error (:error parsed)
+            ex (cond-> error
+                       (:ex error) :ex
+                       (->> error :ex (instance? helpers/Browseable)) :object)]
+        (with-meta (as-renderable ex repl editor-state) {:error true})))))
 
 (defn view-for-result
   "Renders a view for a result. If it's an error, will return a view
@@ -431,7 +429,7 @@ make a placeholder that we can expand (+) or collapse (-) the structure"
             funs (range curr-row (+ curr-row txt-size)))))
 
 (defn- parse-elem [position lines funs depth]
-  (let [[elem text function] position
+  (let [[elem text] position
         last-elem (-> lines count dec)
         indent (->> depth (* 2) range (map (constantly " ")) (apply str) delay)
         last-line (peek lines)
