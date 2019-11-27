@@ -56,11 +56,6 @@
     (when-not ignore (on-output msg))
     (callback msg)))
 
-(defn- send-command! [^js conn id cmd control ex-type]
-  (let [command (source/wrap-command id cmd ex-type true)]
-    (swap! control update :pending-evals conj id)
-    (.write conn (:result command))))
-
 (defn- send-namespace [^js conn ns-command namespace control]
   (when namespace
     (swap! control update :ignore-output conj #"^\n?.*?=> " #"(?:.+Namespace.+|nil)\n")
@@ -68,8 +63,6 @@
 
 (defn- instantiate-correct-evaluator [repl-kind ^js conn control on-output]
   (let [pending-evals (atom {})
-        cmd! (fn [id command ex]
-               (send-command! conn id command control ex))
         cmd-for (case repl-kind
                   :bb (fn [{:keys [command id]}]
                         (source/wrap-command id command "Exception" true))
