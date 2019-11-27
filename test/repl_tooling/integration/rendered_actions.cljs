@@ -1,10 +1,10 @@
 (ns repl-tooling.integration.rendered-actions
-  (:require-macros [repl-tooling.integration.ui-macros :refer [type-and-result]])
   (:require [clojure.core.async :as async :include-macros true]
             [repl-tooling.editor-integration.connection :as conn]
             [repl-tooling.integration.fake-editor :as editor :refer [editor type-and-eval
                                                                      change-stdout]]
-            [repl-tooling.integration.ui-macros :as ui :include-macros true]
+            [repl-tooling.integration.ui-macros :as ui :include-macros true
+             :refer [type-and-result]]
             [clojure.test :refer [async testing is] :include-macros true]
             [check.core :refer-macros [check]]
             [devcards.core :as cards :include-macros true]))
@@ -29,7 +29,7 @@
   (async done
     (async/go
      (let [copy (async/chan)]
-       (editor/connect! {:lol "WAT" :on-copy #(async/put! copy %)})
+       (editor/connect! {:on-copy #(async/put! copy %)})
        (async/<! (editor/wait-for #(-> @editor/state :repls :eval)))
 
        (testing "copies tagged literals to clipboard"
