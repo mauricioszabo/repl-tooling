@@ -4,8 +4,6 @@
             [clojure.core.async :as async :include-macros true]
             [repl-tooling.repl-client :as client]
             [devcards.core :as cards :include-macros true]
-            [repl-tooling.eval :as eval]
-            [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval-helpers :refer-macros [eval-on-repl eval-and-parse]]
             [repl-tooling.editor-integration.renderer :as render]
             [repl-tooling.repl-client.clojure :as clj]))
