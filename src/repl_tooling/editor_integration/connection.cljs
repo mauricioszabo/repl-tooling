@@ -230,9 +230,12 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                            error)}))
   nil)
 
+; Config Options:
+; {:project-paths [...]
+;  :eval-mode (enum :clj :cljs :prefer-clj :prefer-cljs)}
 (defn connect!
-  "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
-callbacks:
+  "Connects to a clojure-like REPL that supports the socket REPL protocol.
+Expects host, port, and some callbacks:
 * on-start-eval -> a function that'll be called when an evaluation starts
 * on-eval -> a function that'll be called when an evaluation ends
 * editor-data -> a function that'll be called when a command needs editor's data.

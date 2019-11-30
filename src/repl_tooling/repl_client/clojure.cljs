@@ -86,9 +86,7 @@
 
                      :else
                      %)]
-    (if (coll? result)
-      {:as-text (pr-str result)}
-      {:as-text (pr-str (to-string result))})))
+    {:as-text (pr-str result)}))
 
 (defn- send-result! [res exception? state]
   (let [parsed (parse-res res)
@@ -233,7 +231,7 @@
           ((:callback pendency) (merge (:pass pendency) parsed))
           (swap! pending dissoc id)
           (when-not (:ignore pendency) (output-fn (merge (:pass pendency)
-                                                         {:as-text out}
+                                                         {:as-text (pr-str parsed)}
                                                          parsed))))
         (swap! buffer str out))
       (do
