@@ -4,14 +4,19 @@ sudo apt install libglib2.0-0 libnss3 libgtk3.0 libxss1 libasound2
 npm install
 npx shadow-cljs watch integration fixture &
 for n in {1..25}; do
-  ls target/integration/main.js &>/dev/null && break
+  ls target/fixture.js target/integration/main.js &>/dev/null && break
   echo "Not compiled yet, waiting..."
   sleep 20
 done
+
+ls target/fixture.js target/integration/main.js ;; exit 1
+echo "Fixture app compiled, running the fixture app"
 node target/fixture.js &
 
 export DISPLAY=:99
 Xvfb :99 &
+
+echo "Running tests"
 node integration_test.js
 ret=$?
 
