@@ -44,7 +44,9 @@
         (if-let [fqn (some-> (async/<! chan) :result symbol)]
           (let [cmd (cmd-for-filename fqn)]
             (eval/evaluate repl cmd {:ignore true}
-                           #(async/put! chan (:result (editor-helpers/parse-result %))))
+                           #(if-let [res (:result (editor-helpers/parse-result %))]
+                              (async/put! chan res)
+                              (async/put! chan [])))
             (get-result repl (async/<! chan) resolve))
           (prn [:ERROR!]))
         (async/close! chan))))))
