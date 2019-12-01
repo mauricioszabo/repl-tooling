@@ -24,6 +24,8 @@
                             (clojure.core/symbol (clojure.core/str "#unrepl/bigint "res))
 
                             :else res)]
-    ['tooling$eval-res '__ID__ {:result (clojure.core/pr-str res)}])
+    ['tooling$eval-res '__ID__ {:result (clojure.core/pr-str res)
+                                :as-text (clojure.core/pr-str res)}])
   (catch __EX_TYPE__ e
-    ['tooling$eval-res '__ID__ {:error (clojure.core/pr-str e)}]))
+    ['tooling$eval-res '__ID__ {:error (clojure.core/pr-str e)
+                                :as-text (clojure.core/pr-str e)}]))

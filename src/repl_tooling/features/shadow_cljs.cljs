@@ -22,7 +22,7 @@
 
 (defn command-for [project-paths]
   (let [first-shadow-file (->> project-paths
-                               (map #(path/join % "/shadow-cljs.edn"))
+                               (map #(path/join % "shadow-cljs.edn"))
                                (filter exists-sync)
                                first)]
     (if first-shadow-file
