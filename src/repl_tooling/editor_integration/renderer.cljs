@@ -74,6 +74,7 @@
         [:a {:href "#"
              :on-click (fn [e]
                          (.preventDefault e)
+                         (.stopPropagation e)
                          (obj-with-more-fn more-fn ratom repl editor-state identity))}
          (when root? "...")])]
      (when (and root? expanded?)
@@ -92,6 +93,7 @@
 (defn- link-to-copy [ratom editor-state first-line-only?]
   [:a {:class "icon clipboard" :href "#" :on-click (fn [^js evt]
                                                      (.preventDefault evt)
+                                                     (.stopPropagation evt)
                                                      (copy-to-clipboard
                                                       ratom
                                                       editor-state
@@ -103,6 +105,7 @@
     (let [a-for-more [:a {:href "#"
                           :on-click (fn [e]
                                       (.preventDefault e)
+                                      (.stopPropagation e)
                                       (more-fn repl false #(reset-atom repl ratom obj
                                                                        % editor-state)))}
                       "..."]]
@@ -113,6 +116,7 @@
           [:a {:class ["chevron" (if expanded? "opened" "closed")] :href "#"
                :on-click (fn [e]
                            (.preventDefault e)
+                           (.stopPropagation e)
                            (swap! ratom update :expanded? not))}])
         [:div {:class "delim opening"} open]
         [:div {:class "inner"} (if (= "map" kind)
@@ -193,6 +197,7 @@
        [:a {:href "#"
             :on-click (fn [e]
                         (.preventDefault e)
+                        (.stopPropagation e)
                         (get-more repl #(swap! ratom assoc :string %)))}
          "..."])
      "\""
@@ -227,7 +232,10 @@
       [:div {:class "tagged"}
        (when root?
          [:a {:class ["chevron" (if open? "opened" "closed")] :href "#"
-              :on-click (fn [e] (.preventDefault e) (swap! ratom update :open? not))}])
+              :on-click (fn [e]
+                          (.preventDefault e)
+                          (.stopPropagation e)
+                          (swap! ratom update :open? not))}])
        [:div {:class [(when will-be-open? "row")]}
         [:div {:class "tag"} tag (when will-be-open? copy-elem)]
         [:div {:class [(when will-be-open? "tag children")]}
@@ -248,6 +256,7 @@
       [:div {:class "incomplete-obj"}
        [:a {:href "#" :on-click (fn [e]
                                   (.preventDefault e)
+                                  (.stopPropagation e)
                                   (more repl #(reset! ratom @(as-renderable % repl editor-state))))}
         "..."]])))
 
@@ -255,14 +264,14 @@
   (cond
     more-trace
     (fn [e]
-      (when-not callback? (.preventDefault e))
+      (when-not callback? (.preventDefault e) (.stopPropagation e))
       (more-trace repl #(do
                           (reset! ratom %)
                           (when callback? (e)))))
 
     more-str
     (fn [e]
-      (when-not callback? (.preventDefault e))
+      (when-not callback? (.preventDefault e) (.stopPropagation e))
       (more-str repl #(do
                         (swap! ratom assoc 2 %)
                         (when callback? (e)))))))
@@ -346,6 +355,7 @@
           (when-let [more (eval/get-more-fn trace)]
             [:a {:href "#" :on-click (fn [e]
                                        (.preventDefault e)
+                                       (.stopPropagation e)
                                        (more repl #(swap! ratom assoc-in [:obj :trace] %)))}
              "..."])])])))
 
