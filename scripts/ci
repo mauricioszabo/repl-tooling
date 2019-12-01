@@ -9,7 +9,7 @@ for n in {1..25}; do
   sleep 20
 done
 
-ls target/fixture.js target/integration/main.js ;; exit 1
+ls target/fixture.js target/integration/main.js || exit 1
 echo "Fixture app compiled, running the fixture app"
 node target/fixture.js &
 
