@@ -219,7 +219,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                       :editor/features (features-for state options kind)}))
 
 (defn- connection-error! [error notify]
-  (if (= "ECONNREFUSED")
+  (if (= "ECONNREFUSED" error)
     (notify {:type :error
              :title "REPL not connected"
              :message (str "Connection refused. Ensure that you have a "
