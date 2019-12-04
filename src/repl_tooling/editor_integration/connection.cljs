@@ -10,7 +10,8 @@
             [repl-tooling.editor-integration.embedded-clojurescript :as embedded]
             [repl-tooling.editor-integration.autocomplete :as autocomplete]
             [repl-tooling.integrations.repls :as repls]
-            [repl-tooling.editor-integration.renderer :as renderer]))
+            [repl-tooling.editor-integration.renderer :as renderer]
+            [repl-tooling.editor-integration.doc :as doc]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -68,6 +69,10 @@
     :disconnect {:name "Disconnect REPLs"
                  :description "Disconnect all current connected REPLs"
                  :command #(handle-disconnect! state)}
+    :doc-for-var {:name "Documentation for current var"
+                  :description "Shows documentation for the current var under cursor"
+                  :command (fn [] (ensure-data (editor-data)
+                                               #(doc/doc-for-var %)))}
     :load-file {:name "Load File"
                 :description "Loads current file on a Clojure REPL"
                 :command (fn [] (ensure-data (editor-data)
@@ -119,12 +124,11 @@
    :editor-data identity
    :notify identity
    :get-config identity ;FIXME
-   :prompt (js/Promise. (fn []))})
+   :prompt (fn [ & _] (js/Promise. (fn [])))})
 
 (defn connect-evaluator!
   ""
-  [evaluators {:keys [on-stdout on-stderr on-result on-disconnect
-                      editor-data on-start-eval on-eval] :as opts}]
+  [evaluators opts]
   (js/Promise.
    (fn [resolve]
      (let [state (atom evaluators)
