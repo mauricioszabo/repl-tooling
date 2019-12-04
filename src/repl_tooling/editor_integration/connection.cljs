@@ -72,7 +72,7 @@
     :doc-for-var {:name "Documentation for current var"
                   :description "Shows documentation for the current var under cursor"
                   :command (fn [] (ensure-data (editor-data)
-                                               #(doc/doc-for-var %)))}
+                                               #(doc/doc-for-var % opts state)))}
     :load-file {:name "Load File"
                 :description "Loads current file on a Clojure REPL"
                 :command (fn [] (ensure-data (editor-data)
