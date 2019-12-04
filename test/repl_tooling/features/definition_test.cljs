@@ -4,11 +4,9 @@
             [check.core :refer-macros [check]]
             [clojure.core.async :as async :include-macros true]
             [repl-tooling.repl-client :as client]
-            [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj]
             [repl-tooling.features.definition :as def])
-  (:require-macros [repl-tooling.eval-helpers :refer [eval-on-repl]]
-                   [repl-tooling.features.definition-helper :as h]))
+  (:require-macros [repl-tooling.eval-helpers :refer [eval-on-repl]]))
 
 (set! cards/test-timeout 8000)
 (cards/deftest finding-definition
