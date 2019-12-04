@@ -19,11 +19,7 @@
 
 (defn for-clj [repl ns-name txt-prefix]
   (let [chan (async/promise-chan)
-        prefix (->> txt-prefix (re-seq valid-prefix) last last str)
-        have-prefix? (re-find #"/" prefix)
-        ns-part (if have-prefix?
-                  (str/replace prefix #"/.*" "")
-                  ns-name)]
+        prefix (->> txt-prefix (re-seq valid-prefix) last last str)]
     (if (not-empty prefix)
       (eval/evaluate repl
                      (str "(clojure.core/let [collect #(clojure.core/map "
