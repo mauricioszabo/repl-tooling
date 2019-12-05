@@ -31,7 +31,7 @@
         (clojure.core/apply str)))"))
 
 (defn- emit-result [document-part spec-part {:keys [opts eval-data]}]
-  (let [docs (cond-> document-part spec-part (str "\nSpec:\n" spec-part))
+  (let [docs (cond-> document-part spec-part (str "\n\nSpec:\n" spec-part))
         {:keys [on-eval on-result]} opts
         res {:result (pr-str docs) :literal true}]
 
