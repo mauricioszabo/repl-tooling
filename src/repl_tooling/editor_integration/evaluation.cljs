@@ -33,9 +33,12 @@
               :title "REPL not connected"
               :message msg})))
 
-(defn repl-for [opts state filename]
+(defn repl-for [opts state filename aux?]
   (let [cljs? (need-cljs? ((:get-config opts)) filename)
-        repl (if cljs? (:cljs/repl @state) (:clj/repl @state))]
+        repl (cond
+               cljs? (:cljs/repl @state)
+               aux? (:clj/aux @state)
+               :else (:clj/repl @state))]
     (if (nil? repl)
       (treat-error (:notify opts) cljs? (:clj/repl @state))
       repl)))
@@ -45,7 +48,7 @@
     (let [filename (:filename editor-data)
           {:keys [on-start-eval on-eval]} opts
           [[row col]] range
-          repl (repl-for opts state filename)
+          repl (repl-for opts state filename false)
           id (gensym)
           eval-data {:id id
                      :editor-data editor-data
