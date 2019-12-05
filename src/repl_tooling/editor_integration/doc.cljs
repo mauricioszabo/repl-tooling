@@ -1,48 +1,82 @@
 (ns repl-tooling.editor-integration.doc
   (:require [repl-tooling.editor-helpers :as helpers]
-            [clojure.core.async :as async]
+            [promesa.core :as p]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.evaluation :as e-eval]))
 
-(defn- resolved-var [var-name namespace repl]
-  (let [c (async/promise-chan)]
-    (eval/evaluate repl
-                     (str "`" var-name)
-                     {:namespace namespace}
-                     #(async/put! c %))
-    c))
-#_
-(defn doc-for [editor ^js range str-var-name]
-  (let [ns-name (repl/ns-for editor)
-        var-name (symbol (str "(clojure.core/resolve '" str-var-name ")"))
-        in-result (inline/new-result editor (.. range -end -row))
-        code `(~'clojure.core/let [v# (~'clojure.core/or ~var-name
-                                                     (throw
-                                                       (~'clojure.core/ex-info
-                                                        (~'clojure.core/str "Unable to resolve var: " ~str-var-name
-                                                                            " in this context in file " ~(.getFileName editor))
-                                                        {})))
-                                   m# (~'clojure.core/meta v#)]
-                (~'clojure.core/str "-------------------------\n"
-                                    (:ns m#) "/" (:name m#) "\n"
-                                    (:arglists m#) "\n  "
-                                    (:doc m#)))]
-    (repl/evaluate-aux editor
-                       ns-name
-                       (.getFileName editor)
-                       (.. range -start -row)
-                       (.. range -start -column)
-                       code
-                       {:literal true :ignore true}
-                       #(inline/render-inline! in-result %))))
+(defn- doc-cmd [var filename]
+  `(~'clojure.core/let
+     [v# (~'clojure.core/or (~'clojure.core/resolve '~var)
+                            (throw
+                              (~'clojure.core/ex-info
+                               "Unable to resolve var: in this context in file "
+                               {:var '~var :filename ~filename})))
+      m# (~'clojure.core/meta v#)]
+     (~'clojure.core/str "-------------------------\n"
+                         (:ns m#) "/" (:name m#) "\n"
+                         (:arglists m#) "\n  "
+                         (:doc m#))))
 
-(defn doc-for-var [{:keys [contents range filename]} opts state]
-  (async/go
-   (let [[_ var] (helpers/current-var contents (first range))
-         [_ ns] (helpers/ns-range-for contents (first range))
-         repl (e-eval/repl-for opts state filename)
-         var (-> var (resolved-var ns repl) async/<! delay)]
-     (prn :Va @var))))
-  ; (let [editor ^js (atom/current-editor)
-  ;       pos (.getCursorBufferPosition editor)]
-  ;   (doc-for editor #js {:start pos :end pos} (atom/current-var editor))))
+(defn- spec-cmd [var]
+  (str "
+  (clojure.core/when-let [fnspec (clojure.spec.alpha/get-spec '" var ")]
+    (clojure.core/doseq [role [:args :ret :fn]]
+      (clojure.core/when-let [spec (clojure.core/get fnspec role)]
+        (clojure.core/str \" \" "
+                         "(clojure.core/name role) \":\" "
+                         "(clojure.spec.alpha/describe spec)))))"))
+
+(defn- emit-result [document-part spec-part {:keys [opts eval-data]}]
+  (let [docs (cond-> document-part spec-part (str "\nSpec:\n" spec-part))
+        {:keys [on-eval on-result]} opts
+        res {:result (pr-str docs) :literal true}]
+
+    (and on-eval (on-eval (assoc eval-data :result res)))
+    (and on-result (on-result res))))
+
+(defn- try-spec [document-part options]
+  (let [spec-ed (p/let [_ (eval/eval (:repl options)
+                                     "(clojure.core/require '[clojure.spec.alpha])")
+                        cmd (spec-cmd (:var options))]
+                  (eval/eval (:repl options) cmd))]
+    (.. spec-ed
+        (then #(emit-result document-part % options))
+        (catch #(emit-result document-part nil options)))))
+
+(defn- treat-error [error {:keys [opts eval-data]}]
+  (let [{:keys [on-eval on-result]} opts]
+    (and on-eval (on-eval (assoc eval-data :result {:error error
+                                                    :parsed? true})))
+    (and on-result (on-result {:error error :parsed? true}))))
+
+(defn- run-documentation-code [{:keys [var editor-data opts repl] :as options}]
+  (when-let [on-start (-> options :opts :on-start-eval)]
+    (on-start (:eval-data options)))
+  (p/catch (p/let [var (eval/eval repl (str "`" var) {:namespace (:ns options) :ignore true})
+                   document-part (eval/eval repl (doc-cmd var (:filename editor-data)))]
+              (if document-part
+                (try-spec document-part options)
+                (treat-error "\"Unknown error\"" options)))
+           (fn [error]
+             (treat-error (or error
+                              (-> error :ex :object :message)
+                              (-> error :ex :message)
+                              (:message error)
+                              (str error))
+                          options))))
+
+(defn doc-for-var [{:keys [contents range filename] :as editor-data} opts state]
+  (let [id (gensym "doc-for-var")
+        [_ var] (helpers/current-var contents (first range))
+        [_ ns] (helpers/ns-range-for contents (first range))
+        repl (e-eval/repl-for opts state filename true)
+        eval-data {:id id
+                   :editor-data editor-data
+                   :range range}]
+    (when repl
+      (run-documentation-code {:ns ns
+                               :repl repl
+                               :var var
+                               :opts opts
+                               :eval-data eval-data
+                               :editor-data editor-data}))))
