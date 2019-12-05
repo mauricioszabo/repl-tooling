@@ -19,12 +19,16 @@
 
 (defn- spec-cmd [var]
   (str "
-  (clojure.core/when-let [fnspec (clojure.spec.alpha/get-spec '" var ")]
-    (clojure.core/doseq [role [:args :ret :fn]]
-      (clojure.core/when-let [spec (clojure.core/get fnspec role)]
-        (clojure.core/str \" \" "
-                         "(clojure.core/name role) \":\" "
-                         "(clojure.spec.alpha/describe spec)))))"))
+    (clojure.core/when-let [s (clojure.spec.alpha/get-spec '" var ")]
+      (clojure.core/some->> [:args :ret :fn]
+        (clojure.core/map #(clojure.core/some->> (% s)
+                              clojure.spec.alpha/describe
+                              clojure.core/pr-str
+                              (clojure.core/str (clojure.core/name %)\": \")))
+        (clojure.core/remove clojure.core/nil?)
+        clojure.core/not-empty
+        (clojure.core/interpose \"\\n\")
+        (clojure.core/apply str)))"))
 
 (defn- emit-result [document-part spec-part {:keys [opts eval-data]}]
   (let [docs (cond-> document-part spec-part (str "\nSpec:\n" spec-part))
@@ -55,15 +59,9 @@
   (p/catch (p/let [var (eval/eval repl (str "`" var) {:namespace (:ns options) :ignore true})
                    document-part (eval/eval repl (doc-cmd var (:filename editor-data)))]
               (if document-part
-                (try-spec document-part options)
+                (try-spec document-part (assoc options :var var))
                 (treat-error "\"Unknown error\"" options)))
-           (fn [error]
-             (treat-error (or error
-                              (-> error :ex :object :message)
-                              (-> error :ex :message)
-                              (:message error)
-                              (str error))
-                          options))))
+           #(treat-error % options)))
 
 (defn doc-for-var [{:keys [contents range filename] :as editor-data} opts state]
   (let [id (gensym "doc-for-var")
