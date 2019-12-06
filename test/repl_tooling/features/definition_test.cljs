@@ -40,9 +40,7 @@
        (testing "finds symbols inside other namespaces, and gets file"
          (. (def/find-var-definition repl
               'repl-tooling.features.definition-helper "c/some-function")
-           then #(do
-                   (prn %)
-                   (async/put! in-other-ns %)))
+           then #(async/put! in-other-ns %))
          (-> in-other-ns async/<! :line (check => number?))
          (-> in-other-ns async/<! :file-name
              (check => #(re-find #"repl_tooling/features/definition_child\.clj" %)))
