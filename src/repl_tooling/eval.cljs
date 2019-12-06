@@ -1,7 +1,8 @@
 (ns repl-tooling.eval
   (:refer-clojure :exclude [eval])
   (:require [cljs.core.async :refer [put! <! >! chan] :refer-macros [go go-loop]]
-            [repl-tooling.editor-helpers :as helpers]))
+            [repl-tooling.editor-helpers :as helpers]
+            [promesa.core :as p]))
 
 (defprotocol MoreData
   (without-ellision [self]
@@ -12,8 +13,30 @@
 will call the callback with the same kind of object with more data"))
 
 (defprotocol Evaluator
-  (evaluate [this command opts callback])
+  (evaluate [this command opts callback]
+            "Evaluates the current command in the current REPL evaluator. Opts is a map with the
+following:
+:filename -> the current filename (only works on supported REPLs for now)
+:row -> The 0-based row of the current file
+:col -> the 0-based col of the current file
+:pass -> a map where the data will be copied to the result
+:ignore -> will not send the result to the output/stdout/stderr callback")
   (break [this repl]))
+
+(defn eval
+  "Uses the same API as `evaluate`, but instead of expecting a callback returns a
+resolved promise with the result, or a rejected promise with the error
+
+If no argument is passed to opts, {:ignore true} is assumed"
+  ([evaluator command] (eval evaluator command {:ignore true}))
+  ([evaluator command opts]
+   (let [p (p/deferred)]
+     (evaluate evaluator command opts (fn [res]
+                                        (let [parsed (helpers/parse-result res)]
+                                          (if (contains? res :result)
+                                            (p/resolve! p (:result parsed))
+                                            (p/reject! p (:error parsed))))))
+     p)))
 
 (defn evaluator
   ([in out on-line] (evaluator in out on-line identity))
@@ -30,12 +53,6 @@ will call the callback with the same kind of object with more data"))
      {:pending-cmds pending-cmds
       :in in
       :out out})))
-
-(defn eval [evaluator command opts callback]
-  (let [id (str "eval" (gensym))]
-    (swap! (:pending-cmds evaluator) assoc id callback)
-    (go (>! (:in evaluator) [id command]))
-    id))
 
 (defn- without-ellision-list [lst]
   (cond-> lst (-> lst last :repl-tooling/...) butlast))

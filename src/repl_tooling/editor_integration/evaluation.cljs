@@ -33,29 +33,34 @@
               :title "REPL not connected"
               :message msg})))
 
+(defn repl-for [opts state filename aux?]
+  (let [cljs? (need-cljs? ((:get-config opts)) filename)
+        repl (cond
+               cljs? (:cljs/repl @state)
+               aux? (:clj/aux @state)
+               :else (:clj/repl @state))]
+    (if (nil? repl)
+      (treat-error (:notify opts) cljs? (:clj/repl @state))
+      repl)))
+
 (defn eval-cmd [state code namespace range editor-data opts]
   (when code
-    (let [id (atom nil)
-          filename (:filename editor-data)
+    (let [filename (:filename editor-data)
           {:keys [on-start-eval on-eval]} opts
           [[row col]] range
-          cljs? (need-cljs? ((:get-config opts)) filename)
-          repl (if cljs? (:cljs/repl @state) (:clj/repl @state))]
-
-      (if (nil? repl)
-        (treat-error (:notify opts) cljs? (:clj/repl @state))
-        (let [id (gensym)
-              eval-data {:id id
-                         :editor-data editor-data
-                         :range range}]
-          (and on-start-eval (on-start-eval eval-data))
-          (eval/evaluate repl
-                         code
-                         {:filename filename
-                          :id id
-                          :row (inc row)
-                          :col (inc col)
-                          :namespace namespace}
-                         #(and on-eval
-                               (on-eval (assoc eval-data
-                                               :result (helpers/parse-result %))))))))))
+          repl (repl-for opts state filename false)
+          id (gensym)
+          eval-data {:id id
+                     :editor-data editor-data
+                     :range range}]
+      (when repl
+        (and on-start-eval (on-start-eval eval-data))
+        (eval/evaluate repl
+                       code
+                       {:filename filename
+                        :id id
+                        :row (inc row)
+                        :col (inc col)
+                        :namespace namespace}
+                       #(when on-eval
+                          (on-eval (assoc eval-data :result (helpers/parse-result %)))))))))

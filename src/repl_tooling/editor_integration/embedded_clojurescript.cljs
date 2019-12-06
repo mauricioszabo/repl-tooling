@@ -1,6 +1,5 @@
 (ns repl-tooling.editor-integration.embedded-clojurescript
   (:require [repl-tooling.features.shadow-cljs :as shadow]
-            [cljs.core.async :include-macros true :as async]
             [repl-tooling.integrations.connection :as conn]))
 
 (def trs {:no-build-id "There's no build ID detected on shadow-cljs file"
