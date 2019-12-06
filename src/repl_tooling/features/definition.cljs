@@ -1,7 +1,7 @@
 (ns repl-tooling.features.definition
   (:require [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as editor-helpers]
-            [cljs.core.async :as async :include-macros true]))
+            [promesa.core :as p]))
 
 (defn- cmd-for-filename [the-var]
   `(~'clojure.core/let [res# (~'clojure.core/meta (~'clojure.core/resolve (quote ~the-var)))]
@@ -21,30 +21,14 @@
      (~'clojure.java.io/copy is# ba#)
      (java.lang.String. (.toByteArray ba#))))
 
-(defn- get-result [repl [file-name line] resolve]
-  (if (string? file-name)
-    (let [chan (async/promise-chan)]
-      (if (re-find #"\.jar!/" file-name)
-        (let [cmd (cmd-for-read-jar file-name)]
-          (eval/evaluate repl cmd {:ignore true}
-                         #(let [contents (->> % editor-helpers/parse-result :result)]
-                            (resolve {:file-name file-name
-                                      :line (dec line)
-                                      :contents contents}))))
-        (resolve {:file-name file-name :line (dec line)})))
-    (resolve nil)))
+(defn- get-result [repl [file-name line]]
+  (when (string? file-name)
+    (if (re-find #"\.jar!/" file-name)
+      (p/then (eval/eval repl (cmd-for-read-jar file-name))
+              (fn [c] {:file-name file-name :line (dec line) :contents c}))
+      {:file-name file-name :line (dec line)})))
 
 (defn find-var-definition [repl ns-name symbol-name]
-  (js/Promise.
-   (fn [resolve]
-     (let [chan (async/chan)]
-       (async/go
-        (eval/evaluate repl (str "`" symbol-name) {:namespace ns-name :ignore true}
-                       #(async/put! chan %))
-        (if-let [fqn (some-> (async/<! chan) :result symbol)]
-          (let [cmd (cmd-for-filename fqn)]
-            (eval/evaluate repl cmd {:ignore true}
-                           #(async/put! chan (:result (editor-helpers/parse-result %))))
-            (get-result repl (async/<! chan) resolve))
-          (prn [:ERROR!]))
-        (async/close! chan))))))
+  (p/let [fqn (eval/eval repl (str "`" symbol-name) {:namespace ns-name :ignore true})
+          data (eval/eval repl (cmd-for-filename fqn))]
+    (get-result repl data)))
