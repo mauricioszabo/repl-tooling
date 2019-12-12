@@ -224,15 +224,19 @@ that the cursor is in row and col (0-based)"
                     (meta (first nodes)))]
     (-> all-nodes zip-base/edn)))
 
-(defn current-var [code [row col]]
-  (let [node (-> code
-                 zip-from-code
+(defn- current-var* [zipped row col]
+  (let [node (-> zipped
                  (zip/find-last-by-pos {:row (inc row) :col (inc col)})
                  zip/node)]
     (when (and node (-> node node/whitespace-or-comment? not))
       (let [{:keys [row col end-row end-col]} (meta node)]
         [[[(dec row) (dec col)] [(dec end-row) (- end-col 2)]]
          (node/string node)]))))
+
+(defn current-var [code [row col]]
+  (let [zipped (zip-from-code code)]
+    (or (current-var* zipped row col)
+        (current-var* zipped row (dec col)))))
 
 (defn block-for
   "Gets the current block from the code (a string) to the current row and col (0-based)"
