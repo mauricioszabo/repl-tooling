@@ -162,6 +162,7 @@
     (async/go
      (connect!)
      (async/<! (wait-for #(-> @state :commands)))
+     (async/<! (async/timeout 1000))
 
      (testing "evaluation works for nil"
        (type-and-eval "nil")
