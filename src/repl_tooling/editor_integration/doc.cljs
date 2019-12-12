@@ -9,7 +9,8 @@
      [v# (~'clojure.core/or (~'clojure.core/resolve '~var)
                             (throw
                               (~'clojure.core/ex-info
-                               "Unable to resolve var: in this context in file "
+                                (~'clojure.core/str
+                                  "Unable to resolve var: '" '~var "' in this context in file ")
                                {:var '~var :filename ~filename})))
       m# (~'clojure.core/meta v#)]
      (~'clojure.core/str "-------------------------\n"
