@@ -115,3 +115,10 @@
 
   (testing "getting second NS in form"
     (check (helpers/ns-range-for ns-code [3 4]) => [[[2 0] [2 10]] 'barbaz])))
+
+(deftest getting-current-var
+  (testing "getting var under cursor"
+    (check (helpers/current-var " some-var " [0 1]) => [[[0 1] [0 8]] "some-var"]))
+
+  (testing "getting var on the end of cursor"
+    (check (helpers/current-var " some-var " [0 9]) => [[[0 1] [0 8]] "some-var"])))
