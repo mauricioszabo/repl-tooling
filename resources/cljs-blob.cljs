@@ -19,7 +19,7 @@
                                 clojure.string/split-lines)})))
 
 (require '[reagent.ratom])
-(when (resolve 'reagent.core/atom)
+(when (.. js/goog -global -reagent -core)
   (extend-protocol IPrintWithWriter
     reagent.ratom/RAtom
     (-pr-writer [self writer _]
