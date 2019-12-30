@@ -17,16 +17,3 @@
                     :trace (->> ex
                                 .-stack
                                 clojure.string/split-lines)})))
-
-(require '[reagent.ratom])
-(when (resolve 'reagent.core/atom)
-  (extend-protocol IPrintWithWriter
-    reagent.ratom/RAtom
-    (-pr-writer [self writer _]
-      (-write writer "#reagent.ratom.RAtom ")
-      (-write writer (pr-str @self)))
-
-    reagent.ratom/RCursor
-    (-pr-writer [self writer _]
-      (-write writer "#reagent.ratom.RCursor ")
-      (-write writer (pr-str [(.-path self) @self])))))
