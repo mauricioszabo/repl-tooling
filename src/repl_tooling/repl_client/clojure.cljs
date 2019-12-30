@@ -1,7 +1,6 @@
 (ns repl-tooling.repl-client.clojure
   (:require-macros [repl-tooling.repl-client.clj-helper :refer [blob-contents]])
-  (:require [repl-tooling.repl-client.protocols :as repl]
-            [repl-tooling.repl-client :as client]
+  (:require [repl-tooling.repl-client :as client]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [cljs.core.async :as async :refer-macros [go go-loop]]
