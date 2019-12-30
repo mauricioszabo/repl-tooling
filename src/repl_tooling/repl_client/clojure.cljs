@@ -168,6 +168,8 @@
                      :in-command #(.write conn (str % "\n"))
                      :on-output on-output})
         session (atom {:state state})]
+    (.write conn "(clojure.core/require '[clojure.test])")
+    (.write conn "(clojure.core/alter-var-root #'clojure.test/*test-out* (clojure.core/constantly *out*))\n")
     (.write conn blob)
     (swap! control assoc
            :on-line #(if %
