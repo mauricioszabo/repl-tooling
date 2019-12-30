@@ -258,6 +258,7 @@ Expects host, port, and some callbacks:
   callback passing :title, :message, and :arguments (a vector that is composed by
   :key and :value). The callback needs to return a `Promise` with one of the
   :key from the :arguments, or nil if nothing was selected.
+* on-copy -> a function that receives a string and copies its contents to clipboard
 * on-stdout -> a function that receives a string when some code prints to stdout
 * on-stderr -> a function that receives a string when some code prints to stderr
 * on-result -> returns a clojure EDN with the result of code

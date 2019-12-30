@@ -27,6 +27,7 @@
 
 (s/def ::prompt (s/fspec :ret #(instance? js/Promise %)))
 
+(s/def ::on-copy (s/fspec :args (s/cat :txt string?)))
 (s/def ::on-stdout (s/fspec :args (s/cat :txt string?)))
 (s/def ::on-stderr (s/fspec :args (s/cat :txt string?)))
 (s/def ::on-result (s/fspec :args (s/cat :parsed-result any?)))
@@ -38,6 +39,7 @@
                                     ::notify
                                     ::get-config
                                     ::prompt
+                                    ::on-copy
                                     ::on-stdout
                                     ::on-stdout
                                     ::on-stderr
