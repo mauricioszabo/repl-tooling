@@ -1,6 +1,5 @@
 (ns repl-tooling.repl-client.connection
-  (:require [repl-tooling.editor-helpers :as helpers]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.reader :as edn]
             [rewrite-clj.parser :as parser]
             ["net" :as net]))
