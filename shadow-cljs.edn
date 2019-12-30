@@ -4,6 +4,7 @@
  :dependencies [[org.clojure/core.async "0.4.490"]
                 [check "0.0.3-SNAPSHOT"]
                 [funcool/promesa "4.0.2"]
+                [orchestra "2019.02.06-1"]
                 [compliment "0.4.0-SNAPSHOT"]
                 [rewrite-cljs "0.4.4"]
                 [reagent "0.8.1"]
