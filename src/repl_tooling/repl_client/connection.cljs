@@ -29,7 +29,7 @@
 (defn- treat-new-state [control buffer new-state]
   (let [has-newline? #(re-find #"\r?\n" (str %))
         {:keys [on-line on-fragment]} @control
-        [frags [last-line & rest]] (split-with (complement has-newline?) new-state)]
+        [frags [last-line]] (split-with (complement has-newline?) new-state)]
     (cond
       (= [:closed] new-state)
       (do
