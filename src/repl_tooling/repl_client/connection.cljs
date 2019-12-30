@@ -7,7 +7,7 @@
 
 (defn- emit-line! [control on-line on-fragment buffer frags last-line]
   (js/clearTimeout (:timeout-id @control))
-  (let [[fst snd] (str/split last-line #"\n" 2)]
+  (let [[fst snd] (str/split last-line #"\r?\n" 2)]
     (on-line (apply str (concat (:emitted-frags @control) frags [fst])))
     (swap! control assoc :emitted-frags [])
     (on-fragment (apply str (concat frags [fst "\n"])))
@@ -28,7 +28,7 @@
             1000))))
 
 (defn- treat-new-state [control buffer new-state]
-  (let [has-newline? #(re-find #"\n" (str %))
+  (let [has-newline? #(re-find #"\r?\n" (str %))
         {:keys [on-line on-fragment]} @control
         [frags [last-line & rest]] (split-with (complement has-newline?) new-state)]
     (cond
@@ -83,7 +83,7 @@
         (let [edn-size (count edn-str)]
           (swap! control update :pending-evals disj id)
           (when (:ignore-prompt @control) (swap! control update :ignore-output
-                                                 conj #"^\n?.*?=> " #"\n"))
+                                                 conj #"^\r?\n?.*?=> " #"\r?\n"))
           (on-result [id res])
           (send-output (subs output edn-size) control on-output))
         (send-output output control on-output)))))

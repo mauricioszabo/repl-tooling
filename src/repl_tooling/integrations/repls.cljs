@@ -58,7 +58,7 @@
 
 (defn- send-namespace [^js conn ns-command namespace control]
   (when namespace
-    (swap! control update :ignore-output conj #"^\n?.*?=> " #"(?:.+Namespace.+|nil)\n")
+    (swap! control update :ignore-output conj #"^\r?\n?.*?=> " #"(?:.+Namespace.+|nil)\r?\n")
     (.write conn (str "(" ns-command namespace ")"))))
 
 (defn- instantiate-correct-evaluator [repl-kind ^js conn control on-output]
@@ -102,7 +102,7 @@
 
 (defn- ignore-output-on-control [control repl-kind]
   (if-not (= :unknown repl-kind)
-    (swap! control update :ignore-output conj #":using-unknown-repl" #"^\n?.*?=> ")))
+    (swap! control update :ignore-output conj #":using-unknown-repl" #"^\r?\n?.*?=> ")))
 
 (defonce connections (atom {}))
 (defn connect-repl! [id host port on-output]
