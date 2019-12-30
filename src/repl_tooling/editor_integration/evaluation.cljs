@@ -17,21 +17,22 @@
   (let [msg (cond
               (and cljs? clj-connected?)
               (str "REPL not connected for ClojureScript.\n\n"
-                   "You can connect a REPL using 'Connect ClojureScript Socket REPL' "
-                   "command, or 'Connect Embedded ClojureScript' command")
+                   "You can connect a REPL using 'Connect Socket REPL' "
+                   "command, or 'Connect Embedded' command")
 
               cljs?
               (str "REPL not connected for ClojureScript.\n\n"
-                   "You can connect a REPL using 'Connect ClojureScript Socket REPL' "
+                   "You can connect a REPL using 'Connect Socket REPL' "
                    "command, or by connecting a Clojure REPL and running "
-                   "'Connect embedded ClojureScript' command")
+                   "'Connect Embedded' command")
 
               :clj
               (str "REPL not connected for Clojure\n\n"
-                   "You can connect a REPL by running 'Connect Clojure Socket REPL' command"))]
+                   "You can connect a REPL by running 'Connect Socket REPL' command"))]
     (notify! {:type :error
               :title "REPL not connected"
-              :message msg})))
+              :message msg})
+    nil))
 
 (defn repl-for [opts state filename aux?]
   (let [cljs? (need-cljs? ((:get-config opts)) filename)
