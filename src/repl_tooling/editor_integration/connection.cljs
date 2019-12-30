@@ -11,7 +11,9 @@
             [repl-tooling.editor-integration.autocomplete :as autocomplete]
             [repl-tooling.integrations.repls :as repls]
             [repl-tooling.editor-integration.renderer :as renderer]
-            [repl-tooling.editor-integration.doc :as doc]))
+            [repl-tooling.editor-integration.doc :as doc]
+            [repl-tooling.editor-integration.schemas :as schemas]
+            [orchestra.core :refer-macros [defn-spec]]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -167,8 +169,8 @@ than once
 
 Returns a promise that will resolve to a map with two repls: :clj/aux will be used
 to autocomplete/etc, :clj/repl will be used to evaluate code."
-  [host port {:keys [on-stdout on-stderr on-result on-disconnect
-                     editor-data on-start-eval on-eval] :as opts}]
+  [host port {:keys [on-stdout on-stderr on-result on-disconnect]
+              :as opts}]
   (js/Promise.
    (fn [resolve]
      (let [state (r/atom {:editor/callbacks opts})
@@ -237,7 +239,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 ; Config Options:
 ; {:project-paths [...]
 ;  :eval-mode (enum :clj :cljs :prefer-clj :prefer-cljs)}
-(defn connect!
+(defn-spec connect! any?
   "Connects to a clojure-like REPL that supports the socket REPL protocol.
 Expects host, port, and some callbacks:
 * on-start-eval -> a function that'll be called when an evaluation starts
@@ -264,7 +266,9 @@ than once
 
 Returns a promise that will resolve to a map with two repls: :clj/aux will be used
 to autocomplete/etc, :clj/repl will be used to evaluate code."
-  [host port {:keys [on-stdout on-stderr on-result on-disconnect notify] :as opts}]
+  [host string?
+   port integer?
+   {:keys [on-stdout on-stderr on-result on-disconnect notify] :as opts} ::schemas/callbacks]
   (let [state (r/atom {:editor/callbacks opts})
         callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
         primary (repls/connect-repl! :clj-eval host port callback)
