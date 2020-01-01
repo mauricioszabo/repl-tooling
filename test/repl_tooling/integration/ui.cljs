@@ -17,7 +17,8 @@
             [repl-tooling.features.autocomplete-test]
             [repl-tooling.editor-integration.autocomplete-test]
             [repl-tooling.repl-client.connection-test]
-            [repl-tooling.integration.rendered-actions]))
+            [repl-tooling.integration.rendered-actions]
+            [repl-tooling.editor-integration.interactive-test]))
 
 (cards/defcard-rg rendered-result
   (fn [result]
@@ -46,7 +47,6 @@
            (async/<! (async/timeout 100))
            (recur (inc t))))))))
 
-(defn- type-in [txt] (swap! state assoc :code txt))
 (defn- type-and-eval [txt]
   (swap! state assoc :code txt)
   (evaluate))
