@@ -2,14 +2,9 @@
   (:require [reagent.core :as r]
             [clojure.string :as str]
             [repl-tooling.eval :as eval]
-            [repl-tooling.editor-helpers :as helpers]))
-
-(defprotocol Renderable
-  (as-html [this ratom root?])
-  (as-text [this ratom root?]))
-
-(defprotocol Parseable
-  (as-renderable [self repl editor-state]))
+            [repl-tooling.editor-helpers :as helpers :refer [Renderable as-html as-text
+                                                             as-renderable]]
+            [repl-tooling.editor-integration.interactive :as int]))
 
 (defn- parse-inner-root [objs more-fn a-for-more]
   (let [inner (cond-> (mapv #(as-html (deref %) % false) objs)
@@ -51,12 +46,14 @@
     (-> ratom txt-for-result (textual->text first-line-only?) copy)))
 
 (defn- obj-with-more-fn [more-fn ratom repl editor-state callback]
-  (more-fn repl #(do
-                   (swap! ratom assoc
-                          :more-fn nil
-                          :expanded? true
-                          :attributes-atom (as-renderable (:attributes %) repl editor-state))
-                   (callback))))
+  (more-fn repl (fn [res]
+                  (swap! ratom assoc
+                         :more-fn nil
+                         :expanded? true
+                         :attributes-atom (as-renderable (:attributes res)
+                                                         repl
+                                                         editor-state))
+                  (callback))))
 
 (defrecord ObjWithMore [obj-atom more-fn attributes-atom expanded? repl editor-state]
   Renderable
@@ -359,7 +356,11 @@
                                        (more repl #(swap! ratom assoc-in [:obj :trace] %)))}
              "..."])])])))
 
-(extend-protocol Parseable
+(extend-protocol helpers/Parseable
+  helpers/Interactive
+  (as-renderable [self repl editor-state]
+    (r/atom (int/->Interactive (.-edn self) repl editor-state)))
+
   helpers/Error
   (as-renderable [self repl editor-state]
     (let [obj (update self :message as-renderable repl editor-state)

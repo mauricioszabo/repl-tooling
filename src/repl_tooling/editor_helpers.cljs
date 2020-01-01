@@ -8,10 +8,22 @@
             [rewrite-clj.reader :as clj-reader]
             [rewrite-clj.parser :as parser]))
 
+(defprotocol Parseable
+  (as-renderable [self repl editor-state]))
+
+(defprotocol Renderable
+  (as-html [this ratom root?])
+  (as-text [this ratom root?]))
+
 (deftype LiteralRender [string]
   IPrintWithWriter
   (-pr-writer [_ writer opts]
     (-write writer string)))
+
+(deftype Interactive [edn]
+  IPrintWithWriter
+  (-pr-writer [_ writer opts]
+    (-write writer edn)))
 
 (defprotocol IIncompleteStr
   (only-str [_])
@@ -91,6 +103,7 @@
                                 'unrepl/browsable (fn [[a b]]
                                                     (->browseable a b))
                                 'repl-tooling/literal-render #(LiteralRender. %)
+                                'repl-tooling/interactive #(Interactive. %)
                                 'clojure/var #(->> % (str "#'") symbol)
                                 'error parse-error
                                 'unrepl/object as-obj}
@@ -104,7 +117,8 @@
            (update result :result #(if (:parsed? result)
                                      %
                                      (cond-> (read-result %)
-                                             (:literal result) LiteralRender.)))
+                                             (:literal result) LiteralRender.
+                                             (:interactive result) Interactive.)))
            (update result :error #(cond-> % (not (:parsed? result)) read-result)))
          :parsed? true))
 
