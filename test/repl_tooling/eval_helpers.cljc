@@ -11,3 +11,14 @@ a variable `repl` that points to the evaluator"
 
 (defmacro eval-and-parse [code]
   `(repl-tooling.editor-helpers/parse-result (eval-on-repl ~code)))
+
+(defmacro wait-for-change [fn-to-change]
+  `(let [old-val# (~fn-to-change)
+         res# (async/go-loop [tries# 0]
+                (let [new-val# (~fn-to-change)]
+                  (cond
+                    (or (not= new-val# old-val#) (>= tries# 20)) new-val#
+                    (= new-val# old-val#) (do
+                                            (async/<! (async/timeout 20))
+                                            (recur (inc tries#))))))]
+     (async/<! res#)))
