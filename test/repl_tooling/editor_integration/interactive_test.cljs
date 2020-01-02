@@ -52,11 +52,12 @@
     (testing "rendering HTML elements"
       (render [:html [:div "LOL"]])
       (check (wait-for-change text-on-result) => {:text "LOL"
-                                                  :html "<div>LOL</div>"})))
+                                                  :html "<div>LOL</div>"}))
 
 
-  #_
-  (testing "rendering HTML replacement elements"
-    (render [:html [:a {:href "#" :on-click [:replace [:html [:div "New"]]]} "old"]])
-    (click-on "old")
-    (check (text-on-result) => {:text "New"})))
+    (testing "rendering HTML replacement elements"
+      (render [:html [:a {:href "#" :on-click [:replace [:html [:div "New"]]]} "old"]])
+      (wait-for-change text-on-result)
+      (click-on "old")
+      (wait-for-change text-on-result)
+      (check (text-on-result) => {:text "New"}))))
