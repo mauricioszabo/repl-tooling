@@ -8,6 +8,8 @@
             [devcards.core :as cards :include-macros true]
             [clojure.string :as str]
             [repl-tooling.editor-integration.connection :as conn]
+            [orchestra-cljs.spec.test :as st]
+
             [repl-tooling.editor-helpers-test]
             [repl-tooling.repl-client.parsing-test]
             [repl-tooling.repl-client.textual-representation-test]
@@ -218,5 +220,8 @@
      (conn/disconnect!)
      (done))))
 
-(defn main [])
 (cards/start-devcard-ui!)
+
+(defn ^:dev/after-load main []
+  (println "re-instrumenting")
+  (st/instrument))

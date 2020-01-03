@@ -406,6 +406,7 @@ it'll be suitable to be rendered with `view-for-result`"
     (if (contains? parsed :result)
       (as-renderable (:result parsed) repl editor-state)
       (let [error (:error parsed)
+            ; FIXME: is this really necessary? Can we use the exception renderer?
             ex (cond-> error
                        (:ex error) :ex
                        (->> error :ex (instance? helpers/Browseable)) :object)]
