@@ -107,6 +107,7 @@
    :eval-and-render (fn [code range]
                       (ensure-data (editor-data)
                                    #(eval-range state % opts (constantly [range code]))))
+   :eval (partial e-eval/eval-with-promise state opts)
    :result-for-renderer #(ensure-data (editor-data)
                                       (fn [data] (result-for-renderer % state data opts)))})
 

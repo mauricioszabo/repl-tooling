@@ -65,3 +65,20 @@
                         :namespace namespace}
                        #(when on-eval
                           (on-eval (assoc eval-data :result (helpers/parse-result %)))))))))
+
+(defn eval-with-promise
+  "Evaluates the current code and evaluation options on the current REPL.
+Accepts an extra argument on `eval-opts` that's :aux - if true, evaluates
+on the 'auxiliary' REPL instead of primary. On Clojure, this means that
+the code will use UNREPL but will not use ellisions on infinite sequences, etc.
+
+Please notice that because the REPL is auto-detected, `:filename` is required.
+Otherwise, ClojureScript REPL will never be used!
+
+Will return a 'promise' that is resolved to the eval result, or failed if the
+eval result is an error. It will also return a fail, with nil, if there's no
+REPL available"
+  [state opts code eval-opts]
+  (if-let [repl (repl-for opts state (:filename opts) (:aux eval-opts))]
+    (eval/eval repl code eval-opts)
+    (js/Promise. (fn [_ fail] (fail nil)))))
