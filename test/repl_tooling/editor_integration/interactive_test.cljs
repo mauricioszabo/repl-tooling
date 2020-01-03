@@ -28,10 +28,12 @@
     {:text (-> elem .-innerText (str/replace #"\n" " "))
      :html (.-innerHTML elem)}))
 
-(defn- render [interactive-obj]
-  (let [obj (int/->Interactive interactive-obj nil {})]
-    (reset! state obj)
-    (text-on-result)))
+(defn- render
+  ([interactive-obj] (render interactive-obj {}))
+  ([interactive-obj editor-features]
+   (let [obj (int/->Interactive interactive-obj nil editor-features)]
+     (reset! state obj)
+     (text-on-result))))
 
 (defn- click-on [link-label]
   (when-let [elem (->> (. js/document querySelectorAll "a")
@@ -39,10 +41,14 @@
                        (filter #(= (.-innerText %) link-label))
                        first)]
     (.click elem)))
+;
+; (defn- ensure-eval [code opts]
+;   (assert (= code "some-right-code"))
+;   (assert (= opts {:filename "old-code"})))
 
 (cards/deftest rendering-elements
   (reset! state nil)
-  (async-test "interactive renderer"
+  (async-test "interactive renderer" {:timeout 8000}
     (testing "rendering :render - like normal tooling renderer"
       (render [:render {:foo 10}])
       (check (wait-for-change text-on-result) => {:text "{ :foo 10 }"})
@@ -54,10 +60,24 @@
       (check (wait-for-change text-on-result) => {:text "LOL"
                                                   :html "<div>LOL</div>"}))
 
-
     (testing "rendering HTML replacement elements"
       (render [:html [:a {:href "#" :on-click [:replace [:html [:div "New"]]]} "old"]])
       (wait-for-change text-on-result)
       (click-on "old")
       (wait-for-change text-on-result)
-      (check (text-on-result) => {:text "New"}))))
+      (check (text-on-result) => {:text "New"}))
+
+    (testing "rendering HTML mixed with default render"
+      (render [:html [:div [:render {:foo 10}]]])
+      (check (wait-for-change text-on-result) => {:text "{ :foo 10 }"})
+      (click-on "")
+      (check (wait-for-change text-on-result) => {:text "{ :foo 10 } [ :foo 10 ]"}))
+
+    (testing "re-eval and dispatch"
+      (render [:html [:a {:href "#" :on-click [:eval "some-right-code"]}
+                      "eval"]]
+              (atom {:editor/features {:eval #(.resolve js/Promise "[:replace [:html [:div 3]]]")}}))
+
+      (wait-for-change text-on-result)
+      (click-on "eval")
+      (check (wait-for-change text-on-result) => {:text "3"}))))

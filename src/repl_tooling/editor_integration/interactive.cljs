@@ -36,7 +36,9 @@
 (defn- normalize-html-actions [reagent-params {:keys [dispatch]}]
   (->> reagent-params
        (map (fn [[key val]]
-              (if (and (keyword? key) (->> key name (re-find #"^on-")))
+              (if (and (keyword? key)
+                       (->> key name (re-find #"^on-"))
+                       (vector? val))
                 [key (fn [e]
                        (.preventDefault e)
                        (.stopPropagation e)
