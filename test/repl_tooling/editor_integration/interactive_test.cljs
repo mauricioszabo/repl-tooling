@@ -41,10 +41,19 @@
                        (filter #(= (.-innerText %) link-label))
                        first)]
     (.click elem)))
-;
-; (defn- ensure-eval [code opts]
-;   (assert (= code "some-right-code"))
-;   (assert (= opts {:filename "old-code"})))
+
+(def eval-data {:range [[1 1] [1 10]]
+                :editor-data {:filename "somecode.cljs"
+                              :range [[1 1] [1 20]]
+                              :contents "(ns lol)\nsome source code"}})
+(defn- ensure-eval [code opts]
+  (assert (= code "some-right-code"))
+  (assert (= opts {:filename "somecode.cljs"
+                   :range [[1 1] [1 10]]
+                   :namespace "lol"
+                   :ignore true
+                   :pass {:interactive true}}))
+  (.resolve js/Promise [:replace [:html [:div 3]]]))
 
 (cards/deftest rendering-elements
   (reset! state nil)
@@ -76,7 +85,8 @@
     (testing "re-eval and dispatch"
       (render [:html [:a {:href "#" :on-click [:eval "some-right-code"]}
                       "eval"]]
-              (atom {:editor/features {:eval #(.resolve js/Promise "[:replace [:html [:div 3]]]")}}))
+              (with-meta (r/atom {:editor/features {:eval ensure-eval}})
+                         eval-data))
 
       (wait-for-change text-on-result)
       (click-on "eval")

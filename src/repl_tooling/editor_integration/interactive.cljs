@@ -1,30 +1,33 @@
 (ns repl-tooling.editor-integration.interactive
-  (:require [clojure.spec.alpha :as s]
-            [orchestra.core :refer-macros [defn-spec]]
-            [reagent.core :as r]
+  (:require [reagent.core :as r]
             [reagent.ratom :as a]
+            [schema.core :as s]
             [clojure.walk :as walk]
             [repl-tooling.eval :as eval]
-            [repl-tooling.editor-helpers :as helpers]
-            [orchestra-cljs.spec.test :as st]))
+            [repl-tooling.editor-helpers :as helpers]))
 
-(s/def ::this any?)
-(s/def ::atom #(instance? a/RAtom %))
-(s/def ::repl #(instance? eval/Evaluator %))
-(s/def ::editor-state any?)
-(s/def ::root? boolean?)
-
-(s/def ::dispatch
-  (s/fspec :args (s/cat :this vector?)))
-
-(s/def ::renderer
-  (s/fspec :args (s/cat :opts (s/keys :req-un [::this ::dispatch]))
-           :ret vector?))
-
-(s/def ::event
-  (s/fspec :args (s/cat :opts (s/keys :req-un [::state ::repl ::editor-state ::dispatch]))
-           :ret any?))
-
+; (s/def ::this any?)
+; (s/def ::atom #(instance? a/RAtom %))
+; (s/def ::repl #(instance? eval/Evaluator %))
+; (s/def ::editor-state any?)
+; (s/def ::root? boolean?)
+;
+; (s/def ::dispatch
+;   (s/fspec :args (s/cat :this vector?)))
+;
+; (s/def ::renderer
+;   (s/fspec :args (s/cat :opts (s/keys :req-un [::this ::dispatch]))
+;            :ret vector?))
+;
+; (s/def ::event
+;   (s/fspec :args (s/cat :opts (s/keys :req-un [::state ::repl ::editor-state ::dispatch]))
+;            :ret any?))
+;
+(def renderer {:this s/Any :dispatch s/Any})
+(def Event {:state s/Any
+            :repl s/Any
+            :editor-state s/Any
+            :dispatch s/Any})
 (defonce ^:private renderers (atom {}))
 (defonce ^:private events (atom {}))
 
@@ -58,8 +61,8 @@
   (let [hiccup (second this)]
     (walk/prewalk #(cond-> % (vector? %) (normalize-tags params)) hiccup)))
 
-(defn-spec register-renderer! any?
-  [key keyword?, renderer ::renderer]
+(defn register-renderer!
+  [key renderer]
   (swap! renderers assoc key renderer))
 
 (defn reset-renderers! []
@@ -70,9 +73,9 @@
 
 (defn- dispatcher-fn [state repl editor-state]
   (let [params {:state state :repl repl :editor-state editor-state}]
-    (fn [event]
+    (fn dispatcher [event]
       (if-let [evt (get @events (first event))]
-        (evt event params)
+        (evt event (assoc params :dispatch  dispatcher))
         ;FIXME add error
         (prn :no-dispatcher-for (first event))))))
 
@@ -80,16 +83,17 @@
   helpers/Renderable
   (as-html [_ ratom _]
     (let [renderer (-> edn first)
-          renderer (get @renderers renderer)]
+          renderer (get @renderers renderer)
+          dispatcher (dispatcher-fn ratom repl editor-state)]
       [renderer {:this edn
-                 :dispatch (dispatcher-fn ratom repl editor-state)
+                 :dispatch dispatcher
                  :editor-state editor-state}])))
 
   ; as-text)
 
 ;; EVENTS
-(defn-spec register-event! any?
-  [key keyword?, event ::event]
+(defn register-event!
+  [key event]
   (swap! events assoc key event))
 
 (defn assign-renderable [[_ edn] {:keys [state repl editor-state]}]
@@ -102,9 +106,24 @@
 (defn- replace-view [[_ this] {:keys [state]}]
   (swap! state assoc :edn this))
 
+(defn- evaluate [[_ code] {:keys [editor-state dispatch]}]
+  (when-let [eval (-> @editor-state :editor/features :eval)]
+    (let [{:keys [range editor-data]} (meta editor-state)
+          [_ namespace] (helpers/ns-range-for (:contents editor-data) (first range))
+          eval (eval code {:filename (:filename editor-data)
+                           :range range
+                           :namespace (str namespace)
+                           :ignore true
+                           :pass {:interactive true}})]
+      (.then eval #(do
+                     (.log js/console :DISP dispatch)
+                     (prn :RES %)
+                     (dispatch %)))
+      (.catch eval prn))))
+
 (defn reset-events! []
   (reset! events {})
   (register-event! :replace replace-view)
-  (register-event! :assign-renderable assign-renderable))
-  ; (register-event! :html html))
+  (register-event! :assign-renderable assign-renderable)
+  (register-event! :eval evaluate))
 (reset-events!)

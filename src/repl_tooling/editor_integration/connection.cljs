@@ -13,6 +13,7 @@
             [repl-tooling.editor-integration.renderer :as renderer]
             [repl-tooling.editor-integration.doc :as doc]
             [repl-tooling.editor-integration.schemas :as schemas]
+            [schema.core :as s]
             [orchestra.core :refer-macros [defn-spec]]))
 
 (defn disconnect!
@@ -93,11 +94,16 @@
                        :description "Connects to a ClojureScript REPL inside a Clojure one"
                        :command #(embedded/connect! state opts)})))
 
-(defn- result-for-renderer [res state {:keys [filename]} {:keys [get-config]}]
+(s/defn result-for-renderer
+  [res :- schemas/EvalResult,
+   state
+   {:keys [filename :- s/Str]}
+   {:keys [get-config]}]
   (let [repl (if (e-eval/need-cljs? (get-config) filename)
                (:cljs/repl @state)
-               (:clj/repl @state))]
-    (renderer/parse-result res repl state)))
+               (:clj/repl @state))
+        result (:result res)]
+    (renderer/parse-result result repl (with-meta state res))))
 
 (defn- features-for [state {:keys [editor-data] :as opts} repl-kind]
   {:autocomplete (if (= :bb repl-kind)
