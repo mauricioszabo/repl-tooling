@@ -13,8 +13,7 @@
             [repl-tooling.editor-integration.renderer :as renderer]
             [repl-tooling.editor-integration.doc :as doc]
             [repl-tooling.editor-integration.schemas :as schemas]
-            [schema.core :as s]
-            [orchestra.core :refer-macros [defn-spec]]))
+            [schema.core :as s]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -117,16 +116,6 @@
    :result-for-renderer #(ensure-data (editor-data)
                                       (fn [data] (result-for-renderer % state data opts)))})
 
-(defn- callback-fn [state on-stdout on-stderr on-result on-disconnect output]
-  (when (nil? output)
-    (handle-disconnect! state)
-    (and on-disconnect (on-disconnect)))
-  (when-let [out (:out output)] (and on-stdout (on-stdout out)))
-  (when-let [out (:err output)] (and on-stderr (on-stderr out)))
-  (when (and on-result (or (contains? output :result)
-                           (contains? output :error)))
-    (on-result (helpers/parse-result output))))
-
 (def ^:private default-opts
   {:on-start-eval identity
    :on-eval identity
@@ -148,60 +137,6 @@
               :editor/commands (cmds-for state options :clj)
               :editor/features (features-for state options :clj))
        (resolve state)))))
-
-(defn connect-unrepl!
-  "Connects to a clojure and upgrade to UNREPL protocol. Expects host, port, and three
-callbacks:
-* on-start-eval -> a function that'll be called when an evaluation starts
-* on-eval -> a function that'll be called when an evaluation ends
-* editor-data -> a function that'll be called when a command needs editor's data.
-  Editor's data is a map (or a promise that resolves to a map) with the arguments:
-    :contents - the editor's contents.
-    :filename - the current file's name. Can be nil if file was not saved yet.
-    :range - a vector containing [[start-row start-col] [end-row end-col]], representing
-      the current selection
-* notify -> when something needs to be notified, this function will be called with a map
-  containing :type (one of :info, :warning, or :error), :title and :message
-* get-config -> when some function needs the configuration from the editor, this fn
-  is called without arguments. Need to return a map with the config options.
-* prompt -> when some function needs an answer from the editor, it'll call this
-  callback passing :title, :message, and :arguments (a vector that is composed by
-  :key and :value). The callback needs to return a `Promise` with one of the
-  :key from the :arguments, or nil if nothing was selected.
-* on-stdout -> a function that receives a string when some code prints to stdout
-* on-stderr -> a function that receives a string when some code prints to stderr
-* on-result -> returns a clojure EDN with the result of code
-* on-disconnect -> called with no arguments, will disconnect REPLs. Can be called more
-than once
-
-Returns a promise that will resolve to a map with two repls: :clj/aux will be used
-to autocomplete/etc, :clj/repl will be used to evaluate code."
-  [host port {:keys [on-stdout on-stderr on-result on-disconnect]
-              :as opts}]
-  (js/Promise.
-   (fn [resolve]
-     (let [state (r/atom {:editor/callbacks opts})
-           callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
-           aux (clj-repl/repl :clj-aux host port callback)
-           primary (delay (clj-repl/repl :clj-eval host port callback))
-           options (merge default-opts opts)
-           connect-primary (fn []
-                             (clj-repl/disable-limits! aux)
-                             (eval/evaluate @primary ":primary-connected" {:ignore true}
-                                (fn []
-                                  (swap! state merge
-                                         {:clj/aux aux
-                                          :clj/repl @primary
-                                          :repl/info {:host host :port port
-                                                      :kind :clj
-                                                      :kind-name "Clojure"}
-                                          :editor/commands (cmds-for state options :clj)
-                                          :editor/features (features-for state options :clj)})
-                                  (resolve state))))]
-
-       (eval/evaluate aux ":aux-connected" {:ignore true}
-                      #(connect-primary))))))
-
 
 (defn- tr-kind [kind]
   (let [kinds {:clj "Clojure" :cljs "ClojureScript" :cljr "ClojureCLR" :bb "Babaska"}]
@@ -243,10 +178,47 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                            error)}))
   nil)
 
+(defn- callback-fn [state on-stdout on-stderr on-result on-disconnect output]
+  (when (nil? output)
+    (handle-disconnect! state)
+    (and on-disconnect (on-disconnect)))
+  (when-let [out (:out output)] (and on-stdout (on-stdout out)))
+  (when-let [out (:err output)] (and on-stderr (on-stderr out)))
+  (when (and on-result (or (contains? output :result)
+                           (contains? output :error)))
+    (on-result (helpers/parse-result output))))
+
+(s/defn ^:private normalize-opts-and-callback
+  "Prepares the callback for the REPL. This is needed because the REPL sends
+three possible keys to callback: :out, :err, and :result/:error. But, to parse
+and render elements, the results needed to satisfy EvalResult, not ReplResult,
+but at the Evaluator REPL the additional fields of EvalResult doesn't make
+sense."
+  [{:keys [on-stdout on-stderr on-result on-disconnect] :as opts}
+   state]
+  (let [with-defaults (merge default-opts opts)
+        on-start-eval (:on-start-eval with-defaults)
+        pending-eval-state (atom [])
+        new-start (s/fn [res :- schemas/EvalData]
+                    (swap! pending-eval-state conj res)
+                    (on-start-eval res))
+        new-on-result (s/fn [res :- schemas/ReplResult]
+                        (let [pending (or (first @pending-eval-state)
+                                          {:id 'unknown
+                                           :editor-data {:range [[0 0] [0 0]]
+                                                         :contents ""
+                                                         :filename ""}
+                                           :range [[0 0] [0 0]]})]
+                          (when-not (empty? @pending-eval-state)
+                            (swap! pending-eval-state subvec 1))
+                          (on-result (assoc pending :result res))))]
+    [(assoc with-defaults :on-start-eval new-start)
+     (partial callback-fn state on-stdout on-stderr new-on-result on-disconnect)]))
+
 ; Config Options:
 ; {:project-paths [...]
 ;  :eval-mode (enum :clj :cljs :prefer-clj :prefer-cljs)}
-(defn-spec connect! any?
+(s/defn connect!
   "Connects to a clojure-like REPL that supports the socket REPL protocol.
 Expects host, port, and some callbacks:
 * on-start-eval -> a function that'll be called when an evaluation starts
@@ -274,14 +246,13 @@ than once
 
 Returns a promise that will resolve to a map with two repls: :clj/aux will be used
 to autocomplete/etc, :clj/repl will be used to evaluate code."
-  [host string?
-   port integer?
-   {:keys [on-stdout on-stderr on-result on-disconnect notify] :as opts} ::schemas/callbacks]
+  [host :- s/Str
+   port :- s/Int
+   {:keys [on-stdout on-stderr on-result on-disconnect notify] :as opts} :- s/Any]
   (let [state (r/atom {:editor/callbacks opts})
-        callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
+        [options callback] (normalize-opts-and-callback opts state)
         primary (repls/connect-repl! :clj-eval host port callback)
-        aux (delay (repls/connect-repl! :clj-aux host port callback))
-        options (merge default-opts opts)]
+        aux (delay (repls/connect-repl! :clj-aux host port callback))]
 
     (.. primary
         (then (fn [[kind primary]]
