@@ -6,7 +6,9 @@
             [rewrite-clj.zip.base :as zip-base]
             [rewrite-clj.node :as node]
             [rewrite-clj.reader :as clj-reader]
-            [rewrite-clj.parser :as parser]))
+            [rewrite-clj.parser :as parser]
+            [repl-tooling.editor-integration.schemas :as schemas]
+            [schema.core :as s]))
 
 (defprotocol Parseable
   (as-renderable [self repl editor-state]))
@@ -112,7 +114,7 @@
     (catch :default _
       (symbol res))))
 
-(defn parse-result [result]
+(s/defn parse-result :- schemas/ReplResult [result :- schemas/UnparsedResult]
   (assoc (if (:result result)
            (update result :result #(if (:parsed? result)
                                      %
