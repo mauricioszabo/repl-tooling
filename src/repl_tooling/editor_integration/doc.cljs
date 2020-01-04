@@ -34,7 +34,7 @@
 (defn- emit-result [document-part spec-part {:keys [opts eval-data]}]
   (let [docs (cond-> document-part spec-part (str "\n\nSpec:\n" spec-part))
         {:keys [on-eval on-result]} opts
-        res {:result (pr-str docs) :literal true}]
+        res (helpers/parse-result {:result (pr-str docs) :literal true :as-text (pr-str docs)})]
 
     (and on-eval (on-eval (assoc eval-data :result res)))
     (and on-result (on-result res))))
@@ -49,13 +49,14 @@
         (catch #(emit-result document-part nil options)))))
 
 (defn- treat-error [error {:keys [opts eval-data]}]
-  (let [{:keys [on-eval on-result]} opts]
-    (and on-eval (on-eval (assoc eval-data :result {:error error
-                                                    :parsed? true})))
-    (and on-result (on-result {:error error :parsed? true}))))
+  (let [{:keys [on-eval on-result]} opts
+        result {:error error :parsed? true :as-text (pr-str error)}]
+    (prn :RES error)
+    (and on-eval (on-eval (assoc eval-data :result result)))
+    (and on-result (on-result result))))
 
 (defn- run-documentation-code [{:keys [var editor-data opts repl] :as options}]
-  (when-let [on-start (-> options :opts :on-start-eval)]
+  (let [on-start (-> options :opts :on-start-eval)]
     (on-start (:eval-data options)))
   (p/catch (p/let [var (eval/eval repl (str "`" var) {:namespace (:ns options) :ignore true})
                    document-part (eval/eval repl (doc-cmd var (:filename editor-data)))]

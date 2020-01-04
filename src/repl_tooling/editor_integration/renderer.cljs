@@ -391,6 +391,10 @@
           subelement (-> self helpers/obj (as-renderable repl editor-state))]
       (r/atom (->Tagged tag subelement editor-state false))))
 
+  helpers/LiteralRender
+  (as-renderable [obj repl editor-state]
+    (r/atom (->Leaf obj editor-state)))
+
   default
   (as-renderable [obj repl editor-state]
     (r/atom

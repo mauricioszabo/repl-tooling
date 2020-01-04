@@ -2,16 +2,18 @@
   (:refer-clojure :exclude [Range])
   (:require [schema.core :as s]))
 
-(def EvalSuccess {:result s/Any :parsed? (s/eq true) :as-text s/Str})
+(def EvalSuccess {:result s/Any :parsed? (s/eq true) :as-text s/Str
+                  s/Keyword s/Bool})
 (def EvalError {:error s/Any :parsed? (s/eq true) :as-text s/Str})
 (def ReplResult (s/conditional
+                 #(and (contains? % :result) (:parsed? %)) EvalSuccess
+                 #(:parsed? %) EvalError
                  #(:literal %) (assoc EvalSuccess
                                       :result s/Str
                                       :literal (s/eq true))
                  #(:interactive %) (assoc EvalSuccess
                                           :result [s/Any]
                                           :interactive (s/eq true))
-                 #(contains? % :error) EvalError
                  :else EvalSuccess))
 (def UnparsedResult (s/conditional
                      #(:parsed? %) ReplResult
