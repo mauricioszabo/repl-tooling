@@ -6,6 +6,7 @@
             [devcards.core :as cards :include-macros true]
             [repl-tooling.eval-helpers :refer-macros [eval-on-repl eval-and-parse]]
             [repl-tooling.editor-integration.renderer :as render]
+            [repl-tooling.editor-helpers :as helper]
             [repl-tooling.repl-client.clojure :as clj]))
 
 (set! cards/test-timeout 8000)
@@ -42,7 +43,7 @@
            (check txt => [:text big-str])
            (check txt2 => "...")
            (check txt3 => [:text "\""])
-           (check (render/as-text @parsed parsed false) => [:text (str big-str "...\"")])
+           (check (helper/as-text @parsed parsed false) => [:text (str big-str "...\"")])
 
            (more-fn #(async/put! after-more parsed))
            (check (render/txt-for-result (async/<! after-more)) =>
@@ -112,12 +113,12 @@
 
        (testing "rendering ellisions on lists of lists"
          (let [parsed (render/parse-result (eval-and-parse "[(range)]") repl (atom {}))
-               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+               [txt] (render/repr->lines (render/txt-for-result parsed))]
            (check txt => ["+  [(0 1 2 3 4 5 6 7 8 9 ...)]"])))
 
        (testing "rendering simple exceptions"
          (let [parsed (render/parse-result (eval-and-parse "(/ 10 0)") repl (atom {}))
-               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+               [txt] (render/repr->lines (render/txt-for-result parsed))]
            (check (take 2 txt) => ["java.lang.ArithmeticException: \"Divide by zero\""
                                    "  in clojure.lang.Numbers.divide (Numbers.java:188)"])))
 
@@ -126,7 +127,7 @@
                        (eval-and-parse "(throw (ex-info (apply str (range 100)) {:foo (range 100)}))")
                        repl
                        (atom {}))
-               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+               [txt] (render/repr->lines (render/txt-for-result parsed))]
            (check (take 2 txt) => [(str "clojure.lang.ExceptionInfo: \"012345678910111"
                                         "2131415161718192021222324252627282930313233"
                                         "3435363738394041424344...\"")
@@ -137,7 +138,7 @@
                        (eval-and-parse "(tagged-literal 'foobar :FOOBAR)")
                        repl
                        (atom {}))
-               [txt funs] (render/repr->lines (render/txt-for-result parsed))]
+               [txt] (render/repr->lines (render/txt-for-result parsed))]
            (check txt => ["+  #foobar :FOOBAR"])))
 
        (testing "rendering tagged literals"
