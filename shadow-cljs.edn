@@ -4,7 +4,7 @@
  :dependencies [[org.clojure/core.async "0.4.490"]
                 [check "0.1.0-SNAPSHOT"]
                 [funcool/promesa "4.0.2"]
-                [paprika "0.1.2"]
+                [paprika "0.1.3-SNAPSHOT"]
                 [compliment "0.4.0-SNAPSHOT"]
                 [rewrite-cljs "0.4.4"]
                 [reagent "0.8.1"]
