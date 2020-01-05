@@ -114,7 +114,7 @@
     (catch :default _
       (symbol res))))
 
-(s/defn parse-result :- schemas/ReplResult [result :- schemas/UnparsedResult]
+(s/defn parse-result :- schemas/ReplResult [result :- s/Any]
   (assoc (if (:result result)
            (update result :result #(if (:parsed? result)
                                      %
