@@ -48,11 +48,7 @@
                               :contents "(ns lol)\nsome source code"}})
 (defn- ensure-eval [code opts]
   (assert (= code "some-right-code"))
-  (assert (= opts {:filename "somecode.cljs"
-                   :range [[1 1] [1 10]]
-                   :namespace "lol"
-                   :ignore true
-                   :pass {:interactive true}}))
+  (assert (= opts {:ignore true :pass {:interactive true}}))
   (.resolve js/Promise [:replace [:html [:div 3]]]))
 
 (cards/deftest rendering-elements
@@ -85,8 +81,7 @@
     (testing "re-eval and dispatch"
       (render [:html [:a {:href "#" :on-click [:eval "some-right-code"]}
                       "eval"]]
-              (with-meta (r/atom {:editor/features {:eval ensure-eval}})
-                         eval-data))
+              (r/atom {:editor/features {:eval ensure-eval}}))
 
       (wait-for-change text-on-result)
       (click-on "eval")
