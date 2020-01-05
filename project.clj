@@ -3,6 +3,6 @@
                  [reagent "0.8.1"]
                  [funcool/promesa "4.0.2"]
                  [rewrite-cljs "0.4.4"]
-                 [orchestra "2019.02.06-1"]]
+                 [paprika "0.1.2"]]
 
   :source-paths ["src"])
