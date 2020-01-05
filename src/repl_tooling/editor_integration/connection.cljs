@@ -13,7 +13,8 @@
             [repl-tooling.editor-integration.renderer :as renderer]
             [repl-tooling.editor-integration.doc :as doc]
             [repl-tooling.editor-integration.schemas :as schemas]
-            [schema.core :as s]))
+            [schema.core :as s]
+            [paprika.schemas :as schema :include-macros true]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -94,15 +95,14 @@
                        :command #(embedded/connect! state opts)})))
 
 (s/defn result-for-renderer
-  [res :- schemas/EvalResult,
+  [res,
    state
-   {:keys [filename :- s/Str]}
+   {:keys [filename]} :- {:filename s/Str, s/Any s/Any}
    {:keys [get-config]}]
   (let [repl (if (e-eval/need-cljs? (get-config) filename)
                (:cljs/repl @state)
-               (:clj/repl @state))
-        result (:result res)]
-    (renderer/parse-result result repl (with-meta state res))))
+               (:clj/repl @state))]
+    (renderer/parse-result res repl (with-meta state res))))
 
 (defn- features-for [state {:keys [editor-data] :as opts} repl-kind]
   {:autocomplete (if (= :bb repl-kind)
@@ -188,37 +188,10 @@
                            (contains? output :error)))
     (on-result (helpers/parse-result output))))
 
-(s/defn ^:private normalize-opts-and-callback
-  "Prepares the callback for the REPL. This is needed because the REPL sends
-three possible keys to callback: :out, :err, and :result/:error. But, to parse
-and render elements, the results needed to satisfy EvalResult, not ReplResult,
-but at the Evaluator REPL the additional fields of EvalResult doesn't make
-sense."
-  [{:keys [on-stdout on-stderr on-result on-disconnect] :as opts}
-   state]
-  (let [with-defaults (merge default-opts opts)
-        on-start-eval (:on-start-eval with-defaults)
-        pending-eval-state (atom [])
-        new-start (s/fn [res :- schemas/EvalData]
-                    (swap! pending-eval-state conj res)
-                    (on-start-eval res))
-        new-on-result (s/fn [res :- schemas/ReplResult]
-                        (let [pending (or (first @pending-eval-state)
-                                          {:id 'unknown
-                                           :editor-data {:range [[0 0] [0 0]]
-                                                         :contents ""
-                                                         :filename ""}
-                                           :range [[0 0] [0 0]]})]
-                          (when-not (empty? @pending-eval-state)
-                            (swap! pending-eval-state subvec 1))
-                          (on-result (assoc pending :result res))))]
-    [(assoc with-defaults :on-start-eval new-start)
-     (partial callback-fn state on-stdout on-stderr new-on-result on-disconnect)]))
-
 ; Config Options:
 ; {:project-paths [...]
 ;  :eval-mode (enum :clj :cljs :prefer-clj :prefer-cljs)}
-(s/defn connect!
+(schema/defn-s connect!
   "Connects to a clojure-like REPL that supports the socket REPL protocol.
 Expects host, port, and some callbacks:
 * on-start-eval -> a function that'll be called when an evaluation starts
@@ -249,8 +222,9 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
   [host :- s/Str
    port :- s/Int
    {:keys [on-stdout on-stderr on-result on-disconnect notify] :as opts} :- s/Any]
-  (let [state (r/atom {:editor/callbacks opts})
-        [options callback] (normalize-opts-and-callback opts state)
+  (let [options (merge default-opts opts)
+        state (r/atom {:editor/callbacks options})
+        callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
         primary (repls/connect-repl! :clj-eval host port callback)
         aux (delay (repls/connect-repl! :clj-aux host port callback))]
 
