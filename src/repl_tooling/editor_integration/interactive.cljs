@@ -107,19 +107,19 @@
   (swap! state assoc :edn this))
 
 (defn- evaluate [[_ code] {:keys [editor-state dispatch]}]
-  (when-let [eval (-> @editor-state :editor/features :eval)]
+  (when-let [evaluate (-> @editor-state :editor/features :eval)]
     (let [{:keys [range editor-data]} (meta editor-state)
           [_ namespace] (helpers/ns-range-for (:contents editor-data) (first range))
-          eval (eval code {:filename (:filename editor-data)
-                           :range range
-                           :namespace (str namespace)
-                           :ignore true
-                           :pass {:interactive true}})]
-      (.then eval #(do
-                     (.log js/console :DISP dispatch)
-                     (prn :RES %)
-                     (dispatch %)))
-      (.catch eval prn))))
+          evaluate (evaluate code {:filename (:filename editor-data)
+                                   :range range
+                                   :namespace (str namespace)
+                                   :ignore true
+                                   :pass {:interactive true}})]
+      (.then evaluate #(do
+                         (.log js/console :DISP dispatch)
+                         (prn :RES %)
+                         (dispatch %)))
+      (.catch evaluate prn))))
 
 (defn reset-events! []
   (reset! events {})
