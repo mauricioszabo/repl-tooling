@@ -102,7 +102,7 @@
   (let [repl (if (e-eval/need-cljs? (get-config) filename)
                (:cljs/repl @state)
                (:clj/repl @state))]
-    (renderer/parse-result res repl (with-meta state res))))
+    (renderer/parse-result res repl state)))
 
 (defn- features-for [state {:keys [editor-data] :as opts} repl-kind]
   {:autocomplete (if (= :bb repl-kind)
