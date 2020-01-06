@@ -193,14 +193,13 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
        (eval/evaluate aux ":aux-connected" {:ignore true}
                       #(connect-primary))))))
 
-
 (defn- tr-kind [kind]
   (let [kinds {:clj "Clojure"
                :cljs "ClojureScript"
                :cljr "ClojureCLR"
                :clje "Clojerl"
                :bb "Babaska"}]
-    (kinds kind (-> kind name (str/replace-first #"." str/upper-case)))))
+    (kinds kind (-> kind name str/capitalize))))
 
 (defn- prepare-cljs [primary host port state options]
   (swap! state merge {:cljs/repl primary
