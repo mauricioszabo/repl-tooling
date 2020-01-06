@@ -17,9 +17,19 @@
                 :result
                 (map (fn [c] {:type :function :candidate c})))))
 
+(def ^:private re-char-escapes
+  (->> "\\.*+|?()[]{}$^"
+       set
+       (map (juxt identity #(str "\\" %)))
+       (into {})))
+
+(defn- re-escape [prefix]
+  (str/escape (str prefix) re-char-escapes))
+
 (defn for-clj [repl ns-name txt-prefix]
+  (prn :COMPLE)
   (let [chan (async/promise-chan)
-        prefix (->> txt-prefix (re-seq valid-prefix) last last str)]
+        prefix (->> txt-prefix (re-seq valid-prefix) last last)]
     (if (not-empty prefix)
       (eval/evaluate repl
                      (str "(clojure.core/let [collect #(clojure.core/map "
@@ -33,7 +43,7 @@
                            "(clojure.core/->> refers "
                                              "(concat from-ns) "
                                              "(clojure.core/filter #(re-find #\""
-                                                                    txt-prefix "\" %)) "
+                                                                    (re-escape txt-prefix) "\" %)) "
                                              "(clojure.core/sort)"
                                              "vec"
                            "))")
@@ -65,7 +75,7 @@
                           "      both (concat from-ns from-core " special-forms ")]"
                           "(->> both"
                           "     (clojure.core/map cljs.core/demunge)"
-                          "     (clojure.core/filter #(clojure.core/re-find #\"" prefix "\" %))"
+                          "     (clojure.core/filter #(clojure.core/re-find #\"" (re-escape prefix) "\" %))"
                           "     (clojure.core/sort)"
                           "     (clojure.core/take 50)"
                           "))")
