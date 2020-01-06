@@ -35,6 +35,7 @@
                                              "(clojure.core/filter #(re-find #\""
                                                                     txt-prefix "\" %)) "
                                              "(clojure.core/sort)"
+                                             "vec"
                            "))")
                      {:namespace ns-name :ignore true}
                      #(async/put! chan (normalize-results %)))
