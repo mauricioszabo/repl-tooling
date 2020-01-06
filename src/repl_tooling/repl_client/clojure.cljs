@@ -224,7 +224,8 @@
   (let [full-out (str @buffer out)
         [_ id] (re-find #"^\[tooling\$eval-res (.+?) " full-out)]
     (if-let [pendency (some->> id symbol (get @pending))]
-      (if (str/ends-with? full-out "\n")
+      (if (or (str/ends-with? full-out "\n")
+              (str/ends-with? full-out "\r\n"))
         (let [[_ _ parsed] (->> full-out
                                 (reader/read-string {:default default-tags}))]
           (reset! buffer ::ignore-next)
@@ -241,13 +242,13 @@
 (defn- pending-evals-for-cljs [pending output-fn buffer]
   (fn [{:keys [out]}]
     (cond
-      (and (= @buffer ::ignore-next) (re-find #"=> \n?$" (str out)))
+      (and (= @buffer ::ignore-next) (re-find #"=> \r?\n?$" (str out)))
       (reset! buffer nil)
 
       (or @buffer (and out (str/starts-with? out "[tooling$eval-res")))
       (treat-result-of-call out pending output-fn buffer)
 
-      (= out "nil\n")
+      (or (= out "nil\n") (= out "nil\r\n"))
       (reset! buffer ::ignore-next)
 
       :else
