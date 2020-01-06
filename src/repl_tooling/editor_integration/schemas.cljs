@@ -55,3 +55,25 @@
                 :on-stderr (s/=> s/Any s/Str)
                 :on-result (s/=> s/Any ReplResult)
                 :on-disconnect (s/=> s/Any)})
+
+(def Commands {:evaluate-top-block s/Any
+               :evaluate-block s/Any
+               :evaluate-selection s/Any
+               :disconnect s/Any
+               :doc-for-var s/Any
+               :spec-for-var s/Any
+               :load-file s/Any
+               (s/optional-key :break-evaluation) s/Any
+               (s/optional-key :connect-embedded) s/Any})
+
+(def ReplKind (s/enum :clj :cljs :joker :bb :clr))
+(def EditorState (s/atom {:editor/callbacks Callbacks
+                          :editor/features s/Any
+                          (s/optional-key :clj/aux) s/Any
+                          (s/optional-key :clj/repl) s/Any
+                          (s/optional-key :cljs/repl) s/Any
+                          (s/optional-key :repl/info) {:host s/Str
+                                                       :port s/Int
+                                                       :kind ReplKind
+                                                       :kind-name s/Str}
+                          :editor/commands Commands}))
