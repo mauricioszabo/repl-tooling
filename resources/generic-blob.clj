@@ -1,7 +1,7 @@
 (try
   (clojure.core/let [res (do __COMMAND__)
                      res (clojure.core/cond
-                            #?(:cljs false :default (clojure.core/ratio? res))
+                            #?(:cljs false :clje false :default (clojure.core/ratio? res))
                             (clojure.core/symbol
                              (clojure.core/str "#repl-tooling/literal-render \""
                                   (clojure.core/pr-str res) "\""))

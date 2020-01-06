@@ -21,6 +21,7 @@
           (.write conn (str "#?(:cljs :using-cljs-repl :clj :using-clj-repl "
                               ":cljr :using-cljr-repl "
                               ":joker :using-joker-repl "
+                              ":clje :using-clje-repl "
                               ":bb :using-bb-repl)\n"))))
        (js/setTimeout
         (fn []
@@ -76,6 +77,8 @@
                           (source/wrap-command id command ":default" true))
                   :cljr (fn [{:keys [command id]}]
                           (source/wrap-command id command "System.Exception" true))
+                  :clje (fn [{:keys [command id]}]
+                          (source/wrap-command id command ":error" false))
                   (fn [{:keys [command id]}]
                     (source/wrap-command id command "Exception" true)))
         eval-command (case repl-kind

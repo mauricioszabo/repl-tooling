@@ -195,7 +195,11 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
 
 
 (defn- tr-kind [kind]
-  (let [kinds {:clj "Clojure" :cljs "ClojureScript" :cljr "ClojureCLR" :bb "Babaska"}]
+  (let [kinds {:clj "Clojure"
+               :cljs "ClojureScript"
+               :cljr "ClojureCLR"
+               :clje "Clojerl"
+               :bb "Babaska"}]
     (kinds kind (-> kind name (str/replace-first #"." str/upper-case)))))
 
 (defn- prepare-cljs [primary host port state options]
