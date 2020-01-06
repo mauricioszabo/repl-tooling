@@ -61,14 +61,20 @@
                :evaluate-selection s/Any
                :disconnect s/Any
                :doc-for-var s/Any
-               :spec-for-var s/Any
+               ; :spec-for-var s/Any
                :load-file s/Any
                (s/optional-key :break-evaluation) s/Any
                (s/optional-key :connect-embedded) s/Any})
 
 (def ReplKind (s/enum :clj :cljs :joker :bb :clr))
+
+(def EditorFeatures {:autocomplete s/Any
+                     :eval-and-render s/Any
+                     :eval s/Any
+                     :result-for-renderer s/Any})
+
 (def EditorState (s/atom {:editor/callbacks Callbacks
-                          :editor/features s/Any
+                          :editor/features EditorFeatures
                           (s/optional-key :clj/aux) s/Any
                           (s/optional-key :clj/repl) s/Any
                           (s/optional-key :cljs/repl) s/Any

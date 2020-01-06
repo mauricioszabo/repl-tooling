@@ -2,7 +2,15 @@
   (:require [repl-tooling.editor-helpers :as helpers]
             [promesa.core :as p]
             [repl-tooling.eval :as eval]
-            [repl-tooling.editor-integration.evaluation :as e-eval]))
+            [repl-tooling.editor-integration.evaluation :as e-eval]
+            [schema.core :as s]
+            [repl-tooling.editor-integration.schemas :as schemas]))
+;             [clojure.spec.alpha :as spec]))
+;
+; (spec/def ::lol string?)
+; (spec/def ::bar (spec/keys :req [::lol]))
+; (defn wow [lol])
+; (spec/fdef wow :args (spec/cat :lol ::lol))
 
 (defn- doc-cmd [var filename]
   `(~'clojure.core/let
@@ -80,3 +88,28 @@
                                :opts opts
                                :eval-data eval-data
                                :editor-data editor-data}))))
+
+; (spec/describe ::bar)
+; (spec/describe (spec/get-spec `::bar))
+; (spec/describe (spec/get-spec `wow))
+;
+(defn- describe-spec [repl var editor-state editor-data]
+  (let [cmd (str "(let [res (clojure.spec.alpha/describe (clojure.spec.alpha/get-spec `" var "))]
+                    [:html [:div (pr-str res)]])")
+        evaluate (-> @editor-state :editor/features :eval-and-render)]
+    (evaluate cmd
+              (:range editor-data)
+              {:interactive true})))
+
+(s/defn specs-for-var [{:keys [contents range filename] :as editor-data}
+                       opts
+                       editor-state :- schemas/EditorState]
+  (let [[_ var] (helpers/current-var contents (first range))
+        evaluate (-> @editor-state :editor/features :eval)
+        notify (-> @editor-state :editor/callbacks :notify)
+        req (evaluate "(require '[clojure.spec.alpha])" {:ignore true})]
+    (.then req #(when-let [repl (e-eval/repl-for opts editor-state filename false)]
+                  (describe-spec repl var editor-state editor-data)))
+    (.catch req #(notify {:type :error
+                          :title "This REPL does not have spec"}))))
+; (spec/describe (spec/get-spec `spec/fspec))

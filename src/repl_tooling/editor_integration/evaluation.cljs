@@ -62,7 +62,9 @@
                         :id id
                         :row (inc row)
                         :col (inc col)
-                        :namespace namespace}
+                        :namespace namespace
+                        ;; FIXME: this is kinda bad, we're re-using opts...
+                        :pass (:pass opts)}
                        #(when on-eval
                           (on-eval (assoc eval-data :result (helpers/parse-result %)))))))))
 
