@@ -7,40 +7,18 @@
             [check.core :refer-macros [check]]
             [check.async :refer-macros [async-test]]
             [repl-tooling.eval-helpers :refer-macros [wait-for-change]]
+            [repl-tooling.integration.ui-macros :as m :include-macros true]
             [clojure.core.async :as async]
             [devcards.core :as cards]))
 
-(defonce state (r/atom nil))
-(defn result []
-  (if-let [obj @state]
-    (let [html (helpers/as-html obj state true)]
-      [:div.result html])
-    [:div.result "Waiting for result"]))
-;   (prn :state state)
+(m/card-for-renderer!)
 
-(cards/defcard-rg render-viewport
-  [result])
-#_
-(render [:html [:div "FOO"]])
-
-(defn- text-on-result []
-  (let [elem (. js/document querySelector "div.result")]
-    {:text (-> elem .-innerText (str/replace #"\n" " "))
-     :html (.-innerHTML elem)}))
-
-(defn- render
+(defn render
   ([interactive-obj] (render interactive-obj {}))
   ([interactive-obj editor-features]
    (let [obj (int/->Interactive interactive-obj nil editor-features)]
      (reset! state obj)
-     (text-on-result))))
-
-(defn- click-on [link-label]
-  (when-let [elem (->> (. js/document querySelectorAll "a")
-                       js/Array.prototype.slice.call
-                       (filter #(= (.-innerText %) link-label))
-                       first)]
-    (.click elem)))
+     (m/text-on-result))))
 
 (def eval-data {:range [[1 1] [1 10]]
                 :editor-data {:filename "somecode.cljs"
@@ -56,33 +34,48 @@
   (async-test "interactive renderer" {:timeout 8000}
     (testing "rendering :render - like normal tooling renderer"
       (render [:render {:foo 10}])
-      (check (wait-for-change text-on-result) => {:text "{ :foo 10 }"})
-      (click-on "")
-      (check (wait-for-change text-on-result) => {:text "{ :foo 10 } [ :foo 10 ]"}))
+      (check (wait-for-change m/text-on-result) => {:text "{ :foo 10 }"})
+      (m/click-on "")
+      (check (wait-for-change m/text-on-result) => {:text "{ :foo 10 } [ :foo 10 ]"}))
 
     (testing "rendering HTML elements"
       (render [:html [:div "LOL"]])
-      (check (wait-for-change text-on-result) => {:text "LOL"
-                                                  :html "<div>LOL</div>"}))
+      (check (wait-for-change m/text-on-result) => {:text "LOL"
+                                                    :html "<div>LOL</div>"}))
 
     (testing "rendering HTML replacement elements"
       (render [:html [:a {:href "#" :on-click [:replace [:html [:div "New"]]]} "old"]])
-      (wait-for-change text-on-result)
-      (click-on "old")
-      (wait-for-change text-on-result)
-      (check (text-on-result) => {:text "New"}))
+      (wait-for-change m/text-on-result)
+      (m/click-on "old")
+      (wait-for-change m/text-on-result)
+      (check (m/text-on-result) => {:text "New"}))
 
+    (testing "deeply rendering HTML elements"
+      (render [:html
+               [:div
+                [:div "Keep this "]
+                [:interactive
+                 [:html [:div [:a {:href "#" :on-click [:replace [:html [:div "New"]]]}
+                               "old"]]]]]])
+
+      (wait-for-change m/text-on-result))
+      ; (m/click-on "old")
+      ; (wait-for-change m/text-on-result)
+      ; (check (m/text-on-result) => {:text "Keep this New"}))
+
+    #_
     (testing "rendering HTML mixed with default render"
       (render [:html [:div [:render {:foo 10}]]])
-      (check (wait-for-change text-on-result) => {:text "{ :foo 10 }"})
-      (click-on "")
-      (check (wait-for-change text-on-result) => {:text "{ :foo 10 } [ :foo 10 ]"}))
+      (check (wait-for-change m/text-on-result) => {:text "{ :foo 10 }"})
+      (m/click-on "")
+      (check (wait-for-change m/text-on-result) => {:text "{ :foo 10 } [ :foo 10 ]"}))
 
+    #_
     (testing "re-eval and dispatch"
       (render [:html [:a {:href "#" :on-click [:eval "some-right-code"]}
                       "eval"]]
               (r/atom {:editor/features {:eval ensure-eval}}))
 
-      (wait-for-change text-on-result)
-      (click-on "eval")
-      (check (wait-for-change text-on-result) => {:text "3"}))))
+      (wait-for-change m/text-on-result)
+      (m/click-on "eval")
+      (check (wait-for-change m/text-on-result) => {:text "3"}))))
