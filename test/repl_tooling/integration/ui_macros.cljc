@@ -1,6 +1,8 @@
 (ns repl-tooling.integration.ui-macros
   (:require [clojure.core.async :as async]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [reagent.core :as r]
+            [devcards.core :as cards]))
 
 (defn- type-and-just-for-test [])
 
@@ -28,3 +30,29 @@
      (async/<! (~'change-result))
      (~'check (str/replace (~'txt-for-selector "#result .children") #"(\n|\s+)+" " ")
        ~'=> ~representation)))
+
+(defmacro card-for-renderer! []
+  `(do
+    (defonce ~'state (r/atom nil))
+    (defn ~'result []
+      (if-let [obj# @~'state]
+        (let [html# (helpers/as-html obj# ~'state true)]
+          [:div.result html#])
+        [:div.result "Waiting for result"]))
+
+    (cards/defcard-rg ~'render-viewport
+      [~'result])))
+
+#?(:cljs
+   (defn text-on-result []
+     (let [elem (. js/document querySelector "div.result")]
+       {:text (-> elem .-innerText (str/replace #"\n" " "))
+        :html (.-innerHTML elem)})))
+
+#?(:cljs
+   (defn click-on [link-label]
+     (when-let [elem (->> (. js/document querySelectorAll "a")
+                          js/Array.prototype.slice.call
+                          (filter #(= (.-innerText %) link-label))
+                          first)]
+       (.click elem))))
