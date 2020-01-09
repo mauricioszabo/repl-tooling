@@ -4,7 +4,7 @@
             [repl-tooling.integration.fake-editor :as editor :refer [editor type-and-eval
                                                                      change-stdout]]
             [repl-tooling.integration.ui-macros :as ui :include-macros true
-             :refer [type-and-result]]
+             :refer-macros [type-and-result]]
             [clojure.test :refer [async testing is] :include-macros true]
             [check.core :refer-macros [check]]
             [devcards.core :as cards :include-macros true]))
