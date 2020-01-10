@@ -58,19 +58,17 @@
                  [:html [:div [:a {:href "#" :on-click [:replace [:html [:div "New"]]]}
                                "old"]]]]]])
 
-      (wait-for-change m/text-on-result))
-      ; (m/click-on "old")
-      ; (wait-for-change m/text-on-result)
-      ; (check (m/text-on-result) => {:text "Keep this New"}))
+      (wait-for-change m/text-on-result)
+      (m/click-on "old")
+      (wait-for-change m/text-on-result)
+      (check (m/text-on-result) => {:text "Keep this New"}))
 
-    #_
     (testing "rendering HTML mixed with default render"
       (render [:html [:div [:render {:foo 10}]]])
       (check (wait-for-change m/text-on-result) => {:text "{ :foo 10 }"})
       (m/click-on "")
       (check (wait-for-change m/text-on-result) => {:text "{ :foo 10 } [ :foo 10 ]"}))
 
-    #_
     (testing "re-eval and dispatch"
       (render [:html [:a {:href "#" :on-click [:eval "some-right-code"]}
                       "eval"]]

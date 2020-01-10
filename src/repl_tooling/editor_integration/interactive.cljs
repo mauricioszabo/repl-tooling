@@ -1,6 +1,7 @@
 (ns repl-tooling.editor-integration.interactive
   (:require [clojure.walk :as walk]
             [repl-tooling.eval :as eval]
+            [reagent.core :as r]
             [repl-tooling.editor-helpers :as helpers]))
 
 (defonce ^:private renderers (atom {}))
@@ -9,7 +10,7 @@
 (defn- render [{:keys [this dispatch]}]
   (let [edn (second this)
         obj (dispatch [:assign-renderable edn])]
-     (helpers/as-html @obj obj true)))
+     (r/as-element (helpers/as-html @obj obj true))))
 
 (defn- normalize-html-actions [reagent-params {:keys [dispatch]}]
   (->> reagent-params
@@ -39,9 +40,7 @@
 (defn- interactive [{:keys [this dispatch]}]
   (let [interactive (-> this second helpers/Interactive.)
         obj (dispatch [:assign-renderable interactive])]
-    (prn :OBJ obj)
-    (def obj obj)
-    (helpers/as-html @obj obj true)))
+    (r/as-element (helpers/as-html @obj obj true))))
 
 (defn register-renderer!
   [key renderer]
