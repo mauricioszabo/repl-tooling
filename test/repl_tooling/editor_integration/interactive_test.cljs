@@ -27,7 +27,7 @@
 (defn- ensure-eval [code opts]
   (assert (= code "some-right-code"))
   (assert (= opts {:ignore true :pass {:interactive true}}))
-  (.resolve js/Promise [:replace [:html [:div 3]]]))
+  (.resolve js/Promise {:result [:replace [:html [:div 3]]]}))
 
 (cards/deftest rendering-elements
   (reset! state nil)
