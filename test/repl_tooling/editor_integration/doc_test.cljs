@@ -15,13 +15,6 @@
             [devcards.core :as cards]
             [repl-tooling.commands-to-repl.doc-and-spec :as sdoc]))
 
-            ; [clojure.spec.alpha :as sp]))
-
-; (sp/def ::lol string?)
-; (sp/def ::some-map (sp/keys :req-un [::lol]))
-; (sp/describe ::some-map)
-; (sp/describe ::lol)
-
 (m/card-for-renderer!)
 
 (defonce future-eval-res (atom nil))
@@ -33,8 +26,7 @@
   (.then (doc/describe-spec repl spec)
          #(let [p (render/parse-result % repl (atom {:editor/features
                                                      {:eval (fn [code opts]
-                                                              (prn :REPL repl)
-                                                              (repl/eval2 repl code opts))}}))]
+                                                              (repl/eval repl code opts))}}))]
             (reset! state @p))))
 
 ; TODO: Make this work later, when we have a way to run recursive code
