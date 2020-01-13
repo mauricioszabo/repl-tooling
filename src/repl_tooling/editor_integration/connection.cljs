@@ -76,10 +76,10 @@
                   :description "Shows documentation for the current var under cursor"
                   :command (fn [] (ensure-data (editor-data)
                                                #(doc/doc-for-var % opts state)))}
-    :spec-for-var {:name "Spec for current var"
-                   :description "Shows spec for the current var under cursor if it exists"
-                   :command (fn [] (ensure-data (editor-data)
-                                                #(doc/specs-for-var % opts state)))}
+    ; :spec-for-var {:name "Spec for current var"
+    ;                :description "Shows spec for the current var under cursor if it exists"
+    ;                :command (fn [] (ensure-data (editor-data)
+    ;                                             #(doc/specs-for-var % opts state)))}
     :load-file {:name "Load File"
                 :description "Loads current file on a Clojure REPL"
                 :command (fn [] (ensure-data (editor-data)
@@ -119,7 +119,7 @@
                        (ensure-data (editor-data)
                                     #(eval-range state
                                                  %
-                                                 (assoc opts :pass pass) 
+                                                 (assoc opts :pass pass)
                                                  (constantly [range code])))))
    :eval (partial e-eval/eval-with-promise state opts)
    :result-for-renderer #(ensure-data (editor-data)
