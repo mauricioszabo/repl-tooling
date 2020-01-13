@@ -1,9 +1,12 @@
-(ns repl-tooling.commands-to-repl.doc-and-spec)
+(ns repl-tooling.commands-to-repl.doc-and-spec
+  (:require [clojure.spec.alpha]))
 
-{:foo :bar}
-
-(defn spec2interactive [spec-edn]
-  (clojure.core/let [= clojure.core/=
+(defn spec2interactive [sym]
+  (clojure.core/let [spec-edn (clojure.core/or (clojure.core/some-> sym
+                                                                    clojure.spec.alpha/get-spec
+                                                                    clojure.spec.alpha/describe)
+                                               sym)
+                     = clojure.core/=
                      first clojure.core/first
                      s clojure.core/str
                      rest clojure.core/rest
@@ -13,21 +16,25 @@
                      vector clojure.core/vector
                      name clojure.core/name
                      keyword clojure.core/keyword
+                     on-click (clojure.core/fn [symbol]
+                                [:eval (s "[:replace (spec2interactive '" symbol " )]")])
                      as-map (clojure.core/fn [edn]
                               (clojure.core/->> edn rest (partition 2 2)
-                                                (#(doto % prn))
                                  (clojure.core/mapcat
                                   (clojure.core/fn [[k v]]
-                                                   (prn :K k :V v)
                                     (case k
-                                      :req-un (map #(vector (keyword (name %)) 'required) v))))
-                                 (clojure.core/into {})))]
-    (clojure.core/cond
-      (clojure.core/not (clojure.core/list? spec-edn)) [:div.other (s spec-edn)]
+                                      :req-un (map (clojure.core/fn [%]
+                                                      (vector :div {:key %}
+                                                             [:span (s ":" (name %) " ")]
+                                                             [:a {:href "#"
+                                                                  :on-click (on-click %)}
+                                                              (pr-str %)])) v))))))]
+    [:html
+     (clojure.core/cond
+       (clojure.core/not (clojure.core/list? spec-edn)) [:div.other (s spec-edn)]
 
-      (clojure.core/-> spec-edn first (= 'keys))
-      [:div.coll.map.row
-       [:div.delim.open] "{"
-       [:div.children
-        (pr-str (as-map spec-edn))]
-       [:div.delim.close "}"]])))
+       (clojure.core/-> spec-edn first (= 'keys))
+       [:div.coll.map.row
+        [:div.delim.open] "{"
+        [:div.children (as-map spec-edn)]
+        [:div.delim.close "}"]])]))

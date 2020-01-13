@@ -1,4 +1,5 @@
 (ns repl-tooling.editor-integration.doc
+  (:require-macros [repl-tooling.repl-client.clj-helper :refer [contents-for-fn]])
   (:require [repl-tooling.editor-helpers :as helpers]
             [promesa.core :as p]
             [repl-tooling.eval :as eval]
@@ -93,23 +94,22 @@
 ; (spec/describe (spec/get-spec `::bar))
 ; (spec/describe (spec/get-spec `wow))
 ;
-(defn- describe-spec [repl var editor-state editor-data]
-  (let [cmd (str "(let [res (clojure.spec.alpha/describe (clojure.spec.alpha/get-spec `" var "))]
-                    [:html [:div (pr-str res)]])")
-        evaluate (-> @editor-state :editor/features :eval-and-render)]
-    (evaluate cmd
-              (:range editor-data)
-              {:interactive true})))
+(def spec-cmd-str (contents-for-fn "repl_tooling/commands_to_repl/doc_and_spec.cljs"
+                                   "spec2interactive"))
+
+(defn describe-spec [repl var]
+  (let [cmd (str "(" spec-cmd-str " '" var " )")]
+    (eval/eval2 repl cmd {:pass {:interactive true}})))
 
 (s/defn specs-for-var [{:keys [contents range filename] :as editor-data}
                        opts
-                       editor-state :- schemas/EditorState]
-  (let [[_ var] (helpers/current-var contents (first range))
-        evaluate (-> @editor-state :editor/features :eval)
-        notify (-> @editor-state :editor/callbacks :notify)
-        req (evaluate "(require '[clojure.spec.alpha])" {:ignore true})]
-    (.then req #(when-let [repl (e-eval/repl-for opts editor-state filename false)]
-                  (describe-spec repl var editor-state editor-data)))
-    (.catch req #(notify {:type :error
-                          :title "This REPL does not have spec"}))))
+                       editor-state :- schemas/EditorState])
+  ; (let [[_ var] (helpers/current-var contents (first range))
+  ;       evaluate (-> @editor-state :editor/features :eval)
+  ;       notify (-> @editor-state :editor/callbacks :notify)
+  ;       req (evaluate "(require '[clojure.spec.alpha])" {:ignore true})]
+  ;   (.then req #(when-let [repl (e-eval/repl-for opts editor-state filename false)]
+  ;                 (describe-spec repl var editor-state editor-data)))
+  ;   (.catch req #(notify {:type :error
+  ;                         :title "This REPL does not have spec"}))))
 ; (spec/describe (spec/get-spec `spec/fspec))
