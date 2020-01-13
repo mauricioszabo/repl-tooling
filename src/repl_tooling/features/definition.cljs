@@ -25,10 +25,10 @@
   (when (string? file-name)
     (if (re-find #"\.jar!/" file-name)
       (p/then (eval/eval repl (cmd-for-read-jar file-name))
-              (fn [c] {:file-name file-name :line (dec line) :contents c}))
+              (fn [c] {:file-name file-name :line (dec line) :contents (:result c)}))
       {:file-name file-name :line (dec line)})))
 
 (defn find-var-definition [repl ns-name symbol-name]
   (p/let [fqn (eval/eval repl (str "`" symbol-name) {:namespace ns-name :ignore true})
-          data (eval/eval repl (cmd-for-filename fqn))]
-    (get-result repl data)))
+          data (eval/eval repl (cmd-for-filename (:result fqn)))]
+    (get-result repl (:result data))))
