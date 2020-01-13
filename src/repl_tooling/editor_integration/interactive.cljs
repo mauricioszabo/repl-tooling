@@ -15,13 +15,17 @@
 (defn- normalize-html-actions [reagent-params {:keys [dispatch]}]
   (->> reagent-params
        (map (fn [[key val]]
+              (prn :NORM key val)
               (if (and (keyword? key)
                        (->> key name (re-find #"^on-"))
                        (vector? val))
                 [key (fn [e]
+                       (prn :CLICKED)
                        (.preventDefault e)
                        (.stopPropagation e)
-                       (dispatch val))]
+                       (prn :REALLY-CLICKED)
+                       (dispatch val)
+                       (prn :LOL))]
                 [key val])))
        (into {})))
 
@@ -93,7 +97,7 @@
           evaluate (evaluate code (-> eval-opts
                                       (assoc :ignore true)
                                       (assoc-in [:pass :interactive] true)))]
-      (.then evaluate dispatch)
+      (.then evaluate #(dispatch (:result %)))
       (when-let [rescue (:on-error eval-opts)]
         (.catch evaluate #(rescue % args))))))
 

@@ -38,6 +38,21 @@ If no argument is passed to opts, {:ignore true} is assumed"
                                             (p/reject! p (:error parsed))))))
      p)))
 
+(defn eval2
+  "Uses the same API as `evaluate`, but instead of expecting a callback returns a
+resolved promise with the result, or a rejected promise with the error
+
+If no argument is passed to opts, {:ignore true} is assumed"
+  ([evaluator command] (eval evaluator command {:ignore true}))
+  ([evaluator command opts]
+   (let [p (p/deferred)]
+     (evaluate evaluator command opts (fn [res]
+                                        (let [parsed (helpers/parse-result res)]
+                                          (if (contains? res :result)
+                                            (p/resolve! p parsed)
+                                            (p/reject! p parsed)))))
+     p)))
+
 (defn evaluator
   ([in out on-line] (evaluator in out on-line identity))
   ([in out on-line on-unexpected]
