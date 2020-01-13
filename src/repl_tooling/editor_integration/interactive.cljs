@@ -15,17 +15,13 @@
 (defn- normalize-html-actions [reagent-params {:keys [dispatch]}]
   (->> reagent-params
        (map (fn [[key val]]
-              (prn :NORM key val)
               (if (and (keyword? key)
                        (->> key name (re-find #"^on-"))
                        (vector? val))
                 [key (fn [e]
-                       (prn :CLICKED)
                        (.preventDefault e)
                        (.stopPropagation e)
-                       (prn :REALLY-CLICKED)
-                       (dispatch val)
-                       (prn :LOL))]
+                       (dispatch val))]
                 [key val])))
        (into {})))
 
