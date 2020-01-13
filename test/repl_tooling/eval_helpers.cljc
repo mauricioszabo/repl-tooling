@@ -43,6 +43,3 @@ a variable `repl` that points to the evaluator"
                                             (async/<! (async/timeout 20))
                                             (recur (inc tries#))))))]
      (async/<! res#)))
-
-#_
-(clojure.spec.alpha/describe (clojure.spec.alpha/get-spec :clojure.core/defn))
