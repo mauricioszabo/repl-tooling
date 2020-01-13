@@ -115,7 +115,7 @@
       (symbol res))))
 
 (s/defn parse-result :- schemas/ReplResult [result :- s/Any]
-  (assoc (if (:result result)
+  (assoc (if (contains? result :result)
            (update result :result #(if (:parsed? result)
                                      %
                                      (cond-> (read-result %)
