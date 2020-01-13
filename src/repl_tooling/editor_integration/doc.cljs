@@ -6,12 +6,6 @@
             [repl-tooling.editor-integration.evaluation :as e-eval]
             [schema.core :as s]
             [repl-tooling.editor-integration.schemas :as schemas]))
-;             [clojure.spec.alpha :as spec]))
-;
-; (spec/def ::lol string?)
-; (spec/def ::bar (spec/keys :req [::lol]))
-; (defn wow [lol])
-; (spec/fdef wow :args (spec/cat :lol ::lol))
 
 (defn- doc-cmd [var filename]
   `(~'clojure.core/let
@@ -68,9 +62,10 @@
   (let [on-start (-> options :opts :on-start-eval)]
     (on-start (:eval-data options)))
   (p/catch (p/let [var (eval/eval repl (str "`" var) {:namespace (:ns options) :ignore true})
-                   document-part (eval/eval repl (doc-cmd var (:filename editor-data)))]
+                   document-part (eval/eval repl (doc-cmd (:result var)
+                                                          (:filename editor-data)))]
               (if document-part
-                (try-spec document-part (assoc options :var var))
+                (try-spec (:result document-part) (assoc options :var (:result var)))
                 (treat-error "\"Unknown error\"" options)))
            #(treat-error % options)))
 
@@ -90,26 +85,13 @@
                                :eval-data eval-data
                                :editor-data editor-data}))))
 
-; (spec/describe ::bar)
-; (spec/describe (spec/get-spec `::bar))
-; (spec/describe (spec/get-spec `wow))
-;
 (def spec-cmd-str (contents-for-fn "repl_tooling/commands_to_repl/doc_and_spec.cljs"
                                    "spec2interactive"))
 
 (defn describe-spec [repl var]
   (let [cmd (str "(" spec-cmd-str " '" var " )")]
-    (eval/eval2 repl cmd {:pass {:interactive true}})))
+    (eval/eval repl cmd {:pass {:interactive true}})))
 
 (s/defn specs-for-var [{:keys [contents range filename] :as editor-data}
                        opts
                        editor-state :- schemas/EditorState])
-  ; (let [[_ var] (helpers/current-var contents (first range))
-  ;       evaluate (-> @editor-state :editor/features :eval)
-  ;       notify (-> @editor-state :editor/callbacks :notify)
-  ;       req (evaluate "(require '[clojure.spec.alpha])" {:ignore true})]
-  ;   (.then req #(when-let [repl (e-eval/repl-for opts editor-state filename false)]
-  ;                 (describe-spec repl var editor-state editor-data)))
-  ;   (.catch req #(notify {:type :error
-  ;                         :title "This REPL does not have spec"}))))
-; (spec/describe (spec/get-spec `spec/fspec))
