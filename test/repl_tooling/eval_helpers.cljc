@@ -26,8 +26,9 @@ a variable `repl` that points to the evaluator"
               c# (async/promise-chan)
               _# (.then prom# #(async/put! c# (second %)))
               ~'repl (async/<! c#)]
-          (repl-tooling.repl-client.clojure/disable-limits! ~'repl)
           (eval-on-repl ":ok")
+          (repl-tooling.repl-client.clojure/disable-limits! ~'repl)
+          (eval-on-repl ":done")
           ~@body)))))
 
 (defmacro eval-and-parse [code]
