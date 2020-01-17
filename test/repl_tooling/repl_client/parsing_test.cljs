@@ -6,15 +6,13 @@
             [devcards.core :as cards :include-macros true]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]
-            [repl-tooling.eval-helpers :refer-macros [eval-on-repl eval-and-parse]]
+            [repl-tooling.eval-helpers :refer-macros [eval-on-repl eval-and-parse
+                                                      async-with-clj-repl]]
             [repl-tooling.repl-client.clojure :as clj]))
 
 (set! cards/test-timeout 8000)
 (cards/deftest evaluate-ellisions
-  (async done
-    (async/go
-     (client/disconnect! :clj-ellisions-1)
-     (let [repl (clj/repl :clj-ellisions-1 "localhost" 2233 identity)]
+  (async-with-clj-repl "ellisions"
        (testing "objects without get-more"
          (check (eval/get-more-fn (:result (eval-and-parse "'(1 2 3)"))) => nil)
          (check (eval/get-more-fn (:result (eval-and-parse "[1 2 3]"))) => nil)
@@ -99,12 +97,9 @@
                more-data (async/promise-chan)
                even-more-data (async/promise-chan)
                ellide-fn (eval/get-more-fn res)]
-           (check (eval/without-ellision res) => 'java.util.List)
+           (check (str (eval/without-ellision res)) => "java.util.List")
            (ellide-fn repl #(async/put! more-data %))
            (check (-> more-data async/<! :attributes count) => 11)
 
            ((-> more-data async/<! eval/get-more-fn) repl #(async/put! even-more-data %))
-           (check (-> even-more-data async/<! :attributes count) => #(> % 11))))
-
-       (client/disconnect! :clj-ellisions-1)
-       (done)))))
+           (check (-> even-more-data async/<! :attributes count) => #(> % 11))))))

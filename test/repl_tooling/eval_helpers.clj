@@ -13,16 +13,26 @@ a variable `repl` that points to the evaluator"
       (repl-tooling.eval/evaluate ~repl ~code {} (fn [res#] (async/put! result# res#)))
       (async/<! result#))))
 
-(defn- prepare-repl [repl-name body conn-id out-chan]
+(defn- prepare-repl [repl-name body conn-id out-chan disable?]
   `(let [prom# (repl-tooling.integrations.repls/connect-repl!
                 ~conn-id "localhost" 2233 #(some->> % (async/put! ~'out)))
          c# (async/promise-chan)
          _# (.then prom# #(async/put! c# (second %)))
          ~repl-name (async/<! c#)]
      (eval-on-repl ~repl-name ":ok")
-     (repl-tooling.repl-client.clojure/disable-limits! ~repl-name)
+     (when ~disable?
+       (repl-tooling.repl-client.clojure/disable-limits! ~repl-name))
      (eval-on-repl ~repl-name ":done")
      ~@body))
+
+(defmacro async-with-clj-repl [ txt & body]
+  (let [conn-id (str (gensym "connection"))]
+    `(let [~'out (async/chan)]
+      (async-test ~txt {:timeout 8000
+                        :teardown (fn []
+                                    (async/close! ~'out)
+                                    (repl-tooling.integrations.repls/disconnect! ~conn-id))}
+       ~(prepare-repl 'repl body conn-id 'out false)))))
 
 (defmacro async-with-repl [ txt & body]
   (let [conn-id (str (gensym "connection"))]
@@ -31,16 +41,7 @@ a variable `repl` that points to the evaluator"
                         :teardown (fn []
                                     (async/close! ~'out)
                                     (repl-tooling.integrations.repls/disconnect! ~conn-id))}
-       ~(prepare-repl 'repl body conn-id 'out)))))
-        ; (let [prom# (repl-tooling.integrations.repls/connect-repl!
-        ;               ~conn-id "localhost" 2233 #(some->> % (async/put! ~'out)))
-        ;       c# (async/promise-chan)
-        ;       _# (.then prom# #(async/put! c# (second %)))
-        ;       ~'repl (async/<! c#)]
-        ;   (eval-on-repl ":ok")
-        ;   (repl-tooling.repl-client.clojure/disable-limits! ~'repl)
-        ;   (eval-on-repl ":done")
-        ;   ~@body)))))
+       ~(prepare-repl 'repl body conn-id 'out true)))))
 
 (defmacro async-with-cljs-repl [ txt & body]
   (let [conn-id (str (gensym "connection"))
@@ -63,7 +64,7 @@ a variable `repl` that points to the evaluator"
               ~'repl (async/<! c#)]
           (eval-on-repl ":done")
           (do
-            ~(prepare-repl 'aux body aux-id 'out-aux)))))))
+            ~(prepare-repl 'aux body aux-id 'out-aux true)))))))
 
 (defmacro eval-and-parse [code]
   `(repl-tooling.editor-helpers/parse-result (eval-on-repl ~code)))
