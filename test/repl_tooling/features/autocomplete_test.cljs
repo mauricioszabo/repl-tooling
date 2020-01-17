@@ -5,8 +5,6 @@
             [check.core :refer-macros [check]]
             [check.async :refer-macros [await!]]
             [devcards.core :as cards :include-macros true]
-            [repl-tooling.repl-client.clojure :as clj]
-            [repl-tooling.repl-client :as client]
             [repl-tooling.features.autocomplete.simple :as simple]
             [repl-tooling.features.autocomplete.compliment :as compliment]
             [repl-tooling.repl-helpers :as repl-helpers]
