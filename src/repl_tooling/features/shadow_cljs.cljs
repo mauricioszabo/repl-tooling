@@ -10,7 +10,7 @@
   (-> shadow-path read-file str edn/read-string
       :builds keys))
 
-(defn- cmd-for [build-id]
+(defn cmd-for [build-id]
   `(do
      (~'clojure.core/require '[shadow.cljs.devtools.api])
      (shadow.cljs.devtools.api/repl ~build-id)))
