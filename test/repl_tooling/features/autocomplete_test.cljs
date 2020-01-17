@@ -9,7 +9,6 @@
             [repl-tooling.features.autocomplete.compliment :as compliment]
             [repl-tooling.repl-helpers :as repl-helpers]
             [repl-tooling.eval-helpers :include-macros true :as h]))
-             ; :refer [eval-on-repl async-with-repl async-with-cljs-repl]]))
 
 (set! cards/test-timeout 8000)
 (cards/deftest clojure-simple-autocomplete

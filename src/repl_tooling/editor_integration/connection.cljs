@@ -1,7 +1,6 @@
 (ns repl-tooling.editor-integration.connection
   (:require [reagent.core :as r]
             [clojure.string :as str]
-            [repl-tooling.repl-client :as repl-client]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]

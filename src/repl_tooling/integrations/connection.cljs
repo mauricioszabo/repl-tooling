@@ -4,7 +4,6 @@
             [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]
-            [repl-tooling.repl-client :as client]
             [repl-tooling.features.shadow-cljs :as shadow-cljs]
             [repl-tooling.integrations.repls :as repls]))
 
