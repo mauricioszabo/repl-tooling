@@ -12,23 +12,30 @@
      (~'clojure.java.io/copy is# ba#)
      (java.lang.String. (.toByteArray ba#))))
 
-(defn- get-result [repl [file-name line]]
+(defn- wrap-contents [repl {:keys [file-name line]}]
   (when (string? file-name)
     (if (re-find #"\.jar!/" file-name)
-      (p/then (eval/eval repl (cmd-for-read-jar file-name))
-              (fn [c] {:file-name file-name :line (dec line) :contents (:result c)}))
+      (p/let [{:keys [result]} (eval/eval repl (cmd-for-read-jar file-name))]
+        {:file-name file-name :line (dec line) :contents result})
       {:file-name file-name :line (dec line)})))
 
-(defn- cmd-for-filename [the-var]
-  `(~'clojure.core/let [res# (~'clojure.core/meta (~'clojure.core/resolve (quote ~the-var)))]
-     (~'clojure.core/require 'clojure.java.io)
-     [(~'clojure.core/or (~'clojure.core/some->> res# :file
-                           (.getResource (~'clojure.lang.RT/baseLoader))
-                           .getPath)
-                         (:file res#))
-      (:line res#)]))
+(defn- classpath-meta->positions [clj-repl meta]
+  (p/do!
+    (eval/eval clj-repl "(clojure.core/require 'clojure.java.io)")
+    (eval/eval clj-repl
+               (str "(clojure.core/let [m '" meta "]"
+                    "  (clojure.core/assoc m :file-name "
+                    "                      (or (clojure.core/some->> m"
+                    "                            :file"
+                    "                            (.getResource (clojure.lang.RT/baseLoader))"
+                    "                            .getPath)"
+                    "                          (:file m))))"))))
 
-(defn find-var-definition [repl ns-name symbol-name]
-  (p/let [fqn (eval/eval repl (str "`" symbol-name) {:namespace ns-name :ignore true})
-          data (eval/eval repl (cmd-for-filename (:result fqn)))]
-    (get-result repl (:result data))))
+(defn find-var-definition [cljs-repl clj-aux ns-name symbol-name]
+  (p/let [cmd (str "(clojure.core/meta (clojure.core/resolve `" symbol-name "))")
+          meta (eval/eval cljs-repl cmd {:namespace ns-name :ignore true})
+          meta (select-keys (:result meta) [:name :file :status :column :line])
+          pos (classpath-meta->positions clj-aux meta)
+          with-contents (wrap-contents clj-aux (:result pos))]
+    ; (prn :POS (keys with-contents))
+    with-contents))
