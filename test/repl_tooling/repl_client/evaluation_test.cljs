@@ -4,8 +4,9 @@
             [check.core :refer-macros [check]]
             [clojure.core.async :as async :include-macros true]
             [repl-tooling.eval :as eval]
-            [repl-tooling.repl-client.clojure :as clj])
-  (:require-macros [repl-tooling.eval-helpers :refer [eval-on-repl async-with-clj-repl]]))
+            [repl-tooling.repl-client.clojure :as clj]
+            [repl-tooling.eval-helpers :include-macros true :refer [eval-on-repl
+                                                                    async-with-clj-repl]]))
 
 (set! cards/test-timeout 8000)
 (cards/deftest clojure-evaluation
