@@ -7,7 +7,6 @@
             [devcards.core :as cards :include-macros true]
             [repl-tooling.features.autocomplete.simple :as simple]
             [repl-tooling.features.autocomplete.compliment :as compliment]
-            [repl-tooling.repl-helpers :as repl-helpers]
             [repl-tooling.eval-helpers :include-macros true :as h]))
 
 (set! cards/test-timeout 8000)

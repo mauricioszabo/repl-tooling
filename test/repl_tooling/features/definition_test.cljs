@@ -4,9 +4,7 @@
             [check.core :refer-macros [check]]
             [check.async :refer-macros [await!]]
             [clojure.core.async :as async :include-macros true]
-            [repl-tooling.repl-client :as client]
             [repl-tooling.integrations.repls :as repls]
-            [repl-tooling.repl-client.clojure :as clj]
             [repl-tooling.features.definition :as def]
             [repl-tooling.eval-helpers :include-macros true
              :refer [eval-on-repl async-with-repl async-with-cljs-repl]]))
