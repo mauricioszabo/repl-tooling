@@ -16,7 +16,7 @@
       render/txt-for-result))
 
 (cards/deftest evaluate-to-text
-  (async-with-clj-repl
+  (async-with-clj-repl "text repr"
     (testing "textual representation to pure text"
       (check (render/repr->lines [:row [:text "foobar"]]) => [["foobar"] {}])
       (check (render/repr->lines [:row [:text "foobar"] [:button "..." :f]])
