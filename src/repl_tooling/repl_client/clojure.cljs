@@ -1,7 +1,6 @@
 (ns repl-tooling.repl-client.clojure
   (:require-macros [repl-tooling.repl-client.clj-helper :refer [blob-contents]])
-  (:require [repl-tooling.repl-client :as client]
-            [repl-tooling.editor-helpers :as helpers]
+  (:require [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [cljs.core.async :as async :refer-macros [go go-loop]]
             [cljs.reader :as reader]
@@ -46,7 +45,6 @@
       (add-to-eval-queue! state
                           {:cmd (unrepl-cmd state :set-source params) :ignore-result? true}))))
 
-(declare repl)
 (defn- default-tags [tag data]
   (helpers/WithTag. data tag))
 
@@ -175,23 +173,6 @@
                        (treat-all-output! % state)
                        (on-output nil))
            :on-fragment identity)
-    (->Evaluator session)))
-
-(defn repl [session-name host port on-output]
-  (let [[in out] (client/socket2! session-name host port)
-        state (atom {:state :starting
-                     :processing nil
-                     :pending []
-                     :in-command #(async/put! in (str % "\n"))
-                     :on-output on-output})
-        session (atom {:state state})]
-    (async/put! in blob)
-    (go-loop [string (<! out)]
-      (if string
-        (do
-          (treat-all-output! string state)
-          (recur (<! out)))
-        (on-output nil)))
     (->Evaluator session)))
 
 (defn- eval-code [{:keys [evaluator id callback in code]} opts]
