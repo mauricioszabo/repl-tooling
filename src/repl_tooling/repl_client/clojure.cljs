@@ -21,7 +21,7 @@
                      (-> s
                          (update :pending #(-> % rest vec))
                          (assoc :processing cmd :state :evaluating))))
-      ((:in-command @state) (:cmd cmd)))))
+      (.write ^js (:conn @state) (str (:cmd cmd) "\n")))))
 
 (defn- add-to-eval-queue! [state opts]
   (swap! state update :pending conj opts)
@@ -162,7 +162,7 @@
   (let [state (atom {:state :starting
                      :processing nil
                      :pending []
-                     :in-command #(.write conn (str % "\n"))
+                     :conn conn
                      :on-output on-output})
         session (atom {:state state})]
     (.write conn "(clojure.core/require '[clojure.test])")
@@ -175,12 +175,12 @@
            :on-fragment identity)
     (->Evaluator session)))
 
-(defn- eval-code [{:keys [evaluator id callback in code]} opts]
+(defn- eval-code [{:keys [evaluator id callback ^js conn code]} opts]
   (swap! (:pending evaluator) assoc id {:callback callback
                                         :ignore (:ignore opts)
                                         :pass (:pass opts)})
-  (when-let [ns-name (:namespace opts)] (in (str "(in-ns '" ns-name ")")))
-  (in (:result code))
+  (when-let [ns-name (:namespace opts)] (.write conn (str "(in-ns '" ns-name ")\n")))
+  (.write conn (str (:result code) "\n"))
   (swap! (-> evaluator :evaluator :session) assoc :pending []))
 
 (defrecord SelfHostedCljs [evaluator pending]
@@ -188,14 +188,14 @@
   (evaluate [self command opts callback]
     (let [id (or (:id opts) (gensym))
           state (-> evaluator :session deref :state deref)
-          in (:in-command state)
+          conn (:conn state)
           code (source/wrap-command id command ":default" false)]
 
       (if (:error code)
         (let [output (:on-output state)]
           (output code)
           (callback code))
-        (eval-code {:evaluator self :id id :callback callback :in in :code code}
+        (eval-code {:evaluator self :id id :callback callback :conn conn :code code}
                    opts))
       id))
 
