@@ -19,10 +19,6 @@
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
   []
-  (repl-client/disconnect! :clj-eval)
-  (repl-client/disconnect! :clj-aux)
-  (repl-client/disconnect! :cljs-aux)
-  (repl-client/disconnect! :cljs-eval)
   (repls/disconnect! :clj-eval)
   (repls/disconnect! :clj-aux)
   (repls/disconnect! :cljs-aux)
