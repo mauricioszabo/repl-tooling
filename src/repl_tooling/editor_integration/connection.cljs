@@ -94,14 +94,14 @@
                        :command #(embedded/connect! state opts)})))
 
 (s/defn result-for-renderer
-  [res,
+  [res :- schemas/EvalResult,
    state
    {:keys [filename]} :- {:filename s/Str, s/Any s/Any}
    {:keys [get-config]}]
   (let [repl (if (e-eval/need-cljs? (get-config) filename)
                (:cljs/repl @state)
                (:clj/repl @state))]
-    (renderer/parse-result res repl state)))
+    (renderer/parse-result (:result res) repl state)))
 
 (defn- features-for [state {:keys [editor-data] :as opts} repl-kind]
   {:autocomplete (if (= :bb repl-kind)
