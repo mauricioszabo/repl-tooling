@@ -5,8 +5,8 @@
             [devcards.core :as cards :include-macros true]
             [repl-tooling.eval-helpers :refer-macros [eval-on-repl eval-and-parse
                                                       async-with-clj-repl]]
+            [repl-tooling.editor-integration.renderer.protocols :as proto]
             [repl-tooling.editor-integration.renderer :as render]
-            [repl-tooling.editor-helpers :as helper]
             [repl-tooling.repl-client.clojure :as clj]))
 
 (set! cards/test-timeout 8000)
@@ -39,7 +39,7 @@
         (check txt => [:text big-str])
         (check txt2 => "...")
         (check txt3 => [:text "\""])
-        (check (helper/as-text @parsed parsed false) => [:text (str big-str "...\"")])
+        (check (proto/as-text @parsed parsed false) => [:text (str big-str "...\"")])
 
         (more-fn #(async/put! after-more parsed))
         (check (render/txt-for-result (async/<! after-more)) =>

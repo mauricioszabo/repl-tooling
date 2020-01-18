@@ -2,7 +2,8 @@
   (:require [clojure.walk :as walk]
             [repl-tooling.eval :as eval]
             [reagent.core :as r]
-            [repl-tooling.editor-helpers :as helpers]))
+            [repl-tooling.editor-helpers :as helpers]
+            [repl-tooling.editor-integration.renderer.protocols :as proto]))
 
 (defonce ^:private renderers (atom {}))
 (defonce ^:private events (atom {}))
@@ -10,7 +11,7 @@
 (defn- render [{:keys [this dispatch]}]
   (let [edn (second this)
         obj (dispatch [:assign-renderable edn])]
-     (r/as-element (helpers/as-html @obj obj true))))
+     (r/as-element (proto/as-html @obj obj true))))
 
 (defn- normalize-html-actions [reagent-params {:keys [dispatch]}]
   (->> reagent-params
@@ -40,7 +41,7 @@
 (defn- interactive [{:keys [this dispatch]}]
   (let [interactive (-> this second helpers/Interactive.)
         obj (dispatch [:assign-renderable interactive])]
-    (r/as-element (helpers/as-html @obj obj true))))
+    (r/as-element (proto/as-html @obj obj true))))
 
 (defn register-renderer!
   [key renderer]
@@ -62,7 +63,7 @@
         (prn :no-dispatcher-for (first event))))))
 
 (defrecord Interactive [edn repl editor-state]
-  helpers/Renderable
+  proto/Renderable
   (as-html [_ ratom _]
     (let [renderer (-> edn first)
           renderer (get @renderers renderer)
@@ -80,7 +81,7 @@
   (let [edn-s (pr-str edn)]
     (if-let [renderable (get-in @state [:additional-states edn-s])]
       renderable
-      (let [renderable (helpers/as-renderable edn repl editor-state)]
+      (let [renderable (proto/as-renderable edn repl editor-state)]
         (swap! state assoc-in [:additional-states edn-s] renderable)
         renderable))))
 

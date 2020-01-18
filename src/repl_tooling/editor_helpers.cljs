@@ -10,13 +10,6 @@
             [repl-tooling.editor-integration.schemas :as schemas]
             [schema.core :as s]))
 
-(defprotocol Parseable
-  (as-renderable [self repl editor-state]))
-
-(defprotocol Renderable
-  (as-html [this ratom root?])
-  (as-text [this ratom root?]))
-
 (deftype LiteralRender [string]
   IPrintWithWriter
   (-pr-writer [_ writer opts]

@@ -1,7 +1,6 @@
 (ns repl-tooling.editor-integration.interactive-test
   (:require [clojure.string :as str]
             [repl-tooling.editor-integration.interactive :as int]
-            [repl-tooling.editor-helpers :as helpers]
             [reagent.core :as r]
             [clojure.test :refer [testing]]
             [check.core :refer-macros [check]]

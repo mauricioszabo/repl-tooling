@@ -2,7 +2,8 @@
   (:require [clojure.core.async :as async]
             [clojure.string :as str]
             [reagent.core :as r]
-            [devcards.core :as cards]))
+            [devcards.core :as cards]
+            #?(:cljs [repl-tooling.editor-integration.renderer.protocols :as proto])))
 
 (defn- type-and-just-for-test [])
 
@@ -36,7 +37,7 @@
     (defonce ~'state (r/atom nil))
     (defn ~'result []
       (if-let [obj# @~'state]
-        (let [html# (helpers/as-html obj# ~'state true)]
+        (let [html# (repl-tooling.editor-integration.renderer.protocols/as-html obj# ~'state true)]
           [:div.result html#])
         [:div.result "Waiting for result"]))
 
