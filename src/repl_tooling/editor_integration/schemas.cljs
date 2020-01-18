@@ -4,7 +4,7 @@
 
 (def EvalSuccess {:result s/Any :parsed? (s/eq true) :as-text s/Str
                   s/Keyword s/Bool})
-(def EvalError {:error s/Any :parsed? (s/eq true) :as-text s/Str})
+(def EvalError {:error s/Any :parsed? (s/eq true) :as-text s/Str s/Keyword s/Bool})
 (def ReplResult (s/conditional
                  #(and (contains? % :result) (:parsed? %)) EvalSuccess
                  #(:parsed? %) EvalError
@@ -15,6 +15,7 @@
                                           :result [s/Any]
                                           :interactive (s/eq true))
                  :else EvalSuccess))
+
 (def UnparsedResult (s/conditional
                      #(:parsed? %) ReplResult
                      #(contains? % :error) {:as-text s/Str :error s/Str}
