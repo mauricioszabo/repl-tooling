@@ -1,7 +1,9 @@
 (ns repl-tooling.editor-integration.evaluation
   (:require [clojure.string :as str]
             [repl-tooling.editor-helpers :as helpers]
-            [repl-tooling.eval :as eval]))
+            [repl-tooling.eval :as eval]
+            [repl-tooling.editor-integration.schemas :as schemas]
+            [schema.core :as s]))
 
 (defn need-cljs? [config filename]
   (or
@@ -44,7 +46,12 @@
       (treat-error (:notify opts) cljs? (:clj/repl @state))
       repl)))
 
-(defn eval-cmd [state code namespace range editor-data opts]
+(s/defn eval-cmd [state
+                  code :- s/Str
+                  namespace
+                  range :- schemas/Range
+                  editor-data :- schemas/EditorData
+                  opts]
   (when code
     (let [filename (:filename editor-data)
           {:keys [on-start-eval on-eval]} opts
@@ -66,6 +73,7 @@
                         ;; FIXME: this is kinda bad, we're re-using opts...
                         :pass (:pass opts)}
                        #(when on-eval
+                          (prn :EVAL-DATA eval-data)
                           (on-eval (assoc eval-data :result (helpers/parse-result %)))))))))
 
 (defn eval-with-promise
