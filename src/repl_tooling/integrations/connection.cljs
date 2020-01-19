@@ -1,16 +1,17 @@
 (ns repl-tooling.integrations.connection
   (:require-macros [repl-tooling.repl-client.clj-helper :refer [cljs-blob-contents]])
-  (:require [repl-tooling.repl-client.clojure :as clj-repl]
+  (:require [promesa.core :as p :include-macros true]
+            [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]
-            [repl-tooling.repl-client :as client]
-            [repl-tooling.features.shadow-cljs :as shadow-cljs]))
+            [repl-tooling.features.shadow-cljs :as shadow-cljs]
+            [repl-tooling.integrations.repls :as repls]))
 
 (def blob (cljs-blob-contents))
 
-(defn- treat-result [evaluator resolve ret]
+(defn- treat-result [id evaluator resolve ret]
   (if (:error ret)
-    (do (resolve ret) (client/disconnect! evaluator))
+    (do (resolve ret) (repls/disconnect! id))
     (eval/evaluate ret
                    "(/ 10 0)"
                    {:ignore true}
@@ -23,46 +24,25 @@
                                             (resolve ret))
                        :else (do
                                (resolve {:error :unknown})
-                               (client/disconnect! :cljs-aux)))))))
+                               (repls/disconnect! id)))))))
 
-(defn ^:deprecated auto-connect-embedded!
-  "Given a host, port, and project paths, try to parse shadow-cljs.edn and
-connects to the first build-id found on file. Returns an evaluator for CLJS
-
-Callbacks expects :on-stdout and :on-stderr"
-  [host port project-paths callbacks]
-  (let [code (shadow-cljs/command-for project-paths)
-        repl (delay (clj-repl/repl :cljs-aux host port
-                                   #(do
-                                      (cond
-                                       (or (contains? % :result) (contains? % :error))
-                                       ((:on-result callbacks) (helpers/parse-result %))
-
-                                       (:out %)
-                                       ((:on-stdout callbacks) (:out %))))))]
-    (js/Promise.
-     (fn [resolve]
-       (if (:error code)
-         (resolve code)
-         (.. (clj-repl/self-host @repl code)
-             (then #(treat-result @repl resolve %))))))))
-
-(defn connect!
+(defn connect-self-hosted!
   "Given a host, port, and a clojure command, connects on a Clojure REPL,
-runs the command to change it to CLJS, and returns an evaluator for CLJS.
-Callbacks expects :on-stdout and :on-result"
-  ([host port code callbacks] (connect! :cljs-aux host port code callbacks))
-  ([identifier host port code callbacks]
-   (let [repl (delay (clj-repl/repl identifier host port
-                                    #(do
-                                       (cond
-                                          (or (contains? % :result) (contains? % :error))
-                                          ((:on-result callbacks) (helpers/parse-result %))
+runs the command to change it to CLJS, and returns an evaluator for CLJS."
+  [{:keys [identifier host port code on-result on-stdout]
+    :or {identifier :cljs-eval}}]
+  (p/let [repl-info (delay (repls/connect-repl! identifier host port
+                                                (fn [res]
+                                                  (cond
+                                                    (or (contains? res :result)
+                                                        (contains? res :error))
+                                                    (on-result (helpers/parse-result res))
 
-                                          (:out %)
-                                          ((:on-stdout callbacks) (:out %))))))]
-     (js/Promise. (fn [resolve]
-                    (if (:error code)
-                      (resolve code)
-                      (.. (clj-repl/self-host @repl code)
-                          (then #(treat-result @repl resolve %)))))))))
+                                                    (:out res)
+                                                    (on-stdout (:out res))))))]
+    (if (:error code)
+      code
+      (p/let [repl-info @repl-info
+              [_ clj-repl] repl-info
+              self-hosted (clj-repl/self-host clj-repl code)]
+        (js/Promise. (fn [resolve] (treat-result identifier clj-repl resolve self-hosted)))))))

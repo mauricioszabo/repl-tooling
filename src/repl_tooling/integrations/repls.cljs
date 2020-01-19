@@ -66,7 +66,7 @@
   (let [pending-evals (atom {})
         cmd-for (case repl-kind
                   :bb (fn [{:keys [command id]}]
-                        (source/wrap-command id command "Exception" true))
+                        (source/wrap-command id command "java.lang.Throwable" true))
                   :joker (fn [{:keys [command id]}]
                            (let [o (source/wrap-command id command "Error" false)
                                  res (:result o)]
@@ -82,7 +82,8 @@
                   (fn [{:keys [command id]}]
                     (source/wrap-command id command "Exception" true)))
         eval-command (case repl-kind
-                       :bb (fn [{:keys [id command]}]
+                       :bb (fn [{:keys [id command namespace]}]
+                             (send-namespace conn "in-ns '" namespace control)
                              (swap! control update :pending-evals conj id)
                              (.write conn command))
                        :joker (fn [{:keys [id command namespace]}]

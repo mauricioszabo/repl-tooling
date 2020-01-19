@@ -1,0 +1,13 @@
+#!/bin/bash
+
+rm target/fixture.js target/integration/main.js
+npx shadow-cljs watch integration fixture &
+for n in {1..25}; do
+  ls target/fixture.js target/integration/main.js &>/dev/null && break
+  echo "Not compiled yet, waiting..."
+  sleep 20
+done
+
+echo "Fixture app compiled, running the fixture app"
+node target/fixture.js
+fg

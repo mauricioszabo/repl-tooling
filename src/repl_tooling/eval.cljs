@@ -34,8 +34,8 @@ If no argument is passed to opts, {:ignore true} is assumed"
      (evaluate evaluator command opts (fn [res]
                                         (let [parsed (helpers/parse-result res)]
                                           (if (contains? res :result)
-                                            (p/resolve! p (:result parsed))
-                                            (p/reject! p (:error parsed))))))
+                                            (p/resolve! p parsed)
+                                            (p/reject! p parsed)))))
      p)))
 
 (defn evaluator

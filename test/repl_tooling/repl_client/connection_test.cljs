@@ -2,6 +2,7 @@
   (:require [clojure.test :refer-macros [testing async is]]
             [devcards.core :as cards :include-macros true]
             [check.core :refer-macros [check]]
+            [check.async :include-macros true :refer [async-test]]
             [clojure.core.async :as async :include-macros true]
             [repl-tooling.repl-client.connection :as c]
             [reagent.core :as r]))
@@ -21,44 +22,41 @@
             (recur (inc n))))))))
 
 (cards/deftest buffer-treatment
-  (async done
-    (let [buffer (atom [])
-          lines (async/chan)
-          frags (async/chan)]
-      (async/go
-        (c/treat-buffer! buffer #(async/put! lines (str %)) #(async/put! frags (str %)))
+  (let [buffer (atom [])
+        lines (async/chan)
+        frags (async/chan)]
+    (async-test "treating buffer info" {:teardown (do
+                                                    (async/close! lines)
+                                                    (async/close! frags))}
+      (c/treat-buffer! buffer #(async/put! lines (str %)) #(async/put! frags (str %)))
 
-        (testing "emmits line"
-          (swap! buffer conj "foo\n")
-          (check (async/<! lines) => "foo")
-          (check (async/<! frags) => "foo\n")
-          (check @buffer => []))
+      (testing "emits line"
+        (swap! buffer conj "foo\n")
+        (check (async/<! lines) =expect=> "foo")
+        (check (async/<! frags) =expect=> "foo\n")
+        (check @buffer =expect=> []))
 
-        (testing "emmits complex line"
-          (swap! buffer conj "foo")
-          (swap! buffer conj "bar")
-          (swap! buffer conj "b\nbaz")
-          (check (async/<! lines) => "foobarb")
-          (check @buffer => ["baz"]))
+      (testing "emits complex line"
+        (swap! buffer conj "foo")
+        (swap! buffer conj "bar")
+        (swap! buffer conj "b\nbaz")
+        (check (async/<! lines) =expect=> "foobarb")
+        (check @buffer =expect=> ["baz"]))
 
-        (testing "emmits fragments"
-          (check (async/<! frags) => "foobarb\n")
-          (check (async/<! frags) => "baz")
-          (check @buffer => []))
+      (testing "emits fragments"
+        (check (async/<! frags) =expect=> "foobarb\n")
+        (check (async/<! frags) =expect=> "baz")
+        (check @buffer =expect=> []))
 
-        (testing "emmits lines of already emitted frags"
-          (swap! buffer conj "aar\n")
-          (check (async/<! lines) => "bazaar")
-          (check (async/<! frags) => "aar\n"))
+      (testing "emits lines of already emitted frags"
+        (swap! buffer conj "aar\n")
+        (check (async/<! lines) =expect=> "bazaar")
+        (check (async/<! frags) =expect=> "aar\n"))
 
-        (testing "emmits nil when closed connection"
-          (swap! buffer conj :closed)
-          (check (async/<! frags) => "")
-          (check (async/<! lines) => ""))
-
-        (async/close! lines)
-        (async/close! frags)
-        (done)))))
+      (testing "emits nil when closed connection"
+        (swap! buffer conj :closed)
+        (check (async/<! frags) =expect=> "")
+        (check (async/<! lines) =expect=> "")))))
 
 (cards/deftest eval-cycle
   (async done
@@ -74,46 +72,46 @@
 
        (testing "captures the result of output"
          (swap! buffer conj ":foobar")
-         (check (async/<! output) => ":foobar"))
+         (check (async/<! output) =expect=> ":foobar"))
 
        (testing "captures results of simple evaluations"
          (swap! control update :pending-evals conj 'id01)
          (swap! buffer conj "[tooling$eval-res id01 \":foo\"]")
-         (check (async/<! results) => '[id01 ":foo"])
+         (check (async/<! results) =expect=> '[id01 ":foo"])
 
          (swap! buffer conj "[tooling$eval-res id01 \":foo\"]")
-         (check (async/<! output) => "[tooling$eval-res id01 \":foo\"]"))
+         (check (async/<! output) =expect=> "[tooling$eval-res id01 \":foo\"]"))
 
        (testing "captures results of results mixed with stdout"
          (swap! control update :pending-evals conj 'id01)
          (swap! buffer conj "lol[tooling$eval-res id01 \":foo\"]")
-         (check (async/<! results) => '[id01 ":foo"])
-         (check (async/<! output) => "lol")
+         (check (async/<! results) =expect=> '[id01 ":foo"])
+         (check (async/<! output) =expect=> "lol")
 
          (swap! control update :pending-evals conj 'id01)
          (swap! buffer conj "lol[tooling$eval-res id01 \":foo\"]bar")
-         (check (async/<! results) => '[id01 ":foo"])
-         (check (async/<! output) => "lol")
-         (check (async/<! output) => "bar"))
+         (check (async/<! results) =expect=> '[id01 ":foo"])
+         (check (async/<! output) =expect=> "lol")
+         (check (async/<! output) =expect=> "bar"))
 
        (testing "ignores prompt after a result"
          (swap! control assoc :ignore-prompt true)
          (swap! control update :pending-evals conj 'id01)
          (swap! buffer conj "lol[tooling$eval-res id01 \":foo\"]\nuser.cljs=> ")
-         (check (async/<! results) => '[id01 ":foo"])
-         (check (async/<! output) => "lol")
+         (check (async/<! results) =expect=> '[id01 ":foo"])
+         (check (async/<! output) =expect=> "lol")
 
          (swap! control update :pending-evals conj 'id01)
          (swap! buffer conj "[tooling$eval-res id01 \":foo\"]user.cljs=> bar")
-         (check (async/<! results) => '[id01 ":foo"])
-         (check (async/<! output) => "bar"))
+         (check (async/<! results) =expect=> '[id01 ":foo"])
+         (check (async/<! output) =expect=> "bar"))
 
        (testing "captures output in different fragments"
          (swap! control update :pending-evals conj 'id01)
          (swap! buffer conj "[tooling$eval-res id01 \"[\n")
          (swap! buffer conj "1 2\n")
          (swap! buffer conj "]\"]")
-         (check (async/<! results) => '[id01 "[\n1 2\n]"]))
+         (check (async/<! results) =expect=> '[id01 "[\n1 2\n]"]))
 
        (async/close! output)
        (async/close! results)

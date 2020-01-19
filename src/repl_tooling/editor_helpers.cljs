@@ -6,12 +6,19 @@
             [rewrite-clj.zip.base :as zip-base]
             [rewrite-clj.node :as node]
             [rewrite-clj.reader :as clj-reader]
-            [rewrite-clj.parser :as parser]))
+            [rewrite-clj.parser :as parser]
+            [repl-tooling.editor-integration.schemas :as schemas]
+            [schema.core :as s]))
 
 (deftype LiteralRender [string]
   IPrintWithWriter
   (-pr-writer [_ writer opts]
     (-write writer string)))
+
+(deftype Interactive [edn]
+  IPrintWithWriter
+  (-pr-writer [_ writer opts]
+    (-write writer edn)))
 
 (defprotocol IIncompleteStr
   (only-str [_])
@@ -91,6 +98,7 @@
                                 'unrepl/browsable (fn [[a b]]
                                                     (->browseable a b))
                                 'repl-tooling/literal-render #(LiteralRender. %)
+                                'repl-tooling/interactive #(Interactive. %)
                                 'clojure/var #(->> % (str "#'") symbol)
                                 'error parse-error
                                 'unrepl/object as-obj}
@@ -99,12 +107,13 @@
     (catch :default _
       (symbol res))))
 
-(defn parse-result [result]
-  (assoc (if (:result result)
+(s/defn parse-result :- schemas/ReplResult [result :- s/Any]
+  (assoc (if (contains? result :result)
            (update result :result #(if (:parsed? result)
                                      %
                                      (cond-> (read-result %)
-                                             (:literal result) LiteralRender.)))
+                                             (:literal result) LiteralRender.
+                                             (:interactive result) Interactive.)))
            (update result :error #(cond-> % (not (:parsed? result)) read-result)))
          :parsed? true))
 

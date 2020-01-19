@@ -1,8 +1,11 @@
 (ns repl-tooling.editor-integration.doc
+  (:require-macros [repl-tooling.repl-client.clj-helper :refer [contents-for-fn]])
   (:require [repl-tooling.editor-helpers :as helpers]
             [promesa.core :as p]
             [repl-tooling.eval :as eval]
-            [repl-tooling.editor-integration.evaluation :as e-eval]))
+            [repl-tooling.editor-integration.evaluation :as e-eval]
+            [schema.core :as s]
+            [repl-tooling.editor-integration.schemas :as schemas]))
 
 (defn- doc-cmd [var filename]
   `(~'clojure.core/let
@@ -34,7 +37,7 @@
 (defn- emit-result [document-part spec-part {:keys [opts eval-data]}]
   (let [docs (cond-> document-part spec-part (str "\n\nSpec:\n" spec-part))
         {:keys [on-eval on-result]} opts
-        res {:result (pr-str docs) :literal true}]
+        res {:result (pr-str docs) :literal true :as-text (pr-str docs)}]
 
     (and on-eval (on-eval (assoc eval-data :result res)))
     (and on-result (on-result res))))
@@ -45,22 +48,24 @@
                         cmd (spec-cmd (:var options))]
                   (eval/eval (:repl options) cmd))]
     (.. spec-ed
-        (then #(emit-result document-part % options))
+        (then #(emit-result document-part (:result %) options))
         (catch #(emit-result document-part nil options)))))
 
 (defn- treat-error [error {:keys [opts eval-data]}]
   (let [{:keys [on-eval on-result]} opts]
     (and on-eval (on-eval (assoc eval-data :result {:error error
-                                                    :parsed? true})))
-    (and on-result (on-result {:error error :parsed? true}))))
+                                                    :parsed? true
+                                                    :as-text (pr-str error)})))
+    (and on-result (on-result {:error error :parsed? true :as-text (pr-str error)}))))
 
 (defn- run-documentation-code [{:keys [var editor-data opts repl] :as options}]
-  (when-let [on-start (-> options :opts :on-start-eval)]
+  (let [on-start (-> options :opts :on-start-eval)]
     (on-start (:eval-data options)))
   (p/catch (p/let [var (eval/eval repl (str "`" var) {:namespace (:ns options) :ignore true})
-                   document-part (eval/eval repl (doc-cmd var (:filename editor-data)))]
+                   document-part (eval/eval repl (doc-cmd (:result var)
+                                                          (:filename editor-data)))]
               (if document-part
-                (try-spec document-part (assoc options :var var))
+                (try-spec (:result document-part) (assoc options :var (:result var)))
                 (treat-error "\"Unknown error\"" options)))
            #(treat-error % options)))
 
@@ -79,3 +84,14 @@
                                :opts opts
                                :eval-data eval-data
                                :editor-data editor-data}))))
+
+(def spec-cmd-str (contents-for-fn "repl_tooling/commands_to_repl/doc_and_spec.cljs"
+                                   "spec2interactive"))
+
+(defn describe-spec [repl var]
+  (let [cmd (str "(" spec-cmd-str " '" var " )")]
+    (eval/eval repl cmd {:pass {:interactive true}})))
+
+(s/defn specs-for-var [{:keys [contents range filename] :as editor-data}
+                       opts
+                       editor-state :- schemas/EditorState])

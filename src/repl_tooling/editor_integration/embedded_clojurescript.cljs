@@ -27,8 +27,11 @@
   (let [{:keys [notify on-result on-stdout]} opts
         {:keys [host port]} (:repl/info @state)]
     (if target
-      (.. (conn/connect! host port upgrade-cmd {:on-result #(and on-result (on-result %))
-                                                :on-stdout #(and on-stdout (on-stdout %))})
+      (.. (conn/connect-self-hosted! {:host host
+                                      :port port
+                                      :code upgrade-cmd
+                                      :on-result #(and on-result (on-result %))
+                                      :on-stdout #(and on-stdout (on-stdout %))})
           (then #(if-let [error (:error %)]
                    (treat-error error notify)
                    (do

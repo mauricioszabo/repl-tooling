@@ -26,10 +26,10 @@
                         :range [[0 0]]
                         :eval-result (r/atom nil)}))
 
-(defn- res [{:keys [result]}]
+(defn- res [result]
   (let [parse (-> @state :features :result-for-renderer)]
     (reset! (:eval-result @state) (parse result)))
-  (swap! state update :stdout (fn [e] (str e "=> " (:as-text result) "\n"))))
+  (swap! state update :stdout (fn [e] (str e "=> " (-> result :result :as-text) "\n"))))
 
 (defn evaluate []
   (let [lines (-> @state :code str/split-lines)

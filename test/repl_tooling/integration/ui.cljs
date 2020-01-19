@@ -8,6 +8,8 @@
             [devcards.core :as cards :include-macros true]
             [clojure.string :as str]
             [repl-tooling.editor-integration.connection :as conn]
+            [schema.core :as s]
+
             [repl-tooling.editor-helpers-test]
             [repl-tooling.repl-client.parsing-test]
             [repl-tooling.repl-client.textual-representation-test]
@@ -17,7 +19,9 @@
             [repl-tooling.features.autocomplete-test]
             [repl-tooling.editor-integration.autocomplete-test]
             [repl-tooling.repl-client.connection-test]
-            [repl-tooling.integration.rendered-actions]))
+            [repl-tooling.integration.rendered-actions]
+            [repl-tooling.editor-integration.interactive-test]
+            [repl-tooling.editor-integration.doc-test]))
 
 (cards/defcard-rg rendered-result
   (fn [result]
@@ -46,7 +50,6 @@
            (async/<! (async/timeout 100))
            (recur (inc t))))))))
 
-(defn- type-in [txt] (swap! state assoc :code txt))
 (defn- type-and-eval [txt]
   (swap! state assoc :code txt)
   (evaluate))
@@ -88,24 +91,24 @@
 
      (testing "evaluation works"
        (type-and-eval "(+ 2 3)")
-       (check (async/<! (txt-in-stdout #"=> 5")) => "=> 5")
-       (check (txt-for-selector "#result") => "5"))
+       (check (async/<! (txt-in-stdout #"=> 5")) =expect=> "=> 5")
+       (check (txt-for-selector "#result") =expect=> "5"))
 
      (testing "evaluate blocks"
        (swap! state assoc
               :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
-              :range [[3 3]])
+              :range [[3 3] [3 3]])
        ((-> @state :commands :evaluate-block :command))
        (async/<! (change-stdout))
-       (check (txt-for-selector "#result") => "7"))
+       (check (txt-for-selector "#result") =expect=> "7"))
 
      (testing "evaluate top blocks"
        (swap! state assoc
               :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
-              :range [[3 3]])
+              :range [[3 3] [3 3]])
        ((-> @state :commands :evaluate-top-block :command))
        (async/<! (change-stdout))
-       (check (txt-for-selector "#result") => "9"))
+       (check (txt-for-selector "#result") =expect=> "9"))
 
      (testing "displays booleans"
        (ui/assert-out "true" "true")
@@ -118,15 +121,15 @@
 
      (testing "captures STDOUT"
        (type-and-eval "(println :FOOBAR)")
-       (check (async/<! (change-stdout)) => #":FOOBAR"))
+       (check (async/<! (change-stdout)) =expect=> #":FOOBAR"))
 
      (testing "captures STDERR"
        (type-and-eval "(.write *err* \"Error\")")
-       (check (async/<! (change-stderr)) => #"Error"))
+       (check (async/<! (change-stderr)) =expect=> #"Error"))
 
      (testing "detects NS on file"
        (type-and-eval "(do (ns clojure.walk)\n(stringify-keys {:foo 10}))")
-       (check (async/<! (change-stdout)) => #"\"foo\" 10"))
+       (check (async/<! (change-stdout)) =expect=> #"\"foo\" 10"))
 
      (testing "evaluates and presents big strings"
        (ui/assert-out (str "\"01234567891011121314151617181920212223242526272829"
@@ -197,7 +200,7 @@
        (async/<! (change-result))
        (check (str/replace (txt-for-selector "#result div:nth-child(5) div:nth-child(2) div.tagged")
                            #"(\n|\s+)+" " ")
-              => #"#foobar.baz/lolnein \.\.\."))
+              =expect=> #"#foobar.baz/lolnein \.\.\."))
 
      (testing "clicking the ellision for object should render its representation"
        (click-selector ".children .children div:nth-child(2) div div a")
@@ -205,7 +208,7 @@
        (async/<! (change-result))
        (check (str/replace (txt-for-selector "#result .children div.tag:nth-child(2)")
                            #"(\n|\s+)+" " ")
-              => #"\( 99 99 \)"))
+              =expect=> #"\( 99 99 \)"))
 
      (testing "division by zero renders an exception"
        (ui/assert-out #"java.lang.ArithmeticException : \"Divide by zero\""
@@ -218,5 +221,8 @@
      (conn/disconnect!)
      (done))))
 
-(defn main [])
 (cards/start-devcard-ui!)
+(s/set-fn-validation! true)
+
+(defn ^:dev/after-load main []
+  (println "re-instrumenting"))

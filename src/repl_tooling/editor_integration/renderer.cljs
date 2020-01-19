@@ -2,17 +2,12 @@
   (:require [reagent.core :as r]
             [clojure.string :as str]
             [repl-tooling.eval :as eval]
-            [repl-tooling.editor-helpers :as helpers]))
-
-(defprotocol Renderable
-  (as-html [this ratom root?])
-  (as-text [this ratom root?]))
-
-(defprotocol Parseable
-  (as-renderable [self repl editor-state]))
+            [repl-tooling.editor-integration.renderer.protocols :as proto]
+            [repl-tooling.editor-helpers :as helpers]
+            [repl-tooling.editor-integration.interactive :as int]))
 
 (defn- parse-inner-root [objs more-fn a-for-more]
-  (let [inner (cond-> (mapv #(as-html (deref %) % false) objs)
+  (let [inner (cond-> (mapv #(proto/as-html (deref %) % false) objs)
                       more-fn (conj a-for-more))]
     (->> inner
          (interpose [:span {:class "whitespace"} " "])
@@ -23,7 +18,7 @@
                     [:span {:class "coll whitespace"} ", "]])
         inner (->> objs
                    (mapcat #(-> % deref :obj))
-                   (map #(as-html (deref %) % false)))]
+                   (map #(proto/as-html (deref %) % false)))]
     (-> inner
         (interleave sep)
         butlast
@@ -51,25 +46,27 @@
     (-> ratom txt-for-result (textual->text first-line-only?) copy)))
 
 (defn- obj-with-more-fn [more-fn ratom repl editor-state callback]
-  (more-fn repl #(do
-                   (swap! ratom assoc
-                          :more-fn nil
-                          :expanded? true
-                          :attributes-atom (as-renderable (:attributes %) repl editor-state))
-                   (callback))))
+  (more-fn repl (fn [res]
+                  (swap! ratom assoc
+                         :more-fn nil
+                         :expanded? true
+                         :attributes-atom (proto/as-renderable (:attributes res)
+                                                         repl
+                                                         editor-state))
+                  (callback))))
 
 (defrecord ObjWithMore [obj-atom more-fn attributes-atom expanded? repl editor-state]
-  Renderable
+  proto/Renderable
   (as-text [_ ratom root?]
-    (let [obj (assert-root (as-text @obj-atom obj-atom root?))]
+    (let [obj (assert-root (proto/as-text @obj-atom obj-atom root?))]
       (if expanded?
-        (conj obj (as-text @attributes-atom attributes-atom root?))
+        (conj obj (proto/as-text @attributes-atom attributes-atom root?))
         (conj obj [:button "..." #(obj-with-more-fn more-fn ratom repl editor-state %)]))))
 
   (as-html [_ ratom root?]
     [:div {:class ["browseable"]}
      [:div {:class ["object"]}
-      (as-html @obj-atom obj-atom root?)
+      (proto/as-html @obj-atom obj-atom root?)
       (when more-fn
         [:a {:href "#"
              :on-click (fn [e]
@@ -79,7 +76,7 @@
          (when root? "...")])]
      (when (and root? expanded?)
        [:div {:class "row children"}
-        [as-html @attributes-atom attributes-atom true]])]))
+        [proto/as-html @attributes-atom attributes-atom true]])]))
 
 (declare ->indexed)
 (defn- reset-atom [repl ratom obj result editor-state]
@@ -100,7 +97,7 @@
                                                       true))}])
 
 (defrecord Indexed [open obj close kind expanded? more-fn repl editor-state]
-  Renderable
+  proto/Renderable
   (as-html [_ ratom root?]
     (let [a-for-more [:a {:href "#"
                           :on-click (fn [e]
@@ -129,12 +126,12 @@
        (when (and root? expanded?)
          [:div {:class "children"}
           [:<>
-           (cond-> (mapv #(as-html (deref %) % true) obj)
+           (cond-> (mapv #(proto/as-html (deref %) % true) obj)
                    more-fn (conj a-for-more)
                    :then (->> (map (fn [i e] [:div {:key i :class "row"} e]) (range))))]])]))
 
   (as-text [_ ratom root?]
-    (let [children (map #(as-text @% % false) obj)
+    (let [children (map #(proto/as-text @% % false) obj)
           toggle #(do (swap! ratom update :expanded? not) (%))
           extract-map #(-> % (textual->text false)
                            (str/replace #"^\[" "")
@@ -162,12 +159,12 @@
                           [:text close]]
                  :else [:row @root-part @complete-txt])]
       (if expanded?
-        (cond-> (apply conj rows (map #(assert-root (as-text @% % true)) obj))
+        (cond-> (apply conj rows (map #(assert-root (proto/as-text @% % true)) obj))
                 more-fn (conj [:row [:button "..." more-callback]]))
         rows))))
 
 (defrecord Leaf [obj editor-state]
-  Renderable
+  proto/Renderable
   (as-html [_ ratom root?]
     (let [tp (cond
                (string? obj) "string"
@@ -181,7 +178,7 @@
 
 (defn- ->indexed [obj repl editor-state]
   (let [more-fn (eval/get-more-fn obj)
-        children (mapv #(as-renderable % repl editor-state) (eval/without-ellision obj))]
+        children (mapv #(proto/as-renderable % repl editor-state) (eval/without-ellision obj))]
     (cond
       (vector? obj) (->Indexed "[" children "]" "vector" false more-fn repl editor-state)
       (set? obj) (->Indexed "#{" (vec children) "}" "set" false more-fn repl editor-state)
@@ -189,7 +186,7 @@
       (seq? obj) (->Indexed "(" children ")" "list" false more-fn repl editor-state))))
 
 (defrecord IncompleteStr [string repl editor-state]
-  Renderable
+  proto/Renderable
   (as-html [_ ratom root?]
     [:div {:class "string big"}
      [:span (-> string eval/without-ellision pr-str (str/replace #"\"$" ""))]
@@ -217,14 +214,14 @@
       [:text (pr-str string)])))
 
 (defrecord Tagged [tag subelement editor-state open?]
-  Renderable
+  proto/Renderable
   (as-text [_ ratom root?]
     (let [toggle #(do (swap! ratom update :open? not) (%))]
       (if open?
         [:row [:expand "-" toggle]
-         [:text tag] (as-text @subelement subelement false)
-         (assert-root (as-text @subelement subelement true))]
-        [:row [:expand "+" toggle] [:text tag] (as-text @subelement subelement false)])))
+         [:text tag] (proto/as-text @subelement subelement false)
+         (assert-root (proto/as-text @subelement subelement true))]
+        [:row [:expand "+" toggle] [:text tag] (proto/as-text @subelement subelement false)])))
 
   (as-html [_ ratom root?]
     (let [will-be-open? (and root? open?)
@@ -239,16 +236,16 @@
        [:div {:class [(when will-be-open? "row")]}
         [:div {:class "tag"} tag (when will-be-open? copy-elem)]
         [:div {:class [(when will-be-open? "tag children")]}
-         [as-html @subelement subelement will-be-open?]]
+         [proto/as-html @subelement subelement will-be-open?]]
         (when (and (not open?) root?) copy-elem)]])))
 
 (defrecord IncompleteObj [incomplete repl editor-state]
-  Renderable
+  proto/Renderable
   (as-text [_ ratom _]
     (let [more (eval/get-more-fn incomplete)]
       [:button "..." (fn [callback]
                        (more repl #(do
-                                     (reset! ratom @(as-renderable % repl editor-state))
+                                     (reset! ratom @(proto/as-renderable % repl editor-state))
                                      (callback))))]))
 
   (as-html [_ ratom _]
@@ -257,7 +254,7 @@
        [:a {:href "#" :on-click (fn [e]
                                   (.preventDefault e)
                                   (.stopPropagation e)
-                                  (more repl #(reset! ratom @(as-renderable % repl editor-state))))}
+                                  (more repl #(reset! ratom @(proto/as-renderable % repl editor-state))))}
         "..."]])))
 
 (defn- link-for-more-trace [repl ratom more-trace more-str callback?]
@@ -323,10 +320,10 @@
              " (" file ":" row ")")]])))
 
 (defrecord ExceptionObj [obj add-data repl]
-  Renderable
+  proto/Renderable
   (as-text [_ ratom root?]
     (let [{:keys [type message trace]} obj
-          ex (as-text @message message true)
+          ex (proto/as-text @message message true)
           ex (if (-> ex first (= :row))
                 (update-in ex [1 1] #(str type ": " %))
                 [:row (update ex 1 #(str type ": " %))])
@@ -335,17 +332,17 @@
                       (range)
                       (eval/without-ellision trace))]
       (if add-data
-        (apply conj ex (as-text @add-data add-data root?) traces)
+        (apply conj ex (proto/as-text @add-data add-data root?) traces)
         (apply conj ex traces))))
 
   (as-html [_ ratom root?]
     (let [{:keys [type message trace]} obj]
       [:div {:class "exception row"}
        [:div {:class "description"}
-        [:span {:class "ex-kind"} (str type)] ": " [as-html @message message root?]]
+        [:span {:class "ex-kind"} (str type)] ": " [proto/as-html @message message root?]]
        (when add-data
          [:div {:class "children additional"}
-          [as-html @add-data add-data root?]])
+          [proto/as-html @add-data add-data root?]])
        (when root?
          [:div {:class "children"}
           (doall
@@ -359,11 +356,15 @@
                                        (more repl #(swap! ratom assoc-in [:obj :trace] %)))}
              "..."])])])))
 
-(extend-protocol Parseable
+(extend-protocol proto/Parseable
+  helpers/Interactive
+  (as-renderable [self repl editor-state]
+    (r/atom (int/->Interactive (.-edn self) repl editor-state)))
+
   helpers/Error
   (as-renderable [self repl editor-state]
-    (let [obj (update self :message as-renderable repl editor-state)
-          add-data (some-> self :add-data not-empty (as-renderable repl editor-state))]
+    (let [obj (update self :message proto/as-renderable repl editor-state)
+          add-data (some-> self :add-data not-empty (proto/as-renderable repl editor-state))]
       (r/atom (->ExceptionObj obj add-data repl))))
 
   helpers/IncompleteObj
@@ -377,9 +378,9 @@
   helpers/Browseable
   (as-renderable [self repl editor-state]
     (let [{:keys [object attributes]} self]
-      (r/atom (->ObjWithMore (as-renderable object repl editor-state)
+      (r/atom (->ObjWithMore (proto/as-renderable object repl editor-state)
                              (eval/get-more-fn self)
-                             (as-renderable attributes repl editor-state)
+                             (proto/as-renderable attributes repl editor-state)
                              false
                              repl
                              editor-state))))
@@ -387,8 +388,12 @@
   helpers/WithTag
   (as-renderable [self repl editor-state]
     (let [tag (helpers/tag self)
-          subelement (-> self helpers/obj (as-renderable repl editor-state))]
+          subelement (-> self helpers/obj (proto/as-renderable repl editor-state))]
       (r/atom (->Tagged tag subelement editor-state false))))
+
+  helpers/LiteralRender
+  (as-renderable [obj repl editor-state]
+    (r/atom (->Leaf obj editor-state)))
 
   default
   (as-renderable [obj repl editor-state]
@@ -403,19 +408,20 @@ it'll be suitable to be rendered with `view-for-result`"
   [result repl editor-state]
   (let [parsed (helpers/parse-result result)]
     (if (contains? parsed :result)
-      (as-renderable (:result parsed) repl editor-state)
+      (proto/as-renderable (:result parsed) repl editor-state)
       (let [error (:error parsed)
+            ; FIXME: is this really necessary? Can we use the exception renderer?
             ex (cond-> error
                        (:ex error) :ex
                        (->> error :ex (instance? helpers/Browseable)) :object)]
-        (with-meta (as-renderable ex repl editor-state) {:error true})))))
+        (with-meta (proto/as-renderable ex repl editor-state) {:error true})))))
 
 (defn view-for-result
   "Renders a view for a result. If it's an error, will return a view
 suitable for error backtraces. If it's a success, will return a success
 view. Expects a r/atom that comes from `parse-result`"
   [state]
-  [as-html @state state true])
+  [proto/as-html @state state true])
 
 (defn txt-for-result
   "Renders a view for a result, but in textual format. This view will be
@@ -429,7 +435,7 @@ Where :row defines a row of text, :text a fragment, :button a text that's
 associated with some data (to be able to ellide things) and :expand is to
 make a placeholder that we can expand (+) or collapse (-) the structure"
   [state]
-  (assert-root (as-text @state state true)))
+  (assert-root (proto/as-text @state state true)))
 
 (defn- parse-funs [funs last-elem curr-text elem]
   (let [txt-size (-> elem (nth 1) count)

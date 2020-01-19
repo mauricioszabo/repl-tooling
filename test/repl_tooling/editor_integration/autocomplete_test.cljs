@@ -5,7 +5,6 @@
             [check.core :refer-macros [check]]
             [devcards.core :as cards :include-macros true]
             [repl-tooling.repl-client.clojure :as clj]
-            [repl-tooling.repl-client :as client]
             [repl-tooling.eval-helpers :include-macros true :as h]
             [repl-tooling.editor-integration.connection :as conn]))
 
@@ -13,7 +12,6 @@
 (cards/deftest autodetection-of-autocomplete
   (async done
     (async/go
-     (client/disconnect! :clojure-compliment)
      (let [data (atom {:contents "(let [foa 10] foa)\n(let [foo 10] (+ fo))"
                        :filename "foo.clj"
                        :range [[1 19] [1 19]]})

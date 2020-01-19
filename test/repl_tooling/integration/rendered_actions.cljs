@@ -4,7 +4,7 @@
             [repl-tooling.integration.fake-editor :as editor :refer [editor type-and-eval
                                                                      change-stdout]]
             [repl-tooling.integration.ui-macros :as ui :include-macros true
-             :refer [type-and-result]]
+             :refer-macros [type-and-result]]
             [clojure.test :refer [async testing is] :include-macros true]
             [check.core :refer-macros [check]]
             [devcards.core :as cards :include-macros true]))
@@ -35,33 +35,33 @@
        (testing "copies tagged literals to clipboard"
          (type-and-result "(tagged-literal 'foo [1 2])")
          (click-clipboard 0)
-         (check (async/<! copy) => "#foo [1 2]"))
+         (check (async/<! copy) =expect=> "#foo [1 2]"))
 
        (testing "copy only first line"
          (click-chevron 0)
          (click-clipboard 0)
-         (check (async/<! copy) => "#foo [1 2]"))
+         (check (async/<! copy) =expect=> "#foo [1 2]"))
 
        (testing "copies colls"
          (editor/wait-for #(click-clipboard 1))
-         (check (async/<! copy) => "[1 2]"))
+         (check (async/<! copy) =expect=> "[1 2]"))
 
        (testing "copies leafs"
          (click-chevron 1)
          (editor/wait-for #(click-clipboard 2))
-         (check (async/<! copy) => "1")
+         (check (async/<! copy) =expect=> "1")
          (click-clipboard 3)
-         (check (async/<! copy) => "2"))
+         (check (async/<! copy) =expect=> "2"))
 
        (testing "copies incomplete string"
          (type-and-result "(str (range 80))")
          (click-clipboard 0)
-         (check (async/<! copy) => #"28 29"))
+         (check (async/<! copy) =expect=> #"28 29"))
 
        (testing "copies objects"
          (type-and-result "(Object.)")
          (click-clipboard 0)
-         (check (async/<! copy) => #"#object.*java\.lang\.Object"))
+         (check (async/<! copy) =expect=> #"#object.*java\.lang\.Object"))
 
        (conn/disconnect!)
        (async/close! copy)
