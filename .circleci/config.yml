@@ -11,6 +11,8 @@ jobs:
       - run:
           command: ./scripts/ci
           when: always
+      - store_artifacts:
+          path: ~/video
 
   publish:
     <<: *defaults
