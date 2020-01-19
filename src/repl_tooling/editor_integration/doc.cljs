@@ -48,7 +48,7 @@
                         cmd (spec-cmd (:var options))]
                   (eval/eval (:repl options) cmd))]
     (.. spec-ed
-        (then #(emit-result document-part % options))
+        (then #(emit-result document-part (:result %) options))
         (catch #(emit-result document-part nil options)))))
 
 (defn- treat-error [error {:keys [opts eval-data]}]
