@@ -73,7 +73,6 @@
                         ;; FIXME: this is kinda bad, we're re-using opts...
                         :pass (:pass opts)}
                        #(when on-eval
-                          (prn :EVAL-DATA eval-data)
                           (on-eval (assoc eval-data :result (helpers/parse-result %)))))))))
 
 (defn eval-with-promise
