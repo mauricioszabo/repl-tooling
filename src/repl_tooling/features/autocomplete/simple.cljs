@@ -27,7 +27,6 @@
   (str/escape (str prefix) re-char-escapes))
 
 (defn for-clj [repl ns-name txt-prefix]
-  (prn :COMPLE)
   (let [chan (async/promise-chan)
         prefix (->> txt-prefix (re-seq valid-prefix) last last)]
     (if (not-empty prefix)

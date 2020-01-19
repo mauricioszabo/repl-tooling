@@ -16,7 +16,7 @@
                         :commands nil
                         :stdout nil
                         :stderr nil
-                        :range [[0 0]]
+                        :range [[0 0] [0 0]]
                         :eval-result (r/atom nil)}))
 
 (defn disconnect! []
@@ -128,7 +128,7 @@
 
 (defn- type-in [txt] (swap! state assoc :code txt))
 (defn- type-and-eval [txt]
-  (swap! state assoc :code txt :range [[0 0]])
+  (swap! state assoc :code txt :range [[0 0] [0 0]])
   (evaluate))
 (defn- txt-in-stdout [reg]
   (wait-for #(re-find reg (:stdout @state))))
@@ -178,7 +178,7 @@
      (testing "evaluate blocks"
        (swap! state assoc
               :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
-              :range [[3 3]])
+              :range [[3 3] [3 3]])
        ((-> @state :commands :evaluate-block :command))
        (async/<! (change-stdout))
        (check (txt-for-selector "#result") => "7"))
@@ -186,7 +186,7 @@
      (testing "evaluate top blocks"
        (swap! state assoc
               :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
-              :range [[3 3]])
+              :range [[3 3] [3 3]])
        ((-> @state :commands :evaluate-top-block :command))
        (async/<! (change-stdout))
        (check (txt-for-selector "#result") => "9"))
@@ -205,7 +205,7 @@
      (testing "detects NS on file"
        (swap! state assoc
               :code "(ns clojure.string)\n(upper-case \"this is upper\")"
-              :range [[1 1]])
+              :range [[1 1] [1 1]])
        ((-> @state :commands :evaluate-block :command))
        (async/<! (change-stdout))
        (check (:stdout @state) => #"THIS IS UPPER"))
