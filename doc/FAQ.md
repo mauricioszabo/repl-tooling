@@ -56,3 +56,6 @@ Probably, if it is close enought to Clojure. To be "close enough" means that:
 1. Quoting like `'tooling$eval-res` will return a symbol without the quote (Fennel and Hy don't support it)
 1. Keywords render the same as Clojure (again, Fennel and Hy don't work)
 1. It supports a socket REPL (Ferret don't even have a REPL. Babashka, on the first versions, didn't have a REPL but you could start a Socket REPL, so it works)
+
+### When jack-in will be implemented?
+I don't intend to implement "jack-in". The thing is, is difficult to cleanup external processes and this could complicate **a lot** the code. Also, there's the problem with environment variables (I had multiple problems when I used editors that used jack-in because env variables were not set, PATH was set to different places and so on), some sandboxing that some editors do, it makes docker difficult do run in this context and **also** makes it necessary to support `lein`, `boot`, `shadow-cljs`, `clj`, `clojure`, and the other specific implementations' CLI, when they exist.
