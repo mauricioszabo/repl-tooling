@@ -8,7 +8,8 @@
                 [compliment "0.4.0-SNAPSHOT"]
                 [rewrite-cljs "0.4.4"]
                 [reagent "0.8.1"]
-                [devcards "0.2.5"]]
+                [devcards "0.2.5"]
+                [org.rksm/suitable "0.3.0"]]
 
  :builds {:integration {:target :browser
                         :js-options {:js-provider :require}
