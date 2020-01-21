@@ -40,7 +40,6 @@
   IMeta
   (-meta [coll] {:get-more (-> string second :repl-tooling/...)}))
 
-; TODO: I don't know if this belongs here or not
 (defprotocol Taggable
   (obj [this])
   (tag [this]))
