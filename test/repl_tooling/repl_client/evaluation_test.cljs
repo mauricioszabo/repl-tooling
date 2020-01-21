@@ -5,10 +5,12 @@
             [clojure.core.async :as async :include-macros true]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj]
-            [repl-tooling.eval-helpers :include-macros true :refer [eval-on-repl
-                                                                    async-with-clj-repl]]))
+            [repl-tooling.eval-helpers :refer [eval-on-repl
+                                               async-with-cljs-repl
+                                               async-with-clj-repl]]))
 
 (set! cards/test-timeout 8000)
+#_
 (cards/deftest clojure-evaluation
   (async-with-clj-repl "evaluation"
     (testing "evaluating request-response"
@@ -58,3 +60,9 @@
         (is (= "\"2\"" (-> res async/<! :result)))
         (is (= "\"3\"" (-> res async/<! :result)))
         (is (= "\"4\"" (-> res async/<! :result)))))))
+
+(cards/deftest clojurescript-evaluation
+  (async-with-cljs-repl "evaluation on CLJS"
+    (testing "evaluating request-response"
+      (is (= {:result "##Inf" :as-text "##Inf"} (eval-on-repl "(/ 10 0)")))
+      (is (= {:result "##Inf" :as-text "##Inf"} (async/<! out))))))

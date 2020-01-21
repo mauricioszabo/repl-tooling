@@ -1,13 +1,15 @@
 (ns repl-tooling.features.shadow-cljs
   (:require [cljs.reader :as edn]
-            ["path" :as path]))
-
-(def ^private fs ^js (js/require "fs"))
-(def ^private exists-sync ^js (.-existsSync fs))
-(def ^private read-file ^js (.-readFileSync fs))
+            ["path" :as path]
+            ["fs" :refer [existsSync readFileSync]]
+            [repl-tooling.integrations.repls :as repls]
+            [repl-tooling.eval :as eval]
+            [repl-tooling.repl-client.clojure :as clj-repl]
+            [repl-tooling.repl-client.source :as source]
+            [promesa.core :as p]))
 
 (defn- readfile [shadow-path]
-  (-> shadow-path read-file str edn/read-string
+  (-> shadow-path readFileSync str edn/read-string
       :builds keys))
 
 (defn cmd-for [build-id]
@@ -23,8 +25,59 @@
 (defn command-for [project-paths]
   (let [first-shadow-file (->> project-paths
                                (map #(path/join % "shadow-cljs.edn"))
-                               (filter exists-sync)
+                               (filter existsSync)
                                first)]
     (if first-shadow-file
       (cmds-for first-shadow-file)
       {:error :no-shadow-file})))
+
+(defn commands-for [repl]
+  (let [cmd "(do
+                (clojure.core/require 'shadow.cljs.devtools.api)
+                (clojure.core/require 'shadow.cljs.devtools.server.worker))
+                (clojure.core/filter shadow.cljs.devtools.api/worker-running?
+                                     (shadow.cljs.devtools.api/get-build-ids)))"]
+    (.. (eval/eval repl cmd)
+        (then #(if (not-empty %)
+                 (->> %
+                       :result
+                       (map (juxt identity cmd-for))
+                       (into {}))
+                 {:error :workers-empty}))
+        (catch #(hash-map :error :no-shadow)))))
+
+(defrecord Shadow [clj-evaluator build-id]
+  eval/Evaluator
+  (evaluate [self command opts callback]
+    (let [id (or (:id opts) (gensym))
+          clj-opts (dissoc opts :namespace)
+          name-space (:namespace opts)
+          code (source/wrap-command id command ":default" false)
+          clj-cmd (str "(clojure.core/->
+                          (shadow.cljs.devtools.server.worker/worker-request
+                            (shadow.cljs.devtools.api/get-worker " build-id ")
+                            {:type :repl-eval :input " (pr-str (str command)) "})
+                          :results
+                          clojure.core/last
+                          :result
+                          :value)")]
+
+      (if (:error code)
+        (let [output (-> clj-evaluator :state :on-output)]
+          (output code)
+          (callback code))
+        (eval/evaluate clj-evaluator clj-cmd clj-opts callback))
+        ; (eval-code {:evaluator self :id id :callback callback :conn conn :code code}
+        ;            opts))
+      id))
+
+  (break [this repl]))
+
+(defn upgrade-repl [repl command]
+  (clj-repl/disable-limits! repl))
+
+#_
+(let [repl (-> @chlorine.state/state :tooling-state deref :clj/aux)
+      shadow (->Shadow repl :dev)]
+  (.. (eval/eval repl "(+ 3 2)")
+      (then prn)))
