@@ -247,9 +247,11 @@
     (js/Promise. (fn [resolve]
                    (eval/evaluate clj-evaluator command {}
                                   (fn [res]
-                                    (when (contains? res :error)
-                                      (helpers/parse-result res))))
-                   ; CLJS self-hosted REPL never returns, so we'll just set a timeout
+                                    (if (contains? res :error)
+                                      (helpers/parse-result res)
+                                      (resolve cljs-repl))))
+                   ; CLJS self-hosted REPL SHOULD never return, so just set a timeout
+                   ; TODO: Sometimes it DOES return, I have no idea why...
                    (js/setTimeout #(resolve cljs-repl) 500)))))
 
 (defn disable-limits! [aux]
