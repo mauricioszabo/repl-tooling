@@ -144,6 +144,8 @@
       :nothing-really)))
 
 (defn- treat-hello! [hello state]
+  (.write ^js (:conn @state) "(clojure.core/require '[clojure.test])")
+  (.write ^js (:conn @state) "(clojure.core/alter-var-root #'clojure.test/*test-out* (clojure.core/constantly *out*))\n")
   (let [[_ res] (reader/read-string {:readers decoders} hello)]
     (swap! state assoc
            :session (:session res)
@@ -165,8 +167,6 @@
                      :conn conn
                      :on-output on-output})
         session (atom {:state state})]
-    (.write conn "(clojure.core/require '[clojure.test])")
-    (.write conn "(clojure.core/alter-var-root #'clojure.test/*test-out* (clojure.core/constantly *out*))\n")
     (.write conn blob)
     (swap! control assoc
            :on-line #(if %
