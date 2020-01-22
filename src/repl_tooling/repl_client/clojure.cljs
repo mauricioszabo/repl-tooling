@@ -247,9 +247,8 @@
     (js/Promise. (fn [resolve]
                    (eval/evaluate clj-evaluator command {}
                                   (fn [res]
-                                    (let [res (helpers/parse-result res)]
-                                      (resolve {:error (-> res :error
-                                                           (or (:result res)))}))))
+                                    (when (contains? res :error)
+                                      (helpers/parse-result res))))
                    ; CLJS self-hosted REPL never returns, so we'll just set a timeout
                    (js/setTimeout #(resolve cljs-repl) 500)))))
 
