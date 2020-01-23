@@ -144,6 +144,8 @@
       :nothing-really)))
 
 (defn- treat-hello! [hello state]
+  (.write ^js (:conn @state) "(clojure.core/require '[clojure.test])")
+  (.write ^js (:conn @state) "(clojure.core/alter-var-root #'clojure.test/*test-out* (clojure.core/constantly *out*))\n")
   (let [[_ res] (reader/read-string {:readers decoders} hello)]
     (swap! state assoc
            :session (:session res)
@@ -165,8 +167,6 @@
                      :conn conn
                      :on-output on-output})
         session (atom {:state state})]
-    (.write conn "(clojure.core/require '[clojure.test])")
-    (.write conn "(clojure.core/alter-var-root #'clojure.test/*test-out* (clojure.core/constantly *out*))\n")
     (.write conn blob)
     (swap! control assoc
            :on-line #(if %
@@ -247,10 +247,11 @@
     (js/Promise. (fn [resolve]
                    (eval/evaluate clj-evaluator command {}
                                   (fn [res]
-                                    (let [res (helpers/parse-result res)]
-                                      (resolve {:error (-> res :error
-                                                           (or (:result res)))}))))
-                   ; CLJS self-hosted REPL never returns, so we'll just set a timeout
+                                    (if (contains? res :error)
+                                      (helpers/parse-result res)
+                                      (resolve cljs-repl))))
+                   ; CLJS self-hosted REPL SHOULD never return, so just set a timeout
+                   ; TODO: Sometimes it DOES return, I have no idea why...
                    (js/setTimeout #(resolve cljs-repl) 500)))))
 
 (defn disable-limits! [aux]
