@@ -59,9 +59,9 @@
                             {:type :repl-eval :input " (pr-str (str command)) "})
                           :results
                           clojure.core/last
-                          :result
-                          :value)")]
+)")]
 
+      (println :CODE "\n" clj-cmd)
       (if (:error code)
         (let [output (-> clj-evaluator :state :on-output)]
           (output code)
@@ -79,5 +79,13 @@
 #_
 (let [repl (-> @chlorine.state/state :tooling-state deref :clj/aux)
       shadow (->Shadow repl :dev)]
-  (.. (eval/eval repl "(+ 3 2)")
-      (then prn)))
+  (.. (eval/eval shadow "#'async/lol")
+      (then prn)
+      (catch #(prn :ERROR %))))
+
+#_
+(let [repl (-> @chlorine.state/state :tooling-state deref :clj/aux)
+      shadow (->Shadow repl :dev)]
+  (.. (eval/eval shadow "(throw (ex-info \"lol\" {}))")
+      (then prn)
+      (catch prn)))
