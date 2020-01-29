@@ -14,41 +14,41 @@
   (h/async-with-repl "Clojure simple autocomplete"
     (testing "completing core functions"
       (let [res (simple/for-clj repl 'repl-tooling.integration.fixture-app "prn")]
-        (check (async/<! res) => [{:candidate "prn" :type :function}
-                                  {:candidate "prn-str" :type :function}])))
+        (check (await! res) => [{:candidate "prn" :type :function}
+                                {:candidate "prn-str" :type :function}])))
 
     (testing "completing macros and private fns in current NS"
       (let [res (simple/for-clj repl 'repl-tooling.integration.ui-macros "type-and")]
-        (check (async/<! res) => [{:candidate "type-and-just-for-test" :type :function}
-                                  {:candidate "type-and-result" :type :function}])))
+        (check (await! res) => [{:candidate "type-and-just-for-test" :type :function}
+                                {:candidate "type-and-result" :type :function}])))
 
     (testing "completing imported vars"
       (let [res (simple/for-clj repl 'repl-tooling.integration.ui-macros "str/repl")]
-        (check (async/<! res) => [{:candidate "str/replace" :type :function}
-                                  {:candidate "str/replace-first" :type :function}])))))
+        (check (await! res) => [{:candidate "str/replace" :type :function}
+                                {:candidate "str/replace-first" :type :function}])))))
 
 (cards/deftest clojurescript-simple-autocomplete
   (h/async-with-cljs-repl "ClojureScript with simple complete"
     (testing "completing core functions"
       (let [res (simple/for-cljs repl 'repl-tooling.integration.fixture-app "prn")]
-        (check (async/<! res) => [{:candidate "prn" :type :function}
-                                  {:candidate "prn-str" :type :function}
-                                  {:candidate "prn-str-with-opts" :type :function}])))
+        (check (await! res) => [{:candidate "prn" :type :function}
+                                {:candidate "prn-str" :type :function}
+                                {:candidate "prn-str-with-opts" :type :function}])))
 
     (testing "completing functions in current NS"
       (let [res (simple/for-cljs repl 'repl-tooling.integration.fixture-app "priva")]
-        (check (async/<! res) => [{:candidate "private-fn" :type :function}
-                                  {:candidate "private-var" :type :function}]))
+        (check (await! res) => [{:candidate "private-fn" :type :function}
+                                {:candidate "private-var" :type :function}]))
       (let [res (simple/for-cljs repl 'repl-tooling.integration.fixture-app "loc")]
-        (check (async/<! res) => [{:candidate "local-fn" :type :function}
-                                  {:candidate "local-var" :type :function}])))
+        (check (await! res) => [{:candidate "local-fn" :type :function}
+                                {:candidate "local-var" :type :function}])))
 
     (testing "completing imported vars"
       (let [res (simple/for-cljs repl 'repl-tooling.integration.fixture-app "st/repl")]
-        (check (async/<! res) => [{:candidate "st/replace" :type :function}
-                                  {:candidate "st/replace-all" :type :function}
-                                  {:candidate "st/replace-first" :type :function}
-                                  {:candidate "st/replace-with" :type :function}])))))
+        (check (await! res) => [{:candidate "st/replace" :type :function}
+                                {:candidate "st/replace-all" :type :function}
+                                {:candidate "st/replace-first" :type :function}
+                                {:candidate "st/replace-with" :type :function}])))))
 
 (cards/deftest clojure-compliment-autocomplete
   (h/async-with-repl "Clojure with Compliment"
@@ -59,6 +59,7 @@
                {:candidate "format", :type :function, :ns "clojure.core"}])))
 
 (def cljs-env '(shadow.cljs.devtools.api/compiler-env :fixture))
+#_
 (cards/deftest clojurescript-compliment-autocomplete
   (h/async-with-repl "ClojureScript with Compliment"
     (testing "will complete local and NS variables"

@@ -18,8 +18,7 @@
   ([repl ns-name text prefix row col]
    (for-clojure repl ns-name text prefix row col nil))
   ([repl ns-name text prefix row col sources]
-   (let [chan (async/promise-chan)
-         ns (when ns-name (symbol ns-name))
+   (let [ns (when ns-name (symbol ns-name))
          context (make-context text prefix row col)
          code `(do
                   (~'clojure.core/require '[compliment.core])
@@ -30,11 +29,9 @@
                                                       :sources ~sources
                                                       :context ~context})]
                     (~'clojure.core/vec completions#)))]
-     (eval/evaluate repl code {:ignore true} #(async/put! chan
-                                                          (if-let [res (:result %)]
-                                                            (helpers/read-result res)
-                                                            [])))
-     chan)))
+     (.. (eval/eval repl code)
+         (then #(:result %))
+         (catch (constantly []))))))
 
 (defn for-cljs [repl cmd-for-cljs-env ns-name text prefix row col]
   (let [chan (async/promise-chan)

@@ -144,8 +144,12 @@
       :nothing-really)))
 
 (defn- treat-hello! [hello state]
-  (.write ^js (:conn @state) "(clojure.core/require '[clojure.test])")
-  (.write ^js (:conn @state) "(clojure.core/alter-var-root #'clojure.test/*test-out* (clojure.core/constantly *out*))\n")
+  (add-to-eval-queue! state
+                      {:cmd "(clojure.core/require '[clojure.test])"
+                       :ignore-result? true})
+  (add-to-eval-queue! state
+                      {:cmd "(clojure.core/alter-var-root #'clojure.test/*test-out* (clojure.core/constantly *out*))"
+                       :ignore-result? true})
   (let [[_ res] (reader/read-string {:readers decoders} hello)]
     (swap! state assoc
            :session (:session res)
