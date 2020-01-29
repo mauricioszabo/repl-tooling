@@ -1,5 +1,6 @@
 (ns repl-tooling.editor-integration.autocomplete
   (:require [clojure.string :as str]
+            [promesa.core :as p]
             [cljs.core.async :include-macros true :as async]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
@@ -11,18 +12,21 @@
 (defonce cljs-autocomplete (atom nil))
 
 (defn- detect-clj-compliment [repl]
-  (let [chan (async/promise-chan)]
-    (eval/evaluate repl "(clojure.core/require 'compliment.core)"
-                   {:ignore true}
-                   #(async/put! chan (contains? % :result)))
-    chan))
+  (if-let [kind @clj-autocomplete]
+    kind
+    (p/let [res (.. (eval/eval repl "(clojure.core/require 'compliment.core)")
+                    (then (constantly :compliment))
+                    (catch (constantly :simple)))]
+      (reset! clj-autocomplete res))))
 
 (defn- detect-cljs-compliment [repl]
-  (let [chan (async/promise-chan)]
-    (eval/evaluate repl "(clojure.core/require 'compliment.sources.cljs)"
-                   {:ignore true}
-                   #(async/put! chan (contains? % :result)))
-    chan))
+  (if repl
+    (if-let [kind @cljs-autocomplete]
+      kind
+      (.. (eval/eval repl "(clojure.core/require 'compliment.sources.cljs)")
+          (then (constantly :compliment))
+          (catch (constantly :simple))))
+    :simple))
 
 (def ^:private non-clj-var-regex #"[^a-zA-Z0-9\-.$!?\/><*=\?_:]+")
 (defn- get-prefix [code row col]
@@ -35,7 +39,7 @@
       last
       str))
 
-(defn- autocomplete-clj [repl {:keys [contents range]}]
+(defn- autocomplete-clj [repl kind {:keys [contents range]}]
   (let [position (first range)
         [orig-row orig-col] position
         [[[block-row block-col]] block-text] (helpers/top-block-for contents position)
@@ -46,11 +50,11 @@
         [row col] (if block-text
                     [(- orig-row block-row) orig-col]
                     [0 0])]
-    (if (= :compliment @clj-autocomplete)
+    (if (= :compliment kind)
       (compliment/for-clojure repl ns-name (str block-text) prefix row col)
       (simple/for-clj repl ns-name prefix))))
 
-(defn- autocomplete-cljs [clj-repl cljs-repl cmd {:keys [contents range]}]
+(defn- autocomplete-cljs [clj-repl cljs-repl kind cmd {:keys [contents range]}]
   (let [position (first range)
         [orig-row orig-col] position
         [[[block-row block-col]] block-text] (helpers/top-block-for contents position)
@@ -61,38 +65,26 @@
         [row col] (if block-text
                     [(- orig-row block-row) orig-col]
                     [0 0])]
-    (if (= :compliment @cljs-autocomplete)
-      (or (some-> clj-repl (compliment/for-cljs cmd ns-name (str block-text) prefix row col))
-          (async/go []))
+    (if (= :compliment kind)
+      (compliment/for-cljs clj-repl cmd ns-name (str block-text) prefix row col)
       (or (some-> cljs-repl (simple/for-cljs ns-name prefix))
-          (async/go [])))))
+          []))))
 
-(defn- resolve-clj [state opts editor-data resolve]
-  (async/go
-   (when (nil? @clj-autocomplete)
-     (reset! clj-autocomplete
-             (if (async/<! (detect-clj-compliment (:clj/aux @state)))
-               :compliment
-               :simple)))
-   (if (:clj/aux @state)
-     (resolve (async/<! (autocomplete-clj (:clj/aux @state) editor-data)))
-     (resolve []))))
+(defn- resolve-clj [state opts editor-data]
+  (if-let [aux-repl (:clj/aux @state)]
+    (p/let [kind (detect-clj-compliment aux-repl)]
+      (autocomplete-clj (:clj/aux @state) kind editor-data))
+    (p/promise [])))
 
-(defn- resolve-cljs [state opts editor-data resolve]
-  (async/go
-   (when (nil? @cljs-autocomplete)
-     (reset! cljs-autocomplete
-             (if (some-> (:clj/aux @state) detect-cljs-compliment async/<!)
-               :compliment
-               :simple)))
-   (resolve (async/<! (autocomplete-cljs (:clj/aux @state)
-                                         (:cljs/repl @state)
-                                         (-> @state :repl/info :cljs/repl-env)
-                                         editor-data)))))
+(defn- resolve-cljs [state opts editor-data]
+  (p/let [kind (detect-cljs-compliment (:clj/aux @state))]
+    (autocomplete-cljs (:clj/aux @state)
+                       (:cljs/repl @state)
+                       kind
+                       (-> @state :repl/info :cljs/repl-env)
+                       editor-data)))
 
 (defn command [state {:keys [get-config] :as opts} editor-data]
-  (js/Promise.
-   (fn [resolve]
-     (if (evaluation/need-cljs? (get-config) (:filename editor-data))
-       (resolve-cljs state opts editor-data resolve)
-       (resolve-clj  state opts editor-data resolve)))))
+  (if (evaluation/need-cljs? (get-config) (:filename editor-data))
+    (resolve-cljs state opts editor-data)
+    (resolve-clj  state opts editor-data)))

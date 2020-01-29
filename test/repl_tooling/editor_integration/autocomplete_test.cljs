@@ -3,6 +3,7 @@
             [clojure.test :refer [async testing is] :include-macros true]
             [clojure.core.async :as async :include-macros true]
             [check.core :refer-macros [check]]
+            [matcher-combinators.matchers :refer [embeds]]
             [devcards.core :as cards :include-macros true]
             [repl-tooling.repl-client.clojure :as clj]
             [repl-tooling.eval-helpers :include-macros true :as h]
@@ -31,10 +32,13 @@
 
        (testing "Clojure"
          (. (autocomplete) then #(async/put! clj %))
-         (check (async/<! clj) => [{:candidate "foo", :type :local}
-                                   {:candidate "for", :type :macro, :ns "clojure.core"}
-                                   {:candidate "force", :type :function, :ns "clojure.core"}
-                                   {:candidate "format", :type :function, :ns "clojure.core"}]))
+         (prn :RES (async/<! clj))
+         (def res (async/<! clj))
+         (check (async/<! clj)
+                => (embeds [{:candidate "foo", :type :local}
+                            {:candidate "for", :type :macro, :ns "clojure.core"}
+                            {:candidate "force", :type :function, :ns "clojure.core"}
+                            {:candidate "format", :type :function, :ns "clojure.core"}])))
 
        (testing "ClojureScript"
          (swap! data assoc :filename "foo.cljs")
