@@ -32,8 +32,6 @@
 
        (testing "Clojure"
          (. (autocomplete) then #(async/put! clj %))
-         (prn :RES (async/<! clj))
-         (def res (async/<! clj))
          (check (async/<! clj)
                 => (embeds [{:candidate "foo", :type :local}
                             {:candidate "for", :type :macro, :ns "clojure.core"}
