@@ -8,24 +8,24 @@
             [repl-tooling.features.autocomplete.simple :as simple]
             [repl-tooling.features.autocomplete.compliment :as compliment]))
 
-(defonce clj-autocomplete (atom nil))
-(defonce cljs-autocomplete (atom nil))
-
-(defn- detect-clj-compliment [repl]
-  (if-let [kind @clj-autocomplete]
+(defn- detect-clj-compliment [repl state]
+  (if-let [kind (-> @state :repl/info :clj/autocomplete-kind)]
     kind
     (p/let [res (.. (eval/eval repl "(clojure.core/require 'compliment.core)")
                     (then (constantly :compliment))
                     (catch (constantly :simple)))]
-      (reset! clj-autocomplete res))))
+      (swap! state assoc-in [:repl/info :clj/autocomplete-kind] res)
+      res)))
 
-(defn- detect-cljs-compliment [repl]
+(defn- detect-cljs-compliment [repl state]
   (if repl
-    (if-let [kind @cljs-autocomplete]
+    (if-let [kind (-> @state :repl/info :cljs/autocomplete-kind)]
       kind
-      (.. (eval/eval repl "(clojure.core/require 'compliment.sources.cljs)")
-          (then (constantly :compliment))
-          (catch (constantly :simple))))
+      (p/let [res (.. (eval/eval repl "(clojure.core/require 'compliment.sources.cljs)")
+                      (then (constantly :compliment))
+                      (catch (constantly :simple)))]
+        (swap! state assoc-in [:repl/info :cljs/autocomplete-kind] res)
+        res))
     :simple))
 
 (def ^:private non-clj-var-regex #"[^a-zA-Z0-9\-.$!?\/><*=\?_:]+")
@@ -72,12 +72,12 @@
 
 (defn- resolve-clj [state opts editor-data]
   (if-let [aux-repl (:clj/aux @state)]
-    (p/let [kind (detect-clj-compliment aux-repl)]
+    (p/let [kind (detect-clj-compliment aux-repl state)]
       (autocomplete-clj (:clj/aux @state) kind editor-data))
     (p/promise [])))
 
 (defn- resolve-cljs [state opts editor-data]
-  (p/let [kind (detect-cljs-compliment (:clj/aux @state))]
+  (p/let [kind (detect-cljs-compliment (:clj/aux @state) state)]
     (autocomplete-cljs (:clj/aux @state)
                        (:cljs/repl @state)
                        kind
