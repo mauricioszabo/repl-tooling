@@ -59,7 +59,6 @@
                {:candidate "format", :type :function, :ns "clojure.core"}])))
 
 (def cljs-env '(shadow.cljs.devtools.api/compiler-env :fixture))
-#_
 (cards/deftest clojurescript-compliment-autocomplete
   (h/async-with-repl "ClojureScript with Compliment"
     (testing "will complete local and NS variables"
