@@ -262,7 +262,6 @@ that the cursor is in row and col (0-based)"
 (defn top-block-for
   "Gets the top-level from the code (a string) to the current row and col (0-based)"
   [code [row col]]
-  (prn :TOP-BLOCK code row col)
   (let [tops (top-levels code)
         in-range? (fn [[[[b-row b-col] [e-row e-col]]]]
                     (or (and (<= b-row row) (< row e-row))
