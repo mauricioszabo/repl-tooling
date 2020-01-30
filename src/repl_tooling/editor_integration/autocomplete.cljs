@@ -6,7 +6,8 @@
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.evaluation :as evaluation]
             [repl-tooling.features.autocomplete.simple :as simple]
-            [repl-tooling.features.autocomplete.compliment :as compliment]))
+            [repl-tooling.features.autocomplete.compliment :as compliment]
+            [repl-tooling.features.autocomplete.suitable :as suit]))
 
 (defn- detect-clj-compliment [repl state]
   (if-let [kind (-> @state :repl/info :clj/autocomplete-kind)]
@@ -17,13 +18,20 @@
       (swap! state assoc-in [:repl/info :clj/autocomplete-kind] res)
       res)))
 
-(defn- detect-cljs-compliment [repl state]
+(defn- detect-cljs-engine [repl state]
   (if repl
     (if-let [kind (-> @state :repl/info :cljs/autocomplete-kind)]
       kind
-      (p/let [res (.. (eval/eval repl "(clojure.core/require 'compliment.sources.cljs)")
-                      (then (constantly :compliment))
-                      (catch (constantly :simple)))]
+      (p/let [suit (.. (eval/eval repl "(clojure.core/require 'suitable.js-completions)")
+                       (then (constantly :suit))
+                       (catch (constantly false)))
+              compliment (.. (eval/eval repl "(clojure.core/require 'compliment.sources.cljs)")
+                             (then (constantly :compl))
+                             (catch (constantly false)))
+              res (cond-> #{}
+                          suit (conj :suitable)
+                          compliment (conj :compliment)
+                          (= suit compliment) (conj :simple))]
         (swap! state assoc-in [:repl/info :cljs/autocomplete-kind] res)
         res))
     :simple))
@@ -64,11 +72,16 @@
                     second)
         [row col] (if block-text
                     [(- orig-row block-row) orig-col]
-                    [0 0])]
-    (if (= :compliment kind)
-      (compliment/for-cljs clj-repl cmd ns-name (str block-text) prefix row col)
-      (or (some-> cljs-repl (simple/for-cljs ns-name prefix))
-          []))))
+                    [0 0])
+        shadow-env (second cmd)
+        suits (when (:suitable kind)
+                (suit/for-cljs clj-repl shadow-env cmd ns-name (str block-text) prefix row col))
+        compls (when (:compliment kind)
+                 (compliment/for-cljs clj-repl cmd ns-name (str block-text) prefix row col))
+        simples (when (:simple kind)
+                  (some-> cljs-repl (simple/for-cljs ns-name prefix)))]
+    (-> (p/all [suits compls simples])
+        (p/then (comp distinct #(apply concat %))))))
 
 (defn- resolve-clj [state opts editor-data]
   (if-let [aux-repl (:clj/aux @state)]
@@ -77,7 +90,7 @@
     (p/promise [])))
 
 (defn- resolve-cljs [state opts editor-data]
-  (p/let [kind (detect-cljs-compliment (:clj/aux @state) state)]
+  (p/let [kind (detect-cljs-engine (:clj/aux @state) state)]
     (autocomplete-cljs (:clj/aux @state)
                        (:cljs/repl @state)
                        kind

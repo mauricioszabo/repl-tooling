@@ -45,9 +45,9 @@
            (async/<! c))
 
          (. (autocomplete) then #(async/put! cljs %))
-         (check (async/<! cljs) => [{:candidate "foo", :type :local}
-                                    {:candidate "for", :type :macro, :ns "cljs.core"}
-                                    {:candidate "force", :type :function, :ns "cljs.core"}]))
+         (check (async/<! cljs) => (embeds [{:candidate "foo", :type :local}
+                                            {:candidate "for", :type :macro, :ns "cljs.core"}
+                                            {:candidate "force", :type :function, :ns "cljs.core"}])))
        (async/<! (async/timeout 500))
        (conn/disconnect!)
        (done)))))
