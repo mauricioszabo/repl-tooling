@@ -15,6 +15,7 @@ node target/fixture.js &
 
 export DISPLAY=:99
 Xvfb -screen 0 1024x768x24+32 :99 &
+mkdir ~/video
 nohup ffmpeg -video_size 1024x768 -f x11grab -i :99.0 ~/video/out.mpg &
 
 echo "Running tests"
