@@ -4,6 +4,7 @@
 - Add support for more than one form eval on Clojure REPL
 - Fixed goto var definition on CLJS
 - Removed LOTS of old code
+- Adding support for Suitable autocomplete
 
 ## 0.2.1
 - Fixed prompt appearing on ClojureScript
