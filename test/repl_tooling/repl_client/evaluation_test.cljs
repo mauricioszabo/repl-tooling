@@ -10,7 +10,6 @@
                                                async-with-clj-repl]]))
 
 (set! cards/test-timeout 8000)
-#_
 (cards/deftest clojure-evaluation
   (async-with-clj-repl "evaluation"
     (testing "evaluating request-response"
@@ -61,8 +60,14 @@
         (is (= "\"3\"" (-> res async/<! :result)))
         (is (= "\"4\"" (-> res async/<! :result)))))))
 
+; TODO: change evaluator for Shadow-CLJS
+#_
 (cards/deftest clojurescript-evaluation
   (async-with-cljs-repl "evaluation on CLJS"
     (testing "evaluating request-response"
       (is (= {:result "##Inf" :as-text "##Inf"} (eval-on-repl "(/ 10 0)")))
       (is (= {:result "##Inf" :as-text "##Inf"} (async/<! out))))))
+;
+; (meta #'async-with-cljs-repl)
+;
+; #'async/lol
