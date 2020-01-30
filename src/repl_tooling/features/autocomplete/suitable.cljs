@@ -41,7 +41,7 @@
         (p/then :result)
         (p/catch (constantly [])))))
 
-(defn- suitable [repl prefix ns context]
+(defn- suitable [repl prefix shadow-env ns context]
   (let [code `(do
                 (~'clojure.core/require
                   'suitable.js-completions
@@ -49,7 +49,7 @@
                   'shadow.cljs.devtools.api
                   'clojure.edn)
                 (suitable.js-completions/cljs-completions
-                  ~(cmd-to-run-js :fixture)
+                  ~(cmd-to-run-js shadow-env)
                   ~prefix
                   {:ns ~ns
                    :context ~context}))]
@@ -60,7 +60,7 @@
 (defn for-cljs [repl shadow-env cmd-for-cljs-env ns-name text prefix row col]
   (let [ns (when ns-name (str ns-name))
         context (make-context text prefix row col)
-        suitable (suitable repl prefix ns context)
+        suitable (suitable repl prefix shadow-env ns context)
         compliment (compliment repl prefix cmd-for-cljs-env ns context)]
     (-> (p/all [suitable compliment])
         (p/then #(apply concat %))
