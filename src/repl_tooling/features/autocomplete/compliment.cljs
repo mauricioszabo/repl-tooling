@@ -1,5 +1,6 @@
 (ns repl-tooling.features.autocomplete.compliment
   (:require [clojure.string :as str]
+            [promesa.core :as p]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]
             [clojure.core.async :as async :include-macros true]))
@@ -18,8 +19,7 @@
   ([repl ns-name text prefix row col]
    (for-clojure repl ns-name text prefix row col nil))
   ([repl ns-name text prefix row col sources]
-   (let [chan (async/promise-chan)
-         ns (when ns-name (symbol ns-name))
+   (let [ns (when ns-name (symbol ns-name))
          context (make-context text prefix row col)
          code `(do
                   (~'clojure.core/require '[compliment.core])
@@ -30,31 +30,25 @@
                                                       :sources ~sources
                                                       :context ~context})]
                     (~'clojure.core/vec completions#)))]
-     (eval/evaluate repl code {:ignore true} #(async/put! chan
-                                                          (if-let [res (:result %)]
-                                                            (helpers/read-result res)
-                                                            [])))
-     chan)))
+     (.. (eval/eval repl code)
+         (then #(:result %))
+         (catch (constantly []))))))
 
 (defn for-cljs [repl cmd-for-cljs-env ns-name text prefix row col]
-  (let [chan (async/promise-chan)
-        ns (when ns-name (symbol ns-name))
-        context (make-context text prefix row col)
-        code `(do
-               (~'clojure.core/require 'compliment.sources.cljs)
-               (~'clojure.core/binding [compliment.sources.cljs/*compiler-env*
-                                        ~cmd-for-cljs-env]
-                 (compliment.sources.cljs/candidates ~prefix
-                                                     '~ns
-                                                     ~context)))]
-    (eval/evaluate repl code {:ignore true} #(async/put! chan
-                                                         (if-let [res (:result %)]
-                                                           (helpers/read-result res)
-                                                           [])))
-    (async/go
-     (->> (async/<! (for-clojure repl ns-name text prefix row col
-                                 [:compliment.sources.local-bindings/local-bindings
-                                  :compliment.sources.keywords/keywords]))
-          (concat (async/<! chan))
-          distinct
-          (sort-by :candidate)))))
+  (p/let [ns (when ns-name (symbol ns-name))
+          context (make-context text prefix row col)
+          code `(do
+                 (~'clojure.core/require 'compliment.sources.cljs)
+                 (~'clojure.core/binding [compliment.sources.cljs/*compiler-env*
+                                          ~cmd-for-cljs-env]
+                   (compliment.sources.cljs/candidates ~prefix
+                                                       '~ns
+                                                       ~context)))
+           {:keys [result]} (.catch (eval/eval repl code) (constantly {:result []}))
+           clj-result (for-clojure repl ns-name text prefix row col
+                                   [:compliment.sources.local-bindings/local-bindings
+                                    :compliment.sources.keywords/keywords])]
+    (->> result
+         (concat clj-result)
+         distinct
+         (sort-by :candidate))))

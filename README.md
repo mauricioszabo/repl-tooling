@@ -13,27 +13,25 @@ This lib depends on `lein` just to publish the code to clojars. It is not clear 
 
 Also, there can't be specific editor's code inside repl-tooling. We can't priorize one editor from another, exactly because we need to find common ground between all editors. This have the huge advantage that, when we add a feature on repl-tooling, all editor's plug-ins will automatically have that new feature. Also, when we fix a bug, all editor's plug-ins will have the bug fixed.
 
+## Developing a new feature / bug fixes
+To be able to integrate better with all editors, REPL-Tooling doesn't use any specific editor commands. So, to be able to develop/test code, we need some environment to run.
+
+Currently, it uses Electron. So, if you found a bug and want to fix it, or if you want to develop a new feature, it's better to use Electron simply because it allows for fine-tuned control over what's happening, which REPL is connected, and also it eases tests. So, after you've cloned the repository, you have to run the following commands:
+
+```
+npm install # Will install node dependencies
+./scripts/watch # Will compile the app, and run a simple CLJS node script
+npm start # Will start Electron so you can test things
+```
+
+This project uses devcards to make the tests. They can be as simple as a `deftest` with assertions:
+![A simple test for Autocomplete](doc/autocomplete.jpg)
+
+To a full, almost-editor-like experience, that is able to connect to arbitrary REPLs and evaluate code, and it'll assert over something rendered on the view to be sure everything is working fine:
+![Fake editor to test the rendering or results](doc/full.png)
+
 ## Plans for the future / documentation
-All editors share a common ground: they need to evaluate code. When they can do it, we can use Compliment's autocomplete, external libraries, refactor-nrepl, cider, and other tools. So, the editor will need to ask this library for some informations:
-
-1. How do I connect to a socket REPL on this specific host/port?
-1. After connecting, how do I evaluate a specific code? What is the result of this specific evaluation?
-1. How can I complete this symbol on this file/position?
-1. What are the commands that this tooling supports?
-
-For it to work seamlessly, this library will need to query the editor on some questions too:
-1. We're connected, so use these REPLs to work with code (and update your UI to show the user)
-1. We're disconnected, update your UI to show it to user
-1. There's a stdout/stderr information, what do you want to do with it?
-1. What is the content of the current editor?
-1. What is the current position (begin-end) of the current editor?
-1. Evaluation finished, here's the result. Update your UI with this information
-
-Probably there will be other information that we will need. What I can think of is:
-1. The editor's plug-in query for commands, and send together a map with information on how to get editor contents/position/selection/etc
-1. This tooling will return the commands it supports (evaluate block, top-block, selection, autocomplete, etc) as a map of keywords/fns
-1. This tooling will also return the configs it expects to work (for example, if we want to use full refresh with `tools.namespace`, or simple refresh with `require :reload`).
-1. When we want to run a specific command we'll run the `fn` passing a fixed map with all configs that we need (commands that don't need specific config keys can simply ignore they)
+All editors share a common ground: they need to evaluate code. When they can do it, we can use Compliment's autocomplete, external libraries, refactor-nrepl, cider, and other tools. So, the editor will need to ask this library for some informations.
 
 This plug-in will also need to work around UNREPL. Unrepl is great to use, but sometimes it can be tricky: for example, when we have a big exception like `ex-info`, it'll not show `:cause` or `:trace` keys. This means that we'll need to lazy-fetch these infos until they are present
 
@@ -44,10 +42,8 @@ This plug-in will also need to work around UNREPL. Unrepl is great to use, but s
 * [x] Socket REPL client for self-hosted ClojureScript
 * [x] Socket REPL client for Lumo
 * [x] AutoComplete detector (Lumo, Clojure, ClojureScript)
-* [ ] Detect beginning and ending of forms (for editor to evaluate)
-* [ ] Detect NS of current file
+* [x] Detect beginning and ending of forms (for editor to evaluate)
+* [x] Detect NS of current file
 * [ ] Detect features for refactoring, refresh, auto-import, organize namespace, and others
-
-For evaluation, three events must be suported: `evaluate`, `break`, and detection of disconnect.
 
 It is important that notice that this library needs to distinguish between output and result of commands - if not possible, result of commands should be priorized uniquely because it's essential for detection of features, autocompletes, and interaction with external libraries.

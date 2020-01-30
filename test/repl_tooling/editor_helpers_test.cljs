@@ -62,6 +62,10 @@
     (check (helpers/top-block-for simple-clj [0 8])
            => [[[0 8] [0 16]] "(+ (3) 4)"]))
 
+  (testing "text and range from end of line"
+    (check (helpers/top-block-for simple-clj [0 17])
+           => [[[0 8] [0 16]] "(+ (3) 4)"]))
+
   (testing "sets and other objects"
     (check (helpers/top-block-for "{:a 10 :b}\n()" [0 2]) => [[[0 0] [0 9]] "{:a 10 :b}"])
     (check (helpers/top-block-for "#{:a 10 :b}\n()" [0 2]) => [[[0 0] [0 10]] "#{:a 10 :b}"])

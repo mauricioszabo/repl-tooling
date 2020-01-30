@@ -40,7 +40,6 @@
   IMeta
   (-meta [coll] {:get-more (-> string second :repl-tooling/...)}))
 
-; TODO: I don't know if this belongs here or not
 (defprotocol Taggable
   (obj [this])
   (tag [this]))
@@ -267,5 +266,6 @@ that the cursor is in row and col (0-based)"
         in-range? (fn [[[[b-row b-col] [e-row e-col]]]]
                     (or (and (<= b-row row) (< row e-row))
                         (and (<= b-row row e-row)
-                             (<= b-col col e-col))))]
+                             (or (<= b-col col e-col)
+                                 (<= b-col (dec col) e-col)))))]
     (->> tops (filter in-range?) first)))

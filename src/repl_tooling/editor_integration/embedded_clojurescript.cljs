@@ -4,7 +4,9 @@
 
 (def trs {:no-build-id "There's no build ID detected on shadow-cljs file"
           :no-shadow-file "File shadow-cljs.edn not found"
-          :no-worker "No worker for first build ID"})
+          :no-shadow "This project is not a shadow-cljs, can't connect to CLJS REPL"
+          :workers-empty "No shadow-cljs workers running"
+          :no-worker "No worker for build"})
 
 (defn- notify! [notify params]
   (notify params)
