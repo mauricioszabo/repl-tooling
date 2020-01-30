@@ -2,12 +2,14 @@
   (:require [reagent.core :as r]
             [clojure.test :refer [async testing is] :include-macros true]
             [clojure.core.async :as async :include-macros true]
+            [matcher-combinators.matchers :refer [embeds]]
             [check.core :refer-macros [check]]
             [check.async :refer-macros [await!]]
             [devcards.core :as cards :include-macros true]
             [repl-tooling.features.autocomplete.simple :as simple]
             [repl-tooling.features.autocomplete.compliment :as compliment]
-            [repl-tooling.eval-helpers :include-macros true :as h]))
+            [repl-tooling.features.autocomplete.suitable :as suit]
+            [repl-tooling.eval-helpers :as h]))
 
 (set! cards/test-timeout 8000)
 (cards/deftest clojure-simple-autocomplete
@@ -72,3 +74,17 @@
       (check (await! (compliment/for-cljs repl cljs-env 'cljs.user ""
                                           ":cljs-autocom" 0 16))
              => [{:candidate ":cljs-autocomplete-keyword", :type :keyword}]))))
+
+(cards/deftest clojurescript-suitable-autocomplete
+  (h/async-with-repl "ClojureScript with Suitable"
+    (testing "will complete JS objects"
+      (check (await! (suit/for-cljs repl :fixture cljs-env 'cljs.user
+                                    "(.. js/BigInt -len)" "-len" 0 18))
+             => [{:candidate "-length", :type "var"}]))
+
+    (testing "will complete NS variables"
+      (check (await! (suit/for-cljs repl cljs-env cljs-env 'cljs.user
+                                    "(let [foo 10] fo)" "fo" 0 16))
+             => (embeds [;{:candidate "foo", :type :local}
+                         {:candidate "for", :type :macro, :ns "cljs.core"}
+                         {:candidate "force", :type :function, :ns "cljs.core"}])))))
