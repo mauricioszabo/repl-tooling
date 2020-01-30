@@ -55,10 +55,10 @@
 (cards/deftest clojure-compliment-autocomplete
   (h/async-with-repl "Clojure with Compliment"
     (check (await! (compliment/for-clojure repl 'user "(let [foo 10] fo)" "fo" 0 16))
-           => [{:candidate "foo", :type :local}
-               {:candidate "for", :type :macro, :ns "clojure.core"}
-               {:candidate "force", :type :function, :ns "clojure.core"}
-               {:candidate "format", :type :function, :ns "clojure.core"}])))
+           => (embeds [{:candidate "foo", :type :local}
+                       {:candidate "for", :type :macro, :ns "clojure.core"}
+                       {:candidate "force", :type :function, :ns "clojure.core"}
+                       {:candidate "format", :type :function, :ns "clojure.core"}]))))
 
 (def cljs-env '(shadow.cljs.devtools.api/compiler-env :fixture))
 (cards/deftest clojurescript-compliment-autocomplete
@@ -66,9 +66,9 @@
     (testing "will complete local and NS variables"
       (check (await! (compliment/for-cljs repl cljs-env 'cljs.user
                                           "(let [foo 10] fo)" "fo" 0 16))
-             => [{:candidate "foo", :type :local}
-                 {:candidate "for", :type :macro, :ns "cljs.core"}
-                 {:candidate "force", :type :function, :ns "cljs.core"}]))
+             => (embeds [{:candidate "foo", :type :local}
+                         {:candidate "for", :type :macro, :ns "cljs.core"}
+                         {:candidate "force", :type :function, :ns "cljs.core"}])))
 
     (testing "will complete keyword"
       (check (await! (compliment/for-cljs repl cljs-env 'cljs.user ""
