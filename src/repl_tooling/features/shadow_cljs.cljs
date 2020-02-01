@@ -58,7 +58,6 @@
                         (assoc :as-text (or (:result parsed) (:error parsed)))
                         (dissoc :parsed?)
                         helpers/parse-result
-                        (doto (#(prn :FIX (dissoc % :as-text))))
                         :result)]
       (callback (-> result
                     (dissoc :result :error)
