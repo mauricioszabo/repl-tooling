@@ -3,14 +3,16 @@
             [clojure.string :as str]
             [clojure.edn :as edn]))
 
-(defmacro contents-for-fn [source-file fn-name]
-  (let [re (re-pattern (str "(?s).*\\(defn\\s+(" fn-name "\\b)"))]
-    (-> source-file
-        io/resource
-        slurp
-        (str/replace re "(clojure.core/fn $1 ")
-        (edn/read-string)
-        str)))
+(defmacro contents-for-fn
+  ([source-file] (slurp (io/resource source-file)))
+  ([source-file fn-name]
+   (let [re (re-pattern (str "(?s).*\\(defn\\s+(" fn-name "\\b)"))]
+     (-> source-file
+         io/resource
+         slurp
+         (str/replace re "(clojure.core/fn $1 ")
+         (edn/read-string)
+         str))))
 
 (defmacro blob-contents []
   (slurp (io/resource "unrepl.clj")))

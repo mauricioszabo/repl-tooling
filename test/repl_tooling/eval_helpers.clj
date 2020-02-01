@@ -70,9 +70,9 @@ a variable `repl` that points to the evaluator"
                                     (async/close! ~'out-aux)
                                     (repl-tooling.integrations.repls/disconnect! ~conn-id)
                                     (repl-tooling.integrations.repls/disconnect! ~aux-id))}
-        (let [prom# (repl-tooling.integrations.connection/connect-self-hosted!
+        (let [prom# (repl-tooling.integrations.connection/connect-shadow!
                      {:identifier ~conn-id :host "localhost" :port 2233
-                      :code (repl-tooling.features.shadow-cljs/cmd-for :fixture)
+                      :build-id :fixture
                       :on-stdout #(some->> % (async/put! ~'out))
                       :on-result #()})
               c# (async/promise-chan)
