@@ -8,7 +8,7 @@
     (-> source-file
         io/resource
         slurp
-        (str/replace re "(fn $1 ")
+        (str/replace re "(clojure.core/fn $1 ")
         (edn/read-string)
         str)))
 
