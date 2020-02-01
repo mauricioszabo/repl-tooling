@@ -53,14 +53,16 @@
 (defn- parse-shadow-res [callback result]
   (if (contains? result :error)
     (callback result)
-    (let [parsed (helpers/parse-result (select-keys result [:as-text :result :error]))
-          _ (prn :PARSED parsed)
+    (let [parsed (helpers/parse-result (select-keys result [:as-text :result]))
           [key val] (-> parsed
                         (assoc :as-text (or (:result parsed) (:error parsed)))
                         (dissoc :parsed?)
                         helpers/parse-result
+                        (doto (#(prn :FIX (dissoc % :as-text))))
                         :result)]
-      (callback (assoc result :as-text val key val)))))
+      (callback (-> result
+                    (dissoc :result :error)
+                    (assoc :as-text val key val))))))
 
 (def wrapped-cmd (h/contents-for-fn "cljs-cmd-wrap.cljs"))
 (defrecord Shadow [clj-evaluator build-id]
@@ -80,20 +82,3 @@
 (defn upgrade-repl! [repl build-id]
   (.. (clj-repl/disable-limits! repl)
       (then #(->Shadow repl build-id))))
-
-#_
-(let [repl (-> @chlorine.state/state :tooling-state deref :clj/aux)
-      shadow (->Shadow repl :dev)]
-  (.. (eval/eval shadow "#'async/lal")
-      (then prn)
-      (catch #(prn :ERROR %))))
-
-#_
-(let [repl (-> @chlorine.state/state :tooling-state deref :clj/aux)
-      shadow (->Shadow repl :dev)]
-  (.. (eval/eval shadow "(throw (ex-info \"lol\" {}))")
-      (then prn)
-      (catch prn)))
-
-#_
-(throw (ex-info ""))
