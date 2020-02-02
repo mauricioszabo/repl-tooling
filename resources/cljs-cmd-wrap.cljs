@@ -1,5 +1,30 @@
-(clojure.core/let [res-fn
-                   (clojure.core/fn res-fn [res change-keywords?]
+(clojure.core/let [tooling$norm$jsbeam
+                   (clojure.core/fn [js-obj]
+                     (clojure.core/tagged-literal
+                      'unrepl/browsable
+                      [(if (clojure.core/= js/Function (type js-obj))
+                         (let [splitted (-> js-obj .-name cljs.core/demunge
+                                            (clojure.string/split #"/"))]
+                           (clojure.core/tagged-literal 'unrepl/bad-symbol
+                                                          [(->> splitted
+                                                                butlast
+                                                                (clojure.string/join ".")
+                                                                not-empty)
+                                                           (clojure.core/str
+                                                            (clojure.core/last splitted)
+                                                            " (function)")]))
+                         (clojure.core/tagged-literal 'unrepl/bad-symbol [nil (pr-str js-obj)]))
+                       {:repl-tooling/... `(quote
+                                             ~(->> js-obj
+                                                  js/Object.getPrototypeOf
+                                                  js/Object.getOwnPropertyNames
+                                                  (clojure.core/concat (js/Object.getOwnPropertyNames js-obj))
+                                                  distinct
+                                                  sort
+                                                  (clojure.core/map #(clojure.core/symbol (str "." %)))))}]))
+
+                   res-fn
+                   (clojure.core/fn [res change-keywords?]
                      (clojure.core/cond
                        (clojure.core/instance? cljs.core/ExceptionInfo res)
                        (clojure.core/tagged-literal 'error
@@ -25,7 +50,14 @@
                                                  (clojure.core/pr-str (clojure.core/name res))
                                                  "]"))
 
-                       :else res))]
+                       (clojure.core/keyword? res) res
+                       (clojure.core/= nil res) res
+                       (clojure.core/boolean? res) res
+                       (clojure.core/number? res) res
+                       (clojure.core/string? res) res
+                       (clojure.core/regexp? res) res
+                       (clojure.core/coll? res) res
+                       :else (tooling$norm$jsbeam res)))]
   (try
     (clojure.core/let [res (do __COMMAND__)]
       [:result (clojure.core/pr-str
