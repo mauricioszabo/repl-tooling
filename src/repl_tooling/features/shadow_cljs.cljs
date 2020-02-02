@@ -100,6 +100,3 @@
   (.. (clj-repl/disable-limits! repl)
       (then #(redirect-output! repl build-id))
       (then #(->Shadow repl build-id))))
-
-#_
-(ex-info "SomeError" {})
