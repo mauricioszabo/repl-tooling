@@ -17,9 +17,9 @@
       (is (= {:result "3" :as-text "3"} (async/<! out))))
 
     (testing "evaluating exceptions"
-      (check (eval-on-repl "(throw (ex-info \"SomeError\" {}))")
-             => {:error #":type clojure.lang.ExceptionInfo.*:message \"SomeError\""})
-      (async/<! out))
+      (let [res (eval-on-repl "(throw (ex-info \"SomeError\" {}))")]
+        (check res
+           => {:error #":type clojure.lang.ExceptionInfo.*:message \"SomeError\""})))
 
     (testing "capturing output"
       (is (= {:result "nil" :as-text "nil"} (eval-on-repl "(println :foobar)")))

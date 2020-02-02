@@ -73,11 +73,33 @@
           code (str/replace wrapped-cmd #"__COMMAND__" (str command "\n"))
           clj-cmd (str "(" cmd-for-shadow " " build-id " " (pr-str code) ")")]
 
+      (when-let [namespace (:namespace opts)]
+        (eval/evaluate clj-evaluator (str "(" cmd-for-shadow " " build-id " "
+                                          (pr-str (str "(in-ns '" namespace ")"))
+                                          ")")
+                       {:ignore true} identity))
       (eval/evaluate clj-evaluator clj-cmd clj-opts #(parse-shadow-res callback %))
       id))
 
   (break [this repl]))
 
+(defn- redirect-output! [repl build-id]
+  (eval/eval repl "(require '[clojure.core.async])")
+  (eval/eval repl (str
+                   "(clojure.core/let [c (clojure.core.async/chan)]"
+                   " (shadow.cljs.devtools.server.worker/watch "
+                   "  (shadow.cljs.devtools.api/get-worker " build-id ") "
+                   "  c true)"
+                   " (clojure.core.async/go-loop []"
+                   "   (clojure.core/when-let [res (clojure.core.async/<! c)]"
+                   "     (clojure.core/when (clojure.core/= :repl/out (:type res))"
+                   "       (clojure.core/println (:text res)))"
+                   "     (recur))))")))
+
 (defn upgrade-repl! [repl build-id]
   (.. (clj-repl/disable-limits! repl)
+      (then #(redirect-output! repl build-id))
       (then #(->Shadow repl build-id))))
+
+#_
+(ex-info "SomeError" {})
