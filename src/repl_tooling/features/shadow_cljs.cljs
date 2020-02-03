@@ -86,14 +86,20 @@
 (defn- redirect-output! [repl build-id]
   (eval/eval repl "(require '[clojure.core.async])")
   (eval/eval repl (str
-                   "(clojure.core/let [c (clojure.core.async/chan)]"
+                   "(clojure.core/let [c (clojure.core.async/chan (clojure.core.async/sliding-buffer 8000))]"
                    " (shadow.cljs.devtools.server.worker/watch "
                    "  (shadow.cljs.devtools.api/get-worker " build-id ") "
                    "  c true)"
-                   " (clojure.core.async/go-loop []"
-                   "   (clojure.core/when-let [res (clojure.core.async/<! c)]"
-                   "     (clojure.core/when (clojure.core/= :repl/out (:type res))"
-                   "       (clojure.core/println (:text res)))"
+                   " (clojure.core.async/go-loop [] "
+                   "   (.setUncaughtExceptionHandler "
+                   "     (Thread/currentThread)"
+                   "     (reify"
+                   "       Thread$UncaughtExceptionHandler"
+                   "       (uncaughtException [_ _ _]"
+                   "         (clojure.core.async/close! c))))"
+                   "     (clojure.core/when-let [res (clojure.core.async/<! c)]"
+                   "       (clojure.core/when (clojure.core/= :repl/out (:type res))"
+                   "         (clojure.core/println (:text res)))"
                    "     (recur))))")))
 
 (defn upgrade-repl! [repl build-id]
