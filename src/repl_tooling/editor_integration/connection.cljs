@@ -91,7 +91,8 @@
                        :command #(eval/break (:clj/repl @state) (:clj/aux @state))}
     :connect-embedded {:name "Connect Embedded ClojureScript REPL"
                        :description "Connects to a ClojureScript REPL inside a Clojure one"
-                       :command #(embedded/connect! state opts)})))
+                       :command #(embedded/connect! state opts true)
+                       :old-command #(embedded/connect! state opts false)})))
 
 (s/defn result-for-renderer
   [res :- schemas/EvalResult,
