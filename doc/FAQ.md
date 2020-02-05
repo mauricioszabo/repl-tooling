@@ -3,6 +3,34 @@
 Some questions that come from time-to-time regarding Chlorine or Clover, mostly about why things are working the way they are, and some other design decisions about the plug-ins. As both use this library as base to connect to Clojure-like REPLs, I'm answering all here:
 
 ## Design
+### What is a block / top-block?
+A block is _almost_ the same as a form in Clojure. There are specifics for detecting what will be sent to the REPL for evaluation mostly for convenience. In these examples below, `|` will be used to simulate the cursor position, so it should be ignored. For example, if the cursor would be after the `2` in the `(+ 1 2 3)` code, it'll be identified as `(+ 1 2| 3)`:
+
+1. Block will be where the cursor **is inside**:
+* `(+ (- 1 2|) 3)` - the block is `(- 1 2)`
+* `(+ (- 1 2)| 3)` - the block is `(+ (- 1 2) 3)`
+* `|(+ (- 1 2) 3)` - no block: the cursor is outside anything
+* `(+ (- 1 2) 3)|` - same as above, no block: the cursor is outside anything
+
+2. Top-block will always be a block that is releated to "root":
+* `(+ 1 2|) (+ 3 4)` - the top-block is `(+ 1 2)`
+* `(+ 1 2) (+ 3 4|)` - The top-block is `(+ 3 4)`
+* `(+ 1 (- 2 |3) 4)` - The top-block is `(+ 1 (- 2 3) 4)`
+
+3. Blocks will include reader tags:
+* `#?(:cljs "clojure" :cljs |"script)` - will include the `#?` in the evaluation
+* `#(+ 1 2|)` - will return an anonymous function
+* `'(+ 1 2|`) - will include the quote
+* `@(:an-atom my-map|)` - will include the deref
+* `(deref (:an-atom my-map|))` - will NOT include the deref
+
+4. Top-blocks will consider the parenthesis before they when evaluating:
+* `(+ (- 2 3) 4)|` - will evaluate `(+ (- 2 3) 4)`
+
+5. Comment-form `#_` is ignored always
+* `#_(+ 1 2)|` - will evaluate `(+ 1 2)` for top-block, and nothing for block
+* `#_(+ 1 2|)` - will evaluate `(+ 1 2)` for both top-block and block
+
 ### Why not nREPL?
 nREPL is a great tool, and it'll probably help solve lots of problems that I'm having right now while developing (mostly about "cutting the output" and "detecting evaluation results"). The problem with nREPL is that is Clojure-only. There are some implementations for other languages, but they are outdated, don't work, or need a specific dependency. This library uses the "bare minimum" to work on most implementations, so porting to a new runtime is really easy too.
 

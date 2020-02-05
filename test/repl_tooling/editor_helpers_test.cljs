@@ -94,7 +94,7 @@
            => [[[0 0] [0 10]] "#?(:cljs 1)"])
     (check (helpers/block-for "{::some/key a}\n()" [0 2])
            => [[[0 0] [0 13]] "{::some/key a}"])
-    (check (helpers/block-for "#_(+ 1 2)\n()" [0 2])
+    (check (helpers/block-for "#_(+ 1 2)\n()" [0 3])
            => [[[0 2] [0 8]] "(+ 1 2)"]))
 
   (testing "invalid forms"

@@ -60,6 +60,7 @@
         (then (fn [st]
                 (swap! state assoc
                        :commands (:editor/commands @st)
+                       :range [[0 0] [0 0]]
                        :stdout "" :stderr ""))))))
 
 (defn- evaluate []
@@ -210,6 +211,11 @@
        (async/<! (change-stdout))
        (check (:stdout @state) => #"THIS IS UPPER"))
 
+     (testing "displays invalid EDN"
+       (ui/assert-out "{ :foo bar 10 }" "{(keyword \"foo bar\") 10}")
+       (ui/click-nth-link-and-assert-children
+        "[ :foo bar 10 ]" 1))
+
      ; TODO: All of these!
      ; (testing "evaluates and presents big strings"
      ;   (ui/assert-out (str "\"01234567891011121314151617181920212223242526272829"
@@ -252,13 +258,12 @@
      ;   (ui/click-nth-link-and-assert-children
      ;    "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 ) ] [ :b 90 ]" 1))
      ;
-     ; (testing "evaluates and presents taggable objects"
-     ;   (ui/assert-out #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 ... \) , :b 20 \}"
-     ;                  "(do (defrecord Foo [a b]) (->Foo (range 15) 20))")
-     ;   (ui/click-nth-link-and-assert
-     ;    #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 \) , :b 20 \}" 2)
-     ;   (ui/click-nth-link-and-assert-children
-     ;    "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 ) ] [ :b 20 ]" 1))
+     (testing "evaluates and presents taggable objects"
+       (ui/assert-out #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 \) , :b 20 \}"
+                      "(do (defrecord Foo [a b]) (->Foo (range 10) 20))")
+       #_
+       (ui/click-nth-link-and-assert-children
+        "{ :a ( 0 1 2 3 4 5 6 7 8 9 ) , :b 20 }" 1))
      ;
      ; (testing "evaluates and presents classes"
      ;   (ui/assert-out "java.lang.Object ..."
@@ -289,8 +294,3 @@
 
      (disconnect!)
      (done))))
-
-(defn main [])
-(cards/start-devcard-ui!)
-
-(txt-for-selector "#result .children .row:nth-child(2)")

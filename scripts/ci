@@ -1,11 +1,21 @@
 #!/bin/bash
 
-sudo apt install libglib2.0-0 libnss3 libgtk3.0 libxss1 libasound2 openjdk-8-jre ffmpeg
+sudo apt-get remove java-common
+sudo apt-get install -y wget gpg software-properties-common apt-transport-https
+wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
+sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
+sudo apt-get update
+sudo apt install libglib2.0-0 libnss3 libgtk3.0 libxss1 libasound2 ffmpeg adoptopenjdk-11-openj9
 npm install
+
 npx shadow-cljs watch integration fixture &
 for n in {1..25}; do
   ls target/fixture.js target/integration/main.js &>/dev/null && break
   echo "Not compiled yet, waiting..."
+
+  ps aux | grep -v grep | grep java || \
+    echo "Java was killed. Retrying..." && \
+    npx shadow-cljs watch integration fixture &
   sleep 20
 done
 

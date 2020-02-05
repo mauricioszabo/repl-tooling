@@ -16,6 +16,12 @@
       (is (= {:result "3" :as-text "3"} (eval-on-repl "(+ 1 2)")))
       (is (= {:result "3" :as-text "3"} (async/<! out))))
 
+    (testing "evaluating exceptions"
+      (let [res (eval-on-repl "(throw (ex-info \"SomeError\" {}))")]
+        (check res
+           => {:error #":type clojure.lang.ExceptionInfo.*:message \"SomeError\""}))
+      (async/<! out))
+
     (testing "capturing output"
       (is (= {:result "nil" :as-text "nil"} (eval-on-repl "(println :foobar)")))
       (is (= {:out ":foobar\n"} (async/<! out)))
@@ -25,7 +31,8 @@
       (let [res (async/promise-chan)]
         (eval/evaluate repl "(+ 2 3)" {:pass {:literal true}} #(async/put! res %))
         (is (= {:as-text "5" :result "5" :literal true} (async/<! res)))
-        (is (= {:as-text "5" :result "5" :literal true} (async/<! out)))))
+        (is (= {:as-text "5" :result "5" :literal true} (async/<! out)))
+        (async/close! res)))
 
     (testing "passing parameters to evaluation"
       (let [res (async/promise-chan)]
@@ -48,7 +55,8 @@
         (is (= ":foo1" (-> res async/<! :result)))
         (is (= ":foo2" (-> res async/<! :result)))
         (is (= ":foo3" (-> res async/<! :result)))
-        (is (= ":foo4" (-> res async/<! :result)))))
+        (is (= ":foo4" (-> res async/<! :result)))
+        (async/close! res)))
 
     (testing "burst evaluations with blocks"
       (let [res (async/chan)]
@@ -58,16 +66,25 @@
         (is (= "\"1\"" (-> res async/<! :result)))
         (is (= "\"2\"" (-> res async/<! :result)))
         (is (= "\"3\"" (-> res async/<! :result)))
-        (is (= "\"4\"" (-> res async/<! :result)))))))
+        (is (= "\"4\"" (-> res async/<! :result)))
+        (async/close! res)))))
 
-; TODO: change evaluator for Shadow-CLJS
-#_
 (cards/deftest clojurescript-evaluation
   (async-with-cljs-repl "evaluation on CLJS"
     (testing "evaluating request-response"
       (is (= {:result "##Inf" :as-text "##Inf"} (eval-on-repl "(/ 10 0)")))
-      (is (= {:result "##Inf" :as-text "##Inf"} (async/<! out))))))
-;
-; (meta #'async-with-cljs-repl)
-;
-; #'async/lol
+      (is (= {:result "10" :as-text "10"} (eval-on-repl "(+ 5 5)"))))
+
+    (testing "evaluating exceptions"
+      (check (eval-on-repl "(throw (ex-info \"SomeError\" {}))")
+             => {:error #":type.*cljs.core.ExceptionInfo.*:message \"SomeError\""}))
+
+    (testing "passing args to result"
+      (let [res (async/promise-chan)]
+        (eval/evaluate repl "(+ 2 3)" {:pass {:literal true}} #(async/put! res %))
+        (let [r (async/<! res)]
+          (check r => {:as-text "5" :result "5" :literal true}))))
+
+    (testing "sending invalid forms"
+      (check (eval-on-repl "(+ 1 2") => {:error string?})
+      (check (eval-on-repl "#'async/lol") => {:error string?}))))

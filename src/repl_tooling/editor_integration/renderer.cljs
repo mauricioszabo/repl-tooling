@@ -47,12 +47,13 @@
 
 (defn- obj-with-more-fn [more-fn ratom repl editor-state callback]
   (more-fn repl (fn [res]
+                  (prn :MORE-FN res)
                   (swap! ratom assoc
                          :more-fn nil
                          :expanded? true
                          :attributes-atom (proto/as-renderable (:attributes res)
-                                                         repl
-                                                         editor-state))
+                                                               repl
+                                                               editor-state))
                   (callback))))
 
 (defrecord ObjWithMore [obj-atom more-fn attributes-atom expanded? repl editor-state]

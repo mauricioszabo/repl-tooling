@@ -46,3 +46,19 @@ runs the command to change it to CLJS, and returns an evaluator for CLJS."
               [_ clj-repl] repl-info
               self-hosted (clj-repl/self-host clj-repl code)]
         (js/Promise. (fn [resolve] (treat-result identifier clj-repl resolve self-hosted)))))))
+
+(defn connect-shadow!
+  "Given a host, port, and a clojure command, connects on a Clojure REPL and returns
+an evaluator that will pipe all commands to Shadow-CLJS' workers."
+  [{:keys [identifier host port build-id on-result on-stdout]
+    :or {identifier :cljs-eval}}]
+  (p/let [[_ clj-repl] (repls/connect-repl! identifier host port
+                                            (fn [res]
+                                              (cond
+                                                (or (contains? res :result)
+                                                    (contains? res :error))
+                                                (on-result (helpers/parse-result res))
+
+                                                (:out res)
+                                                (on-stdout (:out res)))))]
+    (shadow-cljs/upgrade-repl! clj-repl build-id)))

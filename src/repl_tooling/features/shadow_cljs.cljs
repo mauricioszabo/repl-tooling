@@ -1,11 +1,14 @@
 (ns repl-tooling.features.shadow-cljs
+  (:require-macros [repl-tooling.repl-client.clj-helper :as h])
   (:require [cljs.reader :as edn]
+            [clojure.string :as str]
             ["path" :as path]
             ["fs" :refer [existsSync readFileSync]]
             [repl-tooling.integrations.repls :as repls]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.repl-client.source :as source]
+            [repl-tooling.editor-helpers :as helpers]
             [promesa.core :as p]))
 
 (defn- readfile [shadow-path]
@@ -46,46 +49,60 @@
                  {:error :workers-empty}))
         (catch #(hash-map :error :no-shadow)))))
 
+(def cmd-for-shadow (h/contents-for-fn "shadow_commands.clj" "evaluate"))
+(defn- parse-shadow-res [callback result]
+  (if (contains? result :error)
+    (callback result)
+    (let [parsed (helpers/parse-result (select-keys result [:as-text :result]))
+          [key val] (-> parsed
+                        (assoc :as-text (or (:result parsed) (:error parsed)))
+                        (dissoc :parsed?)
+                        helpers/parse-result
+                        :result)]
+      (callback (-> result
+                    (dissoc :result :error)
+                    (assoc :as-text val key val))))))
+
+(def wrapped-cmd (h/contents-for-fn "cljs-cmd-wrap.cljs"))
 (defrecord Shadow [clj-evaluator build-id]
   eval/Evaluator
   (evaluate [self command opts callback]
     (let [id (or (:id opts) (gensym))
           clj-opts (dissoc opts :namespace)
           name-space (:namespace opts)
-          code (source/wrap-command id command ":default" false)
-          clj-cmd (str "(clojure.core/->
-                          (shadow.cljs.devtools.server.worker/worker-request
-                            (shadow.cljs.devtools.api/get-worker " build-id ")
-                            {:type :repl-eval :input " (pr-str (str command)) "})
-                          :results
-                          clojure.core/last
-)")]
+          code (str/replace wrapped-cmd #"__COMMAND__" (str command "\n"))
+          clj-cmd (str "(" cmd-for-shadow " " build-id " " (pr-str code) ")")]
 
-      (println :CODE "\n" clj-cmd)
-      (if (:error code)
-        (let [output (-> clj-evaluator :state :on-output)]
-          (output code)
-          (callback code))
-        (eval/evaluate clj-evaluator clj-cmd clj-opts callback))
-        ; (eval-code {:evaluator self :id id :callback callback :conn conn :code code}
-        ;            opts))
+      (when-let [namespace (:namespace opts)]
+        (eval/evaluate clj-evaluator (str "(" cmd-for-shadow " " build-id " "
+                                          (pr-str (str "(in-ns '" namespace ")"))
+                                          ")")
+                       {:ignore true} identity))
+      (eval/evaluate clj-evaluator clj-cmd clj-opts #(parse-shadow-res callback %))
       id))
 
   (break [this repl]))
 
-(defn upgrade-repl [repl command]
-  (clj-repl/disable-limits! repl))
+(defn- redirect-output! [repl build-id]
+  (eval/eval repl "(require '[clojure.core.async])")
+  (eval/eval repl (str
+                   "(clojure.core/let [c (clojure.core.async/chan (clojure.core.async/sliding-buffer 8000))]"
+                   " (shadow.cljs.devtools.server.worker/watch "
+                   "  (shadow.cljs.devtools.api/get-worker " build-id ") "
+                   "  c true)"
+                   " (clojure.core.async/go-loop [] "
+                   "   (.setUncaughtExceptionHandler "
+                   "     (Thread/currentThread)"
+                   "     (reify"
+                   "       Thread$UncaughtExceptionHandler"
+                   "       (uncaughtException [_ _ _]"
+                   "         (clojure.core.async/close! c))))"
+                   "     (clojure.core/when-let [res (clojure.core.async/<! c)]"
+                   "       (clojure.core/when (clojure.core/= :repl/out (:type res))"
+                   "         (clojure.core/println (:text res)))"
+                   "     (recur))))")))
 
-#_
-(let [repl (-> @chlorine.state/state :tooling-state deref :clj/aux)
-      shadow (->Shadow repl :dev)]
-  (.. (eval/eval shadow "#'async/lol")
-      (then prn)
-      (catch #(prn :ERROR %))))
-
-#_
-(let [repl (-> @chlorine.state/state :tooling-state deref :clj/aux)
-      shadow (->Shadow repl :dev)]
-  (.. (eval/eval shadow "(throw (ex-info \"lol\" {}))")
-      (then prn)
-      (catch prn)))
+(defn upgrade-repl! [repl build-id]
+  (.. (clj-repl/disable-limits! repl)
+      (then #(redirect-output! repl build-id))
+      (then #(->Shadow repl build-id))))

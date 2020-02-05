@@ -259,11 +259,10 @@
                    (js/setTimeout #(resolve cljs-repl) 500)))))
 
 (defn disable-limits! [aux]
-  (eval/evaluate aux
-                 (unrepl-cmd (-> aux :session deref :state)
-                             :print-limits
-                             {:unrepl.print/string-length 9223372036854775807
-                              :unrepl.print/coll-length 9223372036854775807
-                              :unrepl.print/nesting-depth 9223372036854775807})
-                 {:ignore true}
-                 identity))
+  (.then (eval/eval aux ":disable-limits")
+         #(eval/eval aux
+                     (unrepl-cmd (-> aux :session deref :state)
+                                 :print-limits
+                                 {:unrepl.print/string-length 9223372036854775807
+                                  :unrepl.print/coll-length 9223372036854775807
+                                  :unrepl.print/nesting-depth 9223372036854775807}))))

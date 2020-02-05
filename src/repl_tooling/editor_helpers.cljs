@@ -183,7 +183,7 @@ that the cursor is in row and col (0-based)"
 (defn in-range? [{:keys [row col end-row end-col]} {r :row c :col}]
   (and (>= r row)
        (<= r end-row)
-       (if (= r row) (>= c col) true)
+       (if (= r row) (> c col) true)
        (if (= r end-row) (< c end-col) true)))
 
 (defn find-inners-by-pos
