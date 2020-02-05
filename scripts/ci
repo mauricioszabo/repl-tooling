@@ -1,7 +1,7 @@
 #!/bin/bash
 
 sudo apt-get remove java-common
-sudo apt-get install -y wget gpg software-properties-common
+sudo apt-get install -y wget gpg software-properties-common apt-transport-https
 wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
 sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
 sudo apt-get update
