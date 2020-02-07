@@ -83,24 +83,9 @@
 
   (break [this repl]))
 
+(def cmd-for-watch (h/contents-for-fn "shadow_commands.clj" "watch-events"))
 (defn- redirect-output! [repl build-id]
-  (eval/eval repl "(require '[clojure.core.async])")
-  (eval/eval repl (str
-                   "(clojure.core/let [c (clojure.core.async/chan (clojure.core.async/sliding-buffer 8000))]"
-                   " (shadow.cljs.devtools.server.worker/watch "
-                   "  (shadow.cljs.devtools.api/get-worker " build-id ") "
-                   "  c true)"
-                   " (clojure.core.async/go-loop [] "
-                   "   (.setUncaughtExceptionHandler "
-                   "     (Thread/currentThread)"
-                   "     (reify"
-                   "       Thread$UncaughtExceptionHandler"
-                   "       (uncaughtException [_ _ _]"
-                   "         (clojure.core.async/close! c))))"
-                   "     (clojure.core/when-let [res (clojure.core.async/<! c)]"
-                   "       (clojure.core/when (clojure.core/= :repl/out (:type res))"
-                   "         (clojure.core/println (:text res)))"
-                   "     (recur))))")))
+  (eval/eval repl (str "(" cmd-for-watch " " build-id ")")))
 
 (defn upgrade-repl! [repl build-id]
   (.. (clj-repl/disable-limits! repl)
