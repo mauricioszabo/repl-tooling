@@ -26,7 +26,7 @@
                                `(shadow.cljs.devtools.api/compiler-env ~target))))))
 
 (defn- connect-and-update-state! [state opts target upgrade-cmd]
-  (let [{:keys [notify on-result on-stdout]} opts
+  (let [{:keys [notify on-result on-stdout on-stderr]} opts
         {:keys [host port]} (:repl/info @state)
         after-connect #(if-let [error (:error %)]
                          (treat-error error notify)
@@ -50,7 +50,8 @@
                                       :port port
                                       :build-id target
                                       :on-result #(and on-result (on-result %))
-                                      :on-stdout #(and on-stdout (on-stdout %))})
+                                      :on-stdout #(and on-stdout (on-stdout %))
+                                      :on-stderr #(and on-stderr (on-stderr %))})
                after-connect))
       (notify! notify {:type :warn
                        :title "No option selected"

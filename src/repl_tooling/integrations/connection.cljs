@@ -50,7 +50,7 @@ runs the command to change it to CLJS, and returns an evaluator for CLJS."
 (defn connect-shadow!
   "Given a host, port, and a clojure command, connects on a Clojure REPL and returns
 an evaluator that will pipe all commands to Shadow-CLJS' workers."
-  [{:keys [identifier host port build-id on-result on-stdout]
+  [{:keys [identifier host port build-id on-result on-stdout on-stderr]
     :or {identifier :cljs-eval}}]
   (p/let [[_ clj-repl] (repls/connect-repl! identifier host port
                                             (fn [res]
@@ -60,5 +60,8 @@ an evaluator that will pipe all commands to Shadow-CLJS' workers."
                                                 (on-result (helpers/parse-result res))
 
                                                 (:out res)
-                                                (on-stdout (:out res)))))]
+                                                (on-stdout (:out res))
+
+                                                (:err res)
+                                                (on-stderr (:err res)))))]
     (shadow-cljs/upgrade-repl! clj-repl build-id)))
