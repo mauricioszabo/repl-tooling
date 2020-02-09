@@ -42,7 +42,7 @@
                        {:on-disconnect handle-disconnect
                         :on-stdout #(swap! state update :stdout (fn [e] (str e % "\n")))
                         ; :on-result prn
-                        :get-rendered-results (fn [] [(:eval-result @state)])
+                        :get-rendered-results (fn [] [@(:eval-result @state)])
                         :on-stderr prn
                         :notify prn
                         :prompt (constantly (. js/Promise resolve "fixture"))
@@ -270,7 +270,7 @@
        (ui/assert-out #"#promise <pending>"
                       "(js/Promise. (fn [resolve] (js/setTimeout #(resolve 10) 200)))")
        (let [res (async/<! (change-result))]
-         (check res => "#promise 10")))
+         (check res => #"10")))
        ; #_
        ; (ui/click-nth-link-and-assert-children
        ;  "{ :a ( 0 1 2 3 4 5 6 7 8 9 ) , :b 20 }" 1))
