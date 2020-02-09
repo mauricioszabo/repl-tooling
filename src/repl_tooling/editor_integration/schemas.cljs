@@ -55,6 +55,9 @@
                 :on-stdout (s/=> s/Any s/Str)
                 :on-stderr (s/=> s/Any s/Str)
                 :on-result (s/=> s/Any ReplResult)
+                (s/optional-key :get-rendered-results) (s/=> s/Any)
+                (s/optional-key :on-patch) (s/=> s/Any {:id s/Symbol
+                                                        :result ReplResult})
                 :on-disconnect (s/=> s/Any)})
 
 (def Commands {:evaluate-top-block s/Any

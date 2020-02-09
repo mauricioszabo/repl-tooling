@@ -85,18 +85,6 @@
                      %)]
     {:as-text (pr-str result)}))
 
-(defn- send-result! [res exception? state]
-  (let [parsed (parse-res res)
-        msg (->> (pr-str res)
-                 (assoc parsed (if exception? :error :result))
-                 (merge (-> @state :processing :opts)))
-        on-out (:on-output @state)]
-    (when-not (-> @state :processing :ignore-result?)
-      (on-out msg))
-    (when-let [callback (-> @state :processing :callback)]
-      (callback msg))
-    (swap! state assoc :processing nil)))
-
 (defrecord Evaluator [session]
   eval/Evaluator
   (evaluate [this command opts callback]
@@ -123,12 +111,28 @@
     (when-let [interrupt (-> @session :state deref :processing :interrupt)]
       (eval/evaluate repl interrupt {:ignore true} identity))))
 
+(defn- send-result! [res exception? state]
+  (let [parsed (parse-res res)
+        msg (->> (pr-str res)
+                 (assoc parsed (if exception? :error :result))
+                 (merge (-> @state :processing :opts)))
+        on-out (:on-output @state)]
+    (when-not (-> @state :processing :ignore-result?)
+      (on-out msg))
+    (when-let [callback (-> @state :processing :callback)]
+      (callback msg))
+    (swap! state assoc :processing nil)))
 
 (defn- send-output! [out state err?]
   (let [on-out (:on-output @state)]
     (if err?
       (on-out {:err out})
       (on-out {:out out}))))
+
+(defn- send-patch! [[_ id res] state]
+  (let [{:keys [as-text] :as parsed} (parse-res res)
+        on-out (:on-output @state)]
+    (on-out {:patch {:id id :result (assoc parsed :result as-text)}})))
 
 (defn- treat-unrepl-message! [raw-out state]
   (let [parsed (try (reader/read-string {:readers decoders :default default-tags} raw-out)
@@ -139,6 +143,7 @@
       :started-eval (start-eval! args state)
       :eval (send-result! args false state)
       :exception (send-result! args true state)
+      :patch (send-patch! parsed state)
       :out (send-output! args state false)
       :err (send-output! args state true)
       :nothing-really)))

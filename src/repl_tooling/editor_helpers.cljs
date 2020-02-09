@@ -77,6 +77,8 @@
     :else
     (->Browseable object (:repl-tooling/... additional-data) nil)))
 
+(defrecord Patchable [id value])
+
 (defn as-obj [data]
   (let [params (last data)
         [browseable pr-str-obj obj-id repr] data]
@@ -98,6 +100,7 @@
                                                     (->browseable a b))
                                 'repl-tooling/literal-render #(LiteralRender. %)
                                 'repl-tooling/interactive #(Interactive. %)
+                                'repl-tooling/patchable #(->Patchable (first %) (second %))
                                 'clojure/var #(->> % (str "#'") symbol)
                                 'error parse-error
                                 'unrepl/object as-obj}

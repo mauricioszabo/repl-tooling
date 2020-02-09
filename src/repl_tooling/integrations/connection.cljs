@@ -1,6 +1,7 @@
 (ns repl-tooling.integrations.connection
   (:require-macros [repl-tooling.repl-client.clj-helper :refer [cljs-blob-contents]])
   (:require [promesa.core :as p :include-macros true]
+            [cljs.reader :as edn]
             [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]
@@ -50,7 +51,7 @@ runs the command to change it to CLJS, and returns an evaluator for CLJS."
 (defn connect-shadow!
   "Given a host, port, and a clojure command, connects on a Clojure REPL and returns
 an evaluator that will pipe all commands to Shadow-CLJS' workers."
-  [{:keys [identifier host port build-id on-result on-stdout]
+  [{:keys [identifier host port build-id on-result on-stdout on-stderr on-patch]
     :or {identifier :cljs-eval}}]
   (p/let [[_ clj-repl] (repls/connect-repl! identifier host port
                                             (fn [res]
@@ -60,5 +61,18 @@ an evaluator that will pipe all commands to Shadow-CLJS' workers."
                                                 (on-result (helpers/parse-result res))
 
                                                 (:out res)
-                                                (on-stdout (:out res)))))]
+                                                (on-stdout (:out res))
+
+                                                (:err res)
+                                                (on-stderr (:err res))
+
+                                                (:patch res)
+                                                (let [txt-in-txt (-> res :patch :result :result)
+                                                      txt (edn/read-string txt-in-txt)]
+                                                  (on-patch (update (:patch res)
+                                                                    :result merge
+                                                                    (helpers/parse-result
+                                                                     {:as-text txt
+                                                                      :result txt})))))))]
+
     (shadow-cljs/upgrade-repl! clj-repl build-id)))

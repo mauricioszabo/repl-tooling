@@ -357,6 +357,12 @@
                                        (more repl #(swap! ratom assoc-in [:obj :trace] %)))}
              "..."])])])))
 
+(defrecord Patchable [id value]
+  proto/Renderable
+  (as-text [_ ratom root?] (proto/as-text @value value root?))
+  (as-html [self ratom root?]
+    [proto/as-html @(:value @ratom) (:value @ratom) root?]))
+
 (extend-protocol proto/Parseable
   helpers/Interactive
   (as-renderable [self repl editor-state]
@@ -395,6 +401,10 @@
   helpers/LiteralRender
   (as-renderable [obj repl editor-state]
     (r/atom (->Leaf obj editor-state)))
+
+  helpers/Patchable
+  (as-renderable [{:keys [id value]} repl editor-state]
+    (r/atom (->Patchable id (proto/as-renderable value repl editor-state))))
 
   default
   (as-renderable [obj repl editor-state]
