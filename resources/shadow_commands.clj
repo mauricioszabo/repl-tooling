@@ -27,7 +27,7 @@
                        :result
                        :value))))
 
-(defn watch-events [build-id]
+(defn watch-events [build-id patch-cmd]
   (clojure.core/require '[clojure.core.async])
   (clojure.core/require '[cljs.reader])
 
@@ -43,11 +43,14 @@
        (clojure.core/reify Thread$UncaughtExceptionHandler (uncaughtException [_ _ _]
                                                              (clojure.core.async/close! c))))
       (clojure.core/when-let [res (clojure.core.async/<! c)]
+        (clojure.core/when (clojure.core/and (clojure.core/= :repl/result (:type res))
+                                             (:patch (:result res)))
+          (patch-cmd (:id (:result res)) (:patch (:result res))))
         (clojure.core/when (clojure.core/= :repl/out (:type res))
           (clojure.core/println (:text res)))
         (clojure.core/when (clojure.core/and (clojure.core/= :repl/action (:type res))
                                              (:warnings (:action res)))
           (clojure.core/binding [clojure.core/*out* clojure.core/*err*]
             (clojure.core/doseq [{:keys [msg]} (:warnings (:action res))]
-              (clojure.core/println msg))))
+              (clojure.core/println "WARNING:" msg))))
         (recur)))))
