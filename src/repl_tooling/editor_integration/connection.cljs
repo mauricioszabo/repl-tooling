@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
+            [clojure.walk :as walk]
             [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.editor-integration.loaders :as loaders]
             [repl-tooling.editor-integration.evaluation :as e-eval]
@@ -123,7 +124,11 @@
 
 (def ^:private default-opts
   {:on-start-eval identity
+   :get-rendered-results (constantly [])
    :on-eval identity
+   :on-result identity
+   :on-stdout identity
+   :on-stderr identity
    :editor-data identity
    :notify identity
    :get-config identity ;FIXME
@@ -187,15 +192,42 @@
                            error)}))
   nil)
 
-(defn- callback-fn [state on-stdout on-stderr on-result on-disconnect output]
-  (when (nil? output)
-    (handle-disconnect! state)
-    (and on-disconnect (on-disconnect)))
-  (when-let [out (:out output)] (and on-stdout (on-stdout out)))
-  (when-let [out (:err output)] (and on-stderr (on-stderr out)))
-  (when (and on-result (or (contains? output :result)
-                           (contains? output :error)))
-    (on-result (helpers/parse-result output))))
+(defn- callback-fn [state callbacks output]
+  (let [{:keys [on-stdout on-stderr on-result on-disconnect on-patch]} callbacks]
+    (when (nil? output)
+      (handle-disconnect! state)
+      (on-disconnect))
+    (when-let [out (:out output)] (and on-stdout (on-stdout out)))
+    (when-let [out (:err output)] (and on-stderr (on-stderr out)))
+    (when (and on-result (or (contains? output :result)
+                             (contains? output :error)))
+      (on-result (helpers/parse-result output)))
+    (when-let [patch (:patch output)]
+      (on-patch (update patch :result helpers/parse-result)))))
+
+(defn- find-patch [id maybe-coll]
+  (let [elem (if (instance? reagent.ratom/RAtom maybe-coll)
+               (dissoc @maybe-coll :editor-state :repl)
+               maybe-coll)]
+    (if (and (instance? renderer/Patchable elem)
+             (= id (:id elem)))
+      maybe-coll
+      (when (coll? elem)
+        (->> elem
+             (map #(find-patch id %))
+             flatten
+             (filter identity))))))
+
+(defn- prepare-patch [{:keys [on-patch get-rendered-results] :as callbacks}]
+  (if on-patch
+    callbacks
+    (assoc callbacks
+           :on-patch (fn [{:keys [id result]}]
+                       (doseq [patchable (find-patch id (get-rendered-results))]
+                         (swap! patchable assoc :value
+                                (renderer/parse-result result
+                                                       (:repl @patchable)
+                                                       (:editor-state @patchable))))))))
 
 ; Config Options:
 ; {:project-paths [...]
@@ -215,6 +247,11 @@ Expects host, port, and some callbacks:
   containing :type (one of :info, :warning, or :error), :title and :message
 * get-config -> when some function needs the configuration from the editor, this fn
   is called without arguments. Need to return a map with the config options.
+* get-rendered-results -> gets all results that are rendered on the editor. This is
+  used so that the REPL can 'patch' these results when new data appears (think
+  of resolving promises in JS)
+* on-patch -> patches the result. Optional, if you send a :get-rendered-results
+  callback, one will be generated for you
 * prompt -> when some function needs an answer from the editor, it'll call this
   callback passing :title, :message, and :arguments (a vector that is composed by
   :key and :value). The callback needs to return a `Promise` with one of the
@@ -230,10 +267,10 @@ Returns a promise that will resolve to a map with two repls: :clj/aux will be us
 to autocomplete/etc, :clj/repl will be used to evaluate code."
   [host :- s/Str
    port :- s/Int
-   {:keys [on-stdout on-stderr on-result on-disconnect notify] :as opts} :- s/Any]
-  (let [options (merge default-opts opts)
+   {:keys [notify] :as opts} :- s/Any]
+  (let [options (-> default-opts (merge opts) prepare-patch)
         state (r/atom {:editor/callbacks options})
-        callback (partial callback-fn state on-stdout on-stderr on-result on-disconnect)
+        callback (partial callback-fn state options)
         primary (repls/connect-repl! :clj-eval host port callback)
         aux (delay (repls/connect-repl! :clj-aux host port callback))]
 
