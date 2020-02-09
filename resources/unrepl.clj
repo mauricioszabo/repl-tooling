@@ -1,7 +1,7 @@
 (clojure.core/let [nop (clojure.core/constantly nil)
 done (promise)
 e (clojure.core/atom eval)]
-(-> (create-ns 'unrepl.repl$3rcwMcc9rCLOH4gMQfLo21mMbCs)
+(-> (create-ns 'unrepl.repl$XkQisH7kdleWD1h1jn$ei_rxBPk)
 (intern '-init-done)
 (alter-var-root
 (fn [v]
@@ -28,7 +28,7 @@ done))))
 *string-length* Long/MAX_VALUE]
 (write x)))
 (declare ^:once ^:dynamic read ^:once ^:dynamic print ^:once ^:dynamic eval)(ns
-unrepl.printer$sLAANOHmMLoxkKB7aCzJx77hbB8
+unrepl.printer$q0kQC1b9AWklEvoDzW2VNG7ZlCg
 (:require
 [clojure.string :as str]
 [clojure.edn :as edn]
@@ -456,11 +456,11 @@ bindings (select-keys (get-thread-bindings) [#'*print-length* #'*print-level* #'
 unrepl/*string-length* Integer/MAX_VALUE]
 (edn-str x)))
 (ns
-unrepl.repl$3rcwMcc9rCLOH4gMQfLo21mMbCs
+unrepl.repl$XkQisH7kdleWD1h1jn$ei_rxBPk
 (:require
 [clojure.main :as m]
 [unrepl.core :as unrepl]
-[unrepl.printer$sLAANOHmMLoxkKB7aCzJx77hbB8 :as p]
+[unrepl.printer$q0kQC1b9AWklEvoDzW2VNG7ZlCg :as p]
 [clojure.edn :as edn]
 [clojure.java.io :as io]))
 (defn classloader
@@ -620,12 +620,12 @@ ref (java.lang.ref.SoftReference. x refq)]
 (defonce ^:private elision-store (soft-store #(list `fetch %)))
 (defn fetch [id]
 (if-some [[session-id x] ((:get elision-store) id)]
-(unrepl.printer$sLAANOHmMLoxkKB7aCzJx77hbB8.WithBindings.
+(unrepl.printer$q0kQC1b9AWklEvoDzW2VNG7ZlCg.WithBindings.
 (select-keys (some-> session-id session :bindings) [#'*print-length* #'*print-level* #'unrepl/*string-length* #'p/*elide*])
 (cond
-(instance? unrepl.printer$sLAANOHmMLoxkKB7aCzJx77hbB8.ElidedKVs x) x
+(instance? unrepl.printer$q0kQC1b9AWklEvoDzW2VNG7ZlCg.ElidedKVs x) x
 (string? x) x
-(instance? unrepl.printer$sLAANOHmMLoxkKB7aCzJx77hbB8.MimeContent x) x
+(instance? unrepl.printer$q0kQC1b9AWklEvoDzW2VNG7ZlCg.MimeContent x) x
 :else (seq x)))
 p/unreachable))
 (defn interrupt! [session-id eval]
@@ -666,6 +666,8 @@ in *in*]
 (set! *file* file)
 (set! *source-path* file)
 (.setCoords ^ILocatedReader in {:line line :col col :file file}))))
+(defn patch-result! [id result]
+(unrepl/write [:patch id result]))
 (def schedule-flushes!
 (let [thread-pool (java.util.concurrent.Executors/newScheduledThreadPool 1)
 max-latency-ms 20]
@@ -770,7 +772,10 @@ bak#)
 ~(tagged-literal 'unrepl/param :unrepl/line)
 ~(tagged-literal 'unrepl/param :unrepl/column))
 :unrepl.jvm/start-side-loader
-`(attach-sideloader! ~session-id)}
+`(attach-sideloader! ~session-id)
+:patch-result
+`(patch-result! ~(tagged-literal 'unrepl/param :unrepl/id)
+~(tagged-literal 'unrepl/param :unrepl/result))}
 ext-session-actions)}]))
 interruptible-eval
 (fn [form]
@@ -871,5 +876,5 @@ interrupted? #(.peek actions-queue)]
 ~expr))
 <<<FIN
 (clojure.core/ns user)
-(unrepl.repl$3rcwMcc9rCLOH4gMQfLo21mMbCs/start (clojure.edn/read {:default tagged-literal} *in*))
+(unrepl.repl$XkQisH7kdleWD1h1jn$ei_rxBPk/start (clojure.edn/read {:default tagged-literal} *in*))
 {}
