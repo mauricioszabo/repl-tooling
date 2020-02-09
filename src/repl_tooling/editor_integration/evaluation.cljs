@@ -72,7 +72,7 @@
                         :namespace namespace
                         ;; FIXME: this is kinda bad, we're re-using opts...
                         :pass (:pass opts)}
-                       #(when on-eval
+                       #(when (and on-eval @state)
                           (on-eval (assoc eval-data :result (helpers/parse-result %)))))))))
 
 (defn eval-with-promise
