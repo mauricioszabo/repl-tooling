@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # sudo apt-get remove java-common
 # sudo apt-get install -y wget gpg software-properties-common apt-transport-https
