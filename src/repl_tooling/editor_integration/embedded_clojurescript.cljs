@@ -46,12 +46,10 @@
                                            :on-result #(and on-result (on-result %))
                                            :on-stdout #(and on-stdout (on-stdout %))})
                after-connect)
-        (.then (conn/connect-shadow! {:host host
-                                      :port port
-                                      :build-id target
-                                      :on-result #(and on-result (on-result %))
-                                      :on-stdout #(and on-stdout (on-stdout %))
-                                      :on-stderr #(and on-stderr (on-stderr %))})
+        (.then (conn/connect-shadow! (assoc opts
+                                            :host host
+                                            :port port
+                                            :build-id target))
                after-connect))
       (notify! notify {:type :warn
                        :title "No option selected"
