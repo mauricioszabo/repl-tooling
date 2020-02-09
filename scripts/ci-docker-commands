@@ -1,17 +1,14 @@
 #!/bin/bash
 
-# sudo apt-get remove java-common
-# sudo apt-get install -y wget gpg software-properties-common apt-transport-https
-# wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
-# sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
-# sudo apt-get update
-# sudo apt install libglib2.0-0 libnss3 libgtk3.0 libxss1 libasound2 ffmpeg adoptopenjdk-11-openj9
-# npm install
+apt-get update
+apt-get install -y curl
+apt-get install -y xvfb ffmpeg netcat xz-utils openjdk-11-jdk
 
+cd /tmp
+curl https://nodejs.org/dist/v10.16.3/node-v10.16.3-linux-x64.tar.xz | tar -xJ
+cp -a /tmp/node-v10.16.3-linux-x64/* /usr
+rm -R /tmp/node-v10.16.3-linux-x64
 cd /work
-
-apk add --no-cache openjdk11-jdk xvfb
-npm install
 
 npx shadow-cljs watch integration fixture &
 for n in {1..25}; do
