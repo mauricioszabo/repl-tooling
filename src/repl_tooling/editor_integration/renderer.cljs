@@ -360,7 +360,8 @@
 (defrecord Patchable [id value]
   proto/Renderable
   (as-text [_ ratom root?] (proto/as-text @value value root?))
-  (as-html [_ ratom root?] [proto/as-html @value value root?]))
+  (as-html [self ratom root?]
+    [proto/as-html @(:value @ratom) (:value @ratom) root?]))
 
 (extend-protocol proto/Parseable
   helpers/Interactive
