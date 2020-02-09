@@ -85,7 +85,13 @@
 
 (def cmd-for-watch (h/contents-for-fn "shadow_commands.clj" "watch-events"))
 (defn- redirect-output! [repl build-id]
-  (eval/eval repl (str "(" cmd-for-watch " " build-id ")")))
+  (let [unrepl-cmd (clj-repl/unrepl-cmd (-> repl :session deref :state)
+                                        :patch-result
+                                        {:unrepl/id (symbol "%1")
+                                         :unrepl/result (symbol "%2")})]
+    (eval/eval repl (str "(" cmd-for-watch " " build-id
+                         " #" unrepl-cmd
+                         ")"))))
 
 (defn upgrade-repl! [repl build-id]
   (.. (clj-repl/disable-limits! repl)
