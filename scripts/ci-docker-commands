@@ -17,11 +17,7 @@ npx shadow-cljs watch integration fixture &
 for n in {1..25}; do
   ls target/fixture.js target/integration/main.js &>/dev/null && break
   echo "Not compiled yet, waiting..."
-
-  ps aux | grep -v grep | grep java || \
-    echo "Java was killed. Retrying..." && \
-    npx shadow-cljs watch integration fixture &
-  sleep 20
+  sleep 10
 done
 
 ls target/fixture.js target/integration/main.js || exit 1
