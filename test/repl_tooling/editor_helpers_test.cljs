@@ -29,12 +29,18 @@
 90)
 ")
 
-(deftest text-in-rage
+(deftest text-in-range
   (testing "gets text in same line"
     (check (helpers/text-in-range ":foo" [[0 1] [0 2]]) => "fo"))
 
   (testing "gets text in multiple lines"
-    (check (helpers/text-in-range "21\n121\n2" [[0 1] [1 1]]) => "1\n12")))
+    (check (helpers/text-in-range "21\n121\n2" [[0 1] [1 1]]) => "1\n12"))
+
+  (testing "out of bounds"
+    (check (helpers/text-in-range "123\n456\n" [[0 0] [0 5]]) => "123")
+    (check (helpers/text-in-range "123\n456\n" [[0 0] [1 5]]) => "123\n456")
+    (check (helpers/text-in-range "123\n456\n" [[0 0] [3 5]]) => "123\n456\n")
+    (check (helpers/text-in-range "123\n456\n" [[1 0] [4 5]]) => "456\n")))
 
 (deftest toplevel-forms
   (testing "gets top-level forms"

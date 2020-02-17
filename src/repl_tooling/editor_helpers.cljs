@@ -121,7 +121,7 @@
 
 (defn text-in-range [text [[row1 col1] [row2 col2]]]
   (let [lines (str/split-lines text)
-        rows-offset (- row2 row1)]
+        rows-offset (- (min row2 (count lines)) row1)]
     (-> lines
         (subvec row1 (min (count lines) (inc row2)))
         (update 0 #(str/join "" (drop col1 %)))
