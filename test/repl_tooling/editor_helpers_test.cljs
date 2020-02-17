@@ -98,8 +98,18 @@
            => [[[0 2] [0 8]] "(+ 1 2)"]))
 
   (testing "invalid forms"
-    (check (helpers/block-for "( ) 1 2)" [0 3]) => nil)
-    (check (helpers/block-for ") (1 2)" [0 3]) => [[[0 2] [0 6]] "(1 2)"])))
+    (check (helpers/block-for "( ) 1 2)" [0 4]) => nil)
+    (check (helpers/block-for ") (1 2)" [0 3]) => [[[0 2] [0 6]] "(1 2)"]))
+
+  (testing "extreme cases"
+    (check (helpers/block-for "(+ (- 1 2) 3)" [0 0]) =>
+           [[[0 0] [0 12]] "(+ (- 1 2) 3)"])
+    (check (helpers/block-for "(+ (- 1 2) 3)" [0 3]) =>
+           [[[0 3] [0 9]] "(- 1 2)"])
+    (check (helpers/block-for "(+ (- 1 2) 3)" [0 13]) =>
+           [[[0 0] [0 12]] "(+ (- 1 2) 3)"])
+    (check (helpers/block-for "(+ (- 1 2) 3)" [0 10]) =>
+           [[[0 3] [0 9]] "(- 1 2)"])))
 
 (deftest getting-blocks-with-special-symbols
   (testing "top-block with syntax quote"
