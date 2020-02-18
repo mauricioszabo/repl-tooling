@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 0.4.1
+- Fixed https://github.com/mauricioszabo/atom-chlorine/issues/150
+
 ## 0.4.0
 - Add support for more than one form eval on Clojure REPL
 - Fixed goto var definition on CLJS

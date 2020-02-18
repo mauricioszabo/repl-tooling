@@ -121,7 +121,7 @@
 
 (defn text-in-range [text [[row1 col1] [row2 col2]]]
   (let [lines (str/split-lines text)
-        rows-offset (- row2 row1)]
+        rows-offset (- (min row2 (count lines)) row1)]
     (-> lines
         (subvec row1 (min (count lines) (inc row2)))
         (update 0 #(str/join "" (drop col1 %)))
@@ -186,8 +186,8 @@ that the cursor is in row and col (0-based)"
 (defn in-range? [{:keys [row col end-row end-col]} {r :row c :col}]
   (and (>= r row)
        (<= r end-row)
-       (if (= r row) (> c col) true)
-       (if (= r end-row) (< c end-col) true)))
+       (if (= r row) (>= c col) true)
+       (if (= r end-row) (<= c end-col) true)))
 
 (defn find-inners-by-pos
   "Find last node (if more than one node) that is in range of pos and
