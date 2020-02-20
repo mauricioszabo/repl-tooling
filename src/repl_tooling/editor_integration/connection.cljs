@@ -106,10 +106,8 @@
     (renderer/parse-result (:result res) repl state)))
 
 (defn- features-for [state {:keys [editor-data] :as opts} repl-kind]
-  {:autocomplete (if (= :bb repl-kind)
-                   (constantly (. js/Promise resolve []))
-                   #(ensure-data (editor-data)
-                                (fn [data] (autocomplete/command state opts data))))
+  {:autocomplete #(ensure-data (editor-data)
+                               (fn [data] (autocomplete/command state opts data)))
    :eval-and-render (fn eval-and-render
                       ([code range] (eval-and-render code range nil))
                       ([code range pass]
