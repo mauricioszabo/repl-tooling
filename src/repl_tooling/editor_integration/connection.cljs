@@ -273,6 +273,8 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
         aux (delay (repls/connect-repl! :clj-aux host port callback))]
 
     (.. primary
+        (then #(eval/eval (second %) ":connected"))
+        (then (constantly primary))
         (then (fn [[kind primary]]
                 (notify {:type :info
                          :title (str (tr-kind kind) " REPL Connected")})

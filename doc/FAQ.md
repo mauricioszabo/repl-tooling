@@ -8,26 +8,28 @@ A block is _almost_ the same as a form in Clojure. There are specifics for detec
 
 1. Block will be where the cursor **is inside**:
 * `(+ (- 1 2|) 3)` - the block is `(- 1 2)`
-* `(+ (- 1 2)| 3)` - the block is `(+ (- 1 2) 3)`
-* `|(+ (- 1 2) 3)` - no block: the cursor is outside anything
-* `(+ (- 1 2) 3)|` - same as above, no block: the cursor is outside anything
 
-2. Top-block will always be a block that is releated to "root":
+2. Because the way most editors work (highlighting the parenthesis) if the cursor is _outside_ a block but _before_ an open parens or _after_ a close parens, it'll behave differently:
+* `(+ (- 1 2)| 3)` - the block is `(- 1 2)`
+* `|(+ (- 1 2) 3)` - the block is `(+ (- 1 2) 3)`
+* `(+ (- 1 2) 3)|` - same as above, the block is `(+ (- 1 2) 3)`
+
+3. Top-block will always be a block that is releated to "root":
 * `(+ 1 2|) (+ 3 4)` - the top-block is `(+ 1 2)`
 * `(+ 1 2) (+ 3 4|)` - The top-block is `(+ 3 4)`
 * `(+ 1 (- 2 |3) 4)` - The top-block is `(+ 1 (- 2 3) 4)`
 
-3. Blocks will include reader tags:
+4. Blocks will include reader tags:
 * `#?(:cljs "clojure" :cljs |"script)` - will include the `#?` in the evaluation
 * `#(+ 1 2|)` - will return an anonymous function
 * `'(+ 1 2|`) - will include the quote
 * `@(:an-atom my-map|)` - will include the deref
 * `(deref (:an-atom my-map|))` - will NOT include the deref
 
-4. Top-blocks will consider the parenthesis before they when evaluating:
+5. Top-blocks will consider the parenthesis before they when evaluating:
 * `(+ (- 2 3) 4)|` - will evaluate `(+ (- 2 3) 4)`
 
-5. Comment-form `#_` is ignored always
+6. Comment-form `#_` is ignored always
 * `#_(+ 1 2)|` - will evaluate `(+ 1 2)` for top-block, and nothing for block
 * `#_(+ 1 2|)` - will evaluate `(+ 1 2)` for both top-block and block
 
