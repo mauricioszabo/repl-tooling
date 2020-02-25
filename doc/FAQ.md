@@ -89,3 +89,13 @@ Probably, if it is close enought to Clojure. To be "close enough" means that:
 
 ### When jack-in will be implemented?
 I don't intend to implement "jack-in". The thing is, is difficult to cleanup external processes and this could complicate **a lot** the code. Also, there's the problem with environment variables (I had multiple problems when I used editors that used jack-in because env variables were not set, PATH was set to different places and so on), some sandboxing that some editors do, it makes docker difficult do run in this context and **also** makes it necessary to support `lein`, `boot`, `shadow-cljs`, `clj`, `clojure`, and the other specific implementations' CLI, when they exist.
+
+## Bugs / Limitations
+
+### Test output not appearing on the REPL, only on Chlorine
+When you try to run `run-tests` or something that depends on `clojure.test`, sometimes the output will not appear. This is a limitation of `clojure.test` - the output of tests is redirected to `clojure.test/*test-out*`. The first time someone requires `clojure.test`, it'll bind to `*out*`.
+
+So, if you require on the REPL, it'll work all the time. But if you connect to Chlorine before you require it on your REPL, `clojure.test/*test-out*` will be bound to the socket output (that goes to Chlorine). You can re-bind the output using:
+```clojure
+(alter-var-root #'clojure.test/*test-out* (constantly *out*))
+```
