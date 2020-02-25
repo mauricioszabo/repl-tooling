@@ -1,7 +1,7 @@
 (clojure.core/let [nop (clojure.core/constantly nil)
 done (promise)
 e (clojure.core/atom eval)]
-(-> (create-ns 'unrepl.repl$FH6pTF3H3K_Wy8zYdKnmCK3IUZU)
+(-> (create-ns 'unrepl.repl$i9hjMxfOQ2IzbCA5TVia2QQEJNg)
 (intern '-init-done)
 (alter-var-root
 (fn [v]
@@ -456,7 +456,7 @@ bindings (select-keys (get-thread-bindings) [#'*print-length* #'*print-level* #'
 unrepl/*string-length* Integer/MAX_VALUE]
 (edn-str x)))
 (ns
-unrepl.repl$FH6pTF3H3K_Wy8zYdKnmCK3IUZU
+unrepl.repl$i9hjMxfOQ2IzbCA5TVia2QQEJNg
 (:require
 [clojure.main :as m]
 [clojure.test :as t]
@@ -464,6 +464,8 @@ unrepl.repl$FH6pTF3H3K_Wy8zYdKnmCK3IUZU
 [unrepl.printer$q0kQC1b9AWklEvoDzW2VNG7ZlCg :as p]
 [clojure.edn :as edn]
 [clojure.java.io :as io]))
+(alter-var-root #'t/*test-out*
+(constantly (java.io.OutputStreamWriter. System/out)))
 (defn classloader
 "Creates a classloader that obey standard delegating policy.
    Takes two arguments: a parent classloader and a function which
@@ -878,5 +880,5 @@ interrupted? #(.peek actions-queue)]
 ~expr))
 <<<FIN
 (clojure.core/ns user)
-(unrepl.repl$FH6pTF3H3K_Wy8zYdKnmCK3IUZU/start (clojure.edn/read {:default tagged-literal} *in*))
+(unrepl.repl$i9hjMxfOQ2IzbCA5TVia2QQEJNg/start (clojure.edn/read {:default tagged-literal} *in*))
 {}
