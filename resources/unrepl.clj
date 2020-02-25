@@ -1,7 +1,7 @@
 (clojure.core/let [nop (clojure.core/constantly nil)
 done (promise)
 e (clojure.core/atom eval)]
-(-> (create-ns 'unrepl.repl$XkQisH7kdleWD1h1jn$ei_rxBPk)
+(-> (create-ns 'unrepl.repl$FH6pTF3H3K_Wy8zYdKnmCK3IUZU)
 (intern '-init-done)
 (alter-var-root
 (fn [v]
@@ -456,9 +456,10 @@ bindings (select-keys (get-thread-bindings) [#'*print-length* #'*print-level* #'
 unrepl/*string-length* Integer/MAX_VALUE]
 (edn-str x)))
 (ns
-unrepl.repl$XkQisH7kdleWD1h1jn$ei_rxBPk
+unrepl.repl$FH6pTF3H3K_Wy8zYdKnmCK3IUZU
 (:require
 [clojure.main :as m]
+[clojure.test :as t]
 [unrepl.core :as unrepl]
 [unrepl.printer$q0kQC1b9AWklEvoDzW2VNG7ZlCg :as p]
 [clojure.edn :as edn]
@@ -820,6 +821,7 @@ slcl (classloader cl
 (swap! session-state assoc :class-loader slcl)
 (swap! sessions assoc session-id session-state)
 (binding [*out* (scheduled-writer :out unrepl/non-eliding-write)
+t/*test-out* (scheduled-writer :out unrepl/non-eliding-write)
 *err* (tagging-writer :err unrepl/non-eliding-write)
 *in* in
 *file* (-> in :coords :file)
@@ -876,5 +878,5 @@ interrupted? #(.peek actions-queue)]
 ~expr))
 <<<FIN
 (clojure.core/ns user)
-(unrepl.repl$XkQisH7kdleWD1h1jn$ei_rxBPk/start (clojure.edn/read {:default tagged-literal} *in*))
+(unrepl.repl$FH6pTF3H3K_Wy8zYdKnmCK3IUZU/start (clojure.edn/read {:default tagged-literal} *in*))
 {}
