@@ -65,6 +65,21 @@
     :evaluate-selection {:name "Evaluate Selection"
                          :description "Evaluates current editor's selection"
                          :command #(eval-selection state (editor-data) opts)}
+    :run-tests-in-ns {:name "Run tests in NS"
+                      :description "Run all tests on the current namespace"
+                      :command (fn []
+                                 (ensure-data (editor-data)
+                                   #(e-eval/run-tests-in-ns! state %)))}
+    :run-test-for-var {:name "Run test for current Var"
+                       :description "Run current var as a testcase"
+                       :command (fn []
+                                  (ensure-data (editor-data)
+                                    #(e-eval/run-test-at-cursor! state %)))}
+    :source-for-var {:name "Source for Var"
+                     :description "Gets the source of the current var"
+                     :command (fn []
+                                (ensure-data (editor-data)
+                                  #(e-eval/source-for-var! state %)))}
     :disconnect {:name "Disconnect REPLs"
                  :description "Disconnect all current connected REPLs"
                  :command #(handle-disconnect! state)}
@@ -116,7 +131,7 @@
                                                  %
                                                  (assoc opts :pass pass)
                                                  (constantly [range code])))))
-   :eval (partial e-eval/eval-with-promise state opts)
+   :eval #(e-eval/eval-with-promise state opts %1 %2)
    :result-for-renderer #(ensure-data (editor-data)
                                       (fn [data] (result-for-renderer % state data opts)))})
 
