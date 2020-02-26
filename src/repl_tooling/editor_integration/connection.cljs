@@ -131,7 +131,9 @@
                                                  %
                                                  (assoc opts :pass pass)
                                                  (constantly [range code])))))
-   :eval #(e-eval/eval-with-promise state opts %1 %2)
+   :eval (fn [code opts]
+           (ensure-data (editor-data)
+                        (e-eval/eval-with-promise state opts code opts)))
    :result-for-renderer #(ensure-data (editor-data)
                                       (fn [data] (result-for-renderer % state data opts)))})
 
