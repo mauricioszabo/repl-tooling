@@ -1,5 +1,6 @@
 (ns repl-tooling.editor-integration.evaluation
   (:require [clojure.string :as str]
+            [promesa.core :as p]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.schemas :as schemas]
@@ -88,6 +89,60 @@ Will return a 'promise' that is resolved to the eval result, or failed if the
 eval result is an error. It will also return a fail, with nil, if there's no
 REPL available"
   [state opts code eval-opts]
-  (if-let [repl (repl-for opts state (:filename opts) (:aux eval-opts))]
+  (if-let [repl (repl-for opts state (:filename eval-opts) (:aux eval-opts))]
     (eval/eval repl code eval-opts)
     (js/Promise. (fn [_ fail] (fail nil)))))
+
+(defn- format-test-result [{:keys [test pass fail error]}]
+  (str "Ran " test " test"
+       (when-not (= 1 test) "s")
+       (when-not (zero? pass)
+         (str ", " pass " assertion"
+              (when-not (= 1 pass) "s")
+              " passed"))
+       (when-not (zero? fail)
+         (str ", " fail " failed"))
+       (when-not (zero? error)
+         (str ", " error " errored"))
+       "."))
+
+(defn run-tests-in-ns! [state {:keys [filename range contents]}]
+  (let [notify (-> @state :editor/callbacks :notify)
+        eval (-> @state :editor/features :eval)
+        [_ ns] (helpers/ns-range-for contents (first range))
+        [[row col]] range]
+    (p/let [res (eval "(clojure.test/run-tests)"
+                      {:filename filename :namespace ns :row row :col col})]
+      (notify {:type :info
+               :title "(clojure.test/run-tests)"
+               :message (format-test-result (:result res))}))))
+
+(defn run-test-at-cursor! [state {:keys [filename range contents]}]
+  (let [notify (-> @state :editor/callbacks :notify)
+        eval (-> @state :editor/features :eval)
+        [_ ns] (helpers/ns-range-for contents (first range))
+        [_ current-var] (helpers/current-var contents (first range))
+        [[row col]] range]
+    (p/let [res (eval (str "(clojure.test/test-vars [#'" current-var "])")
+                      {:filename filename :namespace ns :row row :col col})]
+      (prn :RES res)
+      (notify {:type :info
+               :title (str "Ran test: " current-var)
+               :message "See REPL for any failures"}))))
+
+(defn source-for-var! [state {:keys [filename range contents]}]
+  (let [notify (-> @state :editor/callbacks :notify)
+        get-config (-> @state :editor/callbacks :get-config)
+        eval (-> @state :editor/features :eval)
+        [_ ns] (helpers/ns-range-for contents (first range))
+        [_ current-var] (helpers/current-var contents (first range))
+        [[row col]] range
+        opts {:filename filename :namespace ns :row row :col col}]
+
+    (if (need-cljs? (get-config) filename)
+      (notify {:type :error :title "Source for Var not supported for ClojureScript"})
+      (-> (eval "(require 'clojure.repl)" opts)
+          (p/then #(eval (str "(clojure.repl/source " current-var ")") opts))
+          (p/catch #(notify {:type :error :title (str "Source for Var "
+                                                      "not supported for "
+                                                      (-> @state :repl/info :kind-name))}))))))
