@@ -123,11 +123,9 @@ REPL available"
 
 (defn run-tests-in-ns! [state {:keys [filename range contents]}]
   (let [notify (-> @state :editor/callbacks :notify)
-        evaluate (-> @state :editor/features :eval)
-        [_ ns] (helpers/ns-range-for contents (first range))
-        [[row col]] range]
+        evaluate (-> @state :editor/features :eval)]
     (p/let [res (evaluate "(clojure.test/run-tests)"
-                          {:filename filename :namespace ns :row row :col col})]
+                          {:auto-detect true})]
       (notify {:type :info
                :title "(clojure.test/run-tests)"
                :message (format-test-result (:result res))}))))
@@ -135,12 +133,9 @@ REPL available"
 (defn run-test-at-cursor! [state {:keys [filename range contents]}]
   (let [notify (-> @state :editor/callbacks :notify)
         evaluate (-> @state :editor/features :eval)
-        [_ ns] (helpers/ns-range-for contents (first range))
-        [_ current-var] (helpers/current-var contents (first range))
-        [[row col]] range]
+        [_ current-var] (helpers/current-var contents (first range))]
     (p/let [res (evaluate (str "(clojure.test/test-vars [#'" current-var "])")
-                          {:filename filename :namespace ns :row row :col col})]
-      (prn :RES res)
+                          {:auto-detect true})]
       (notify {:type :info
                :title (str "Ran test: " current-var)
                :message "See REPL for any failures"}))))
@@ -149,10 +144,8 @@ REPL available"
   (let [notify (-> @state :editor/callbacks :notify)
         get-config (-> @state :editor/callbacks :get-config)
         evaluate (-> @state :editor/features :eval)
-        [_ ns] (helpers/ns-range-for contents (first range))
         [_ current-var] (helpers/current-var contents (first range))
-        [[row col]] range
-        opts {:filename filename :namespace ns :row row :col col}]
+        opts {:auto-detect true}]
 
     (if (need-cljs? (get-config) filename)
       (notify {:type :error :title "Source for Var not supported for ClojureScript"})
