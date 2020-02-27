@@ -76,6 +76,15 @@
                        #(when (and on-eval @state)
                           (on-eval (assoc eval-data :result (helpers/parse-result %)))))))))
 
+(defn- auto-opts [editor-data]
+  (p/let [{:keys [filename range contents]} (editor-data)
+          [[row col]] range
+          [_ ns] (helpers/ns-range-for contents (first range))]
+    {:filename filename
+     :namespace ns
+     :row row
+     :col col}))
+
 (defn eval-with-promise
   "Evaluates the current code and evaluation options on the current REPL.
 Accepts an extra argument on `eval-opts` that's :aux - if true, evaluates
@@ -83,15 +92,21 @@ on the 'auxiliary' REPL instead of primary. On Clojure, this means that
 the code will use UNREPL but will not use ellisions on infinite sequences, etc.
 
 Please notice that because the REPL is auto-detected, `:filename` is required.
-Otherwise, ClojureScript REPL will never be used!
+Otherwise, ClojureScript REPL will never be used! You can also pass `:auto-detect true`
+to use the current editor state to find all info about current filename, namespace,
+and row/col.
 
 Will return a 'promise' that is resolved to the eval result, or failed if the
 eval result is an error. It will also return a fail, with nil, if there's no
 REPL available"
   [state opts code eval-opts]
-  (if-let [repl (repl-for opts state (:filename eval-opts) (:aux eval-opts))]
-    (eval/eval repl code eval-opts)
-    (js/Promise. (fn [_ fail] (fail nil)))))
+  (p/let [editor-data (-> @state :editor/callbacks :editor-data)
+          auto-eval-opts (when (:auto-detect eval-opts)
+                           (auto-opts editor-data))
+          eval-opts (merge auto-eval-opts eval-opts)]
+    (if-let [repl (repl-for opts state (:filename eval-opts) (:aux eval-opts))]
+      (eval/eval repl code eval-opts)
+      (js/Promise. (fn [_ fail] (fail nil))))))
 
 (defn- format-test-result [{:keys [test pass fail error]}]
   (str "Ran " test " test"
@@ -108,23 +123,23 @@ REPL available"
 
 (defn run-tests-in-ns! [state {:keys [filename range contents]}]
   (let [notify (-> @state :editor/callbacks :notify)
-        eval (-> @state :editor/features :eval)
+        evaluate (-> @state :editor/features :eval)
         [_ ns] (helpers/ns-range-for contents (first range))
         [[row col]] range]
-    (p/let [res (eval "(clojure.test/run-tests)"
-                      {:filename filename :namespace ns :row row :col col})]
+    (p/let [res (evaluate "(clojure.test/run-tests)"
+                          {:filename filename :namespace ns :row row :col col})]
       (notify {:type :info
                :title "(clojure.test/run-tests)"
                :message (format-test-result (:result res))}))))
 
 (defn run-test-at-cursor! [state {:keys [filename range contents]}]
   (let [notify (-> @state :editor/callbacks :notify)
-        eval (-> @state :editor/features :eval)
+        evaluate (-> @state :editor/features :eval)
         [_ ns] (helpers/ns-range-for contents (first range))
         [_ current-var] (helpers/current-var contents (first range))
         [[row col]] range]
-    (p/let [res (eval (str "(clojure.test/test-vars [#'" current-var "])")
-                      {:filename filename :namespace ns :row row :col col})]
+    (p/let [res (evaluate (str "(clojure.test/test-vars [#'" current-var "])")
+                          {:filename filename :namespace ns :row row :col col})]
       (prn :RES res)
       (notify {:type :info
                :title (str "Ran test: " current-var)
@@ -133,7 +148,7 @@ REPL available"
 (defn source-for-var! [state {:keys [filename range contents]}]
   (let [notify (-> @state :editor/callbacks :notify)
         get-config (-> @state :editor/callbacks :get-config)
-        eval (-> @state :editor/features :eval)
+        evaluate (-> @state :editor/features :eval)
         [_ ns] (helpers/ns-range-for contents (first range))
         [_ current-var] (helpers/current-var contents (first range))
         [[row col]] range
@@ -141,8 +156,8 @@ REPL available"
 
     (if (need-cljs? (get-config) filename)
       (notify {:type :error :title "Source for Var not supported for ClojureScript"})
-      (-> (eval "(require 'clojure.repl)" opts)
-          (p/then #(eval (str "(clojure.repl/source " current-var ")") opts))
+      (-> (evaluate "(require 'clojure.repl)" opts)
+          (p/then #(evaluate (str "(clojure.repl/source " current-var ")") opts))
           (p/catch #(notify {:type :error :title (str "Source for Var "
                                                       "not supported for "
                                                       (-> @state :repl/info :kind-name))}))))))
