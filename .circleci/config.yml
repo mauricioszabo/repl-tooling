@@ -2,8 +2,6 @@ version: 2.1
 defaults: &defaults
   docker:
     - image: circleci/clojure:openjdk-11-lein-node
-  environment:
-    JVM_OPTS: -Xmx3200m
 
 jobs:
   test:
