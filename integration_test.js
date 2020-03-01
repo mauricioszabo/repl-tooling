@@ -51,16 +51,19 @@ const runTestAndCollectResult = async (client, idx, numTests, numFailures) => {
 const collectTest = async (client, idx, numTests, totalFailures) => {
   let failures = 1
   for(let tries = 0; tries < 3; tries++) {
-    await sleep(1000)
-    const selector = `.com-rigsomelight-devcards-list-group-item:nth-child(${idx})`
-    await client.waitForText(selector)
-    const description = await client.$(`${selector} span:nth-child(2)`).getText()
-    const num = await client.$(`${selector} span`).getText()
-    const numAsserts = parseInt(num)
-    console.log(`\n [testcase] ${description} - collecting ${numAsserts} tests` +
-      ` - try number ${tries + 1}`)
-    await client.$(selector).click()
-    failures = await runTestAndCollectResult(client, 1, numAsserts, 0)
+    try {
+      await sleep(1000)
+      const selector = `.com-rigsomelight-devcards-list-group-item:nth-child(${idx})`
+      await client.waitForText(selector)
+      const description = await client.$(`${selector} span:nth-child(2)`).getText()
+      const num = await client.$(`${selector} span`).getText()
+      const numAsserts = parseInt(num)
+      console.log(`\n [testcase] ${description} - collecting ${numAsserts} tests` +
+        ` - try number ${tries + 1}`)
+      await client.$(selector).click()
+      failures = await runTestAndCollectResult(client, 1, numAsserts, 0)
+    } catch(e) {}
+
     if(failures === 0) {
       break
     } else {
