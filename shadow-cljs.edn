@@ -11,6 +11,7 @@
                 [devcards "0.2.5"]
                 [org.rksm/suitable "0.3.2"]]
 
+ :jvm-opts ["-Xmx1G"]
  :builds {:integration {:target :browser
                         :js-options {:js-provider :require}
                         :output-dir "target/integration"
