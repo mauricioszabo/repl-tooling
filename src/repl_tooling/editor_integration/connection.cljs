@@ -11,6 +11,7 @@
             [repl-tooling.editor-integration.autocomplete :as autocomplete]
             [repl-tooling.integrations.repls :as repls]
             [repl-tooling.editor-integration.renderer :as renderer]
+            [repl-tooling.editor-integration.definition :as definition]
             [repl-tooling.editor-integration.doc :as doc]
             [repl-tooling.editor-integration.schemas :as schemas]
             [schema.core :as s]
@@ -98,7 +99,11 @@
                                                opts {:repl-kind (-> @state :repl/info :kind)
                                                      :repl-name (-> @state :repl/info :kind-name)
                                                      :repl (:clj/aux @state)
-                                                     :editor-data %})))}}
+                                                     :editor-data %})))}
+    :go-to-var-definition {:name "Goto VAR definition"
+                           :description "Goes to definition of the current variable"
+                           :command (fn [] (ensure-data (editor-data)
+                                                        #(definition/goto-var % state)))}}
 
    (= :clj repl-kind)
    (assoc
@@ -137,6 +142,7 @@
 
 (def ^:private default-opts
   {:on-start-eval identity
+   :open-editor identity
    :get-rendered-results (constantly [])
    :on-eval identity
    :on-result identity
