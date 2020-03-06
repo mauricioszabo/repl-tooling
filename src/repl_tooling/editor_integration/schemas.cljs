@@ -41,7 +41,13 @@
              :eval-mode (s/enum :clj :cljs :prefer-clj :prefer-cljs)
              s/Any s/Any})
 
+(def GotoEditorData
+  {:file-name s/Str
+   :line s/Int
+   (s/optional-key :contents) s/Str})
+
 (def Callbacks {:on-start-eval (s/=> s/Any EvalData)
+                :open-editor (s/=> s/Any GotoEditorData)
                 :on-eval (s/=> s/Any EvalResult)
                 :editor-data (s/=> EditorData)
                 :notify (s/=> s/Any {:type (s/enum :info :warning :error)

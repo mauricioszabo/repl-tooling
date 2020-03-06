@@ -262,6 +262,9 @@ Expects host, port, and some callbacks:
     :filename - the current file's name. Can be nil if file was not saved yet.
     :range - a vector containing [[start-row start-col] [end-row end-col]], representing
       the current selection
+* open-editor -> asks the editor to open an editor. Expects a map with `:filename`,
+  `:line` and maybe `:contents`. If there's `:contents` key, it defines a \"virtual
+  file\" so it's better to open up an read-only editor
 * notify -> when something needs to be notified, this function will be called with a map
   containing :type (one of :info, :warning, or :error), :title and :message
 * get-config -> when some function needs the configuration from the editor, this fn
