@@ -13,9 +13,5 @@
         repl (e-eval/repl-for callbacks state filename false)]
     (when-not
       (some-> repl (def/find-var-definition aux namespace var)
-              (.then (fn [info]
-                       (if info
-                         (open-editor info)
-                         (notify {:type :error
-                                  :title "Could not find definition for var"})))))
+              (.then #(open-editor %)))
       (notify {:type :error :title "Could not find definition for var"}))))
