@@ -4,7 +4,9 @@
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
             [repl-tooling.editor-helpers :as helpers]
-            [repl-tooling.editor-integration.interactive :as int]))
+            [repl-tooling.features.definition :as definition]
+            [repl-tooling.editor-integration.interactive :as int]
+            ["fs" :refer [existsSync]]))
 
 (defn- parse-inner-root [objs more-fn a-for-more]
   (let [inner (cond-> (mapv #(proto/as-html (deref %) % false) objs)
@@ -274,14 +276,39 @@
                         (swap! ratom assoc 2 %)
                         (when callback? (e)))))))
 
-(defn- to-trace-row [repl ratom idx trace]
+(defn- trace-span [file row]
+  [:span {:class "file"} " (" file ":" row ")"])
+
+(defn- trace-link [var file row editor-state]
+  (let [{:keys [open-editor notify]} (:editor/callbacks @editor-state)
+        aux-repl (:clj/aux @editor-state)]
+    [:a.file {:href "#"
+              :on-click (fn [e]
+                          (.preventDefault e)
+                          (.stopPropagation e)
+                          (if (existsSync file)
+                            (open-editor {:file-name file :line (dec row)})
+                            (.. (definition/find-var-definition
+                                  aux-repl
+                                  aux-repl
+                                  "user"
+                                  (re-find #"^.*?/[^/]+" var))
+                                (then #(open-editor (assoc % :line (dec row))))
+                                (catch #(do
+                                          (prn :ERROR %)
+                                          (notify {:type :error
+                                                   :title "Can't find file to go"}))))))}
+     " (" file ":" row ")"]))
+
+(defn- to-trace-row [repl ratom editor-state idx trace]
   (let [[class method file row] trace
         link-for-more (link-for-more-trace repl
                                            (r/cursor ratom [:obj :trace idx])
                                            (eval/get-more-fn trace)
                                            (eval/get-more-fn file)
                                            false)
-        clj-file? (re-find #"\.clj.?$" (str file))]
+        clj-file? (re-find #"\.clj.?$" (str file))
+        var (cond-> (str class) clj-file? demunge)]
     (cond
       (string? trace)
       [:div {:key idx :class ["row" "clj-stack"]}
@@ -295,10 +322,12 @@
       [:div {:key idx :class ["row" (if clj-file? "clj-stack" "stack")]}
        [:div
         "in "
-        [:span {:class "class"} (cond-> (str class) clj-file? demunge)]
+        [:span {:class "class"} var]
         (when-not clj-file? [:span {:class "method"} "."
                              method])
-        [:span {:class "file"} " (" file ":" row ")"]]])))
+        (if clj-file?
+          (trace-link var file row editor-state)
+          (trace-span file row))]])))
 
 (defn- to-trace-row-txt [repl ratom idx trace]
   (let [[class method file row] trace
@@ -320,7 +349,7 @@
              (when-not clj-file? (str "." method))
              " (" file ":" row ")")]])))
 
-(defrecord ExceptionObj [obj add-data repl]
+(defrecord ExceptionObj [obj add-data repl editor-state]
   proto/Renderable
   (as-text [_ ratom root?]
     (let [{:keys [type message trace]} obj
@@ -347,7 +376,7 @@
        (when root?
          [:div {:class "children"}
           (doall
-            (map (partial to-trace-row repl ratom)
+            (map (partial to-trace-row repl ratom editor-state)
                  (range)
                  (eval/without-ellision trace)))
           (when-let [more (eval/get-more-fn trace)]
@@ -372,7 +401,7 @@
   (as-renderable [self repl editor-state]
     (let [obj (update self :message proto/as-renderable repl editor-state)
           add-data (some-> self :add-data not-empty (proto/as-renderable repl editor-state))]
-      (r/atom (->ExceptionObj obj add-data repl))))
+      (r/atom (->ExceptionObj obj add-data repl editor-state))))
 
   helpers/IncompleteObj
   (as-renderable [self repl editor-state]
