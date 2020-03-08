@@ -319,13 +319,13 @@
       (str/replace #"(.*)\.(.*)$" "$1/$2")
       demunge))
 
-(defn- trace-string [idx trace editor-state]
+(defn- trace-string [p-source idx ratom editor-state]
   (let [{:keys [open-editor notify]} (:editor/callbacks @editor-state)
         aux-repl (:clj/aux @editor-state)
+        trace (get-in @ratom [:obj :trace idx])
         info (str/replace trace #"\(.*" "")
         filename-match (some-> (re-find #"\(.*\)" trace)
                                (str/replace #"[\(\)]" ""))
-        p-source (memoize prepare-source-map)
         [file row col] (str/split filename-match #":")
         [file row col] (if-let [res (-> file p-source (resolve-source row col))] res
                          [file row col])]
@@ -352,7 +352,7 @@
         ")"]
        [:span.stack-line trace])]))
 
-(defn- to-trace-row [repl ratom editor-state idx trace]
+(defn- to-trace-row [p-source repl ratom editor-state idx trace]
   (let [[class method file row] trace
         link-for-more (link-for-more-trace repl
                                            (r/cursor ratom [:obj :trace idx])
@@ -363,7 +363,7 @@
         var (cond-> (str class) clj-file? demunge)]
     (cond
       (string? trace)
-      (trace-string idx trace editor-state)
+      (trace-string p-source idx ratom editor-state)
 
       link-for-more
       [:div {:key idx :class ["row" "incomplete"]}
@@ -417,7 +417,8 @@
         (apply conj ex traces))))
 
   (as-html [_ ratom root?]
-    (let [{:keys [type message trace]} obj]
+    (let [{:keys [type message trace]} obj
+          p-source (memoize prepare-source-map)]
       [:div {:class "exception row"}
        [:div {:class "description"}
         [:span {:class "ex-kind"} (str type)] ": " [proto/as-html @message message root?]]
@@ -427,7 +428,7 @@
        (when root?
          [:div {:class "children"}
           (doall
-            (map (partial to-trace-row repl ratom editor-state)
+            (map (partial to-trace-row p-source repl ratom editor-state)
                  (range)
                  (eval/without-ellision trace)))
           (when-let [more (eval/get-more-fn trace)]
