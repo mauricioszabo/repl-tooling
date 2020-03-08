@@ -306,12 +306,12 @@
                                str))
     (catch :default e nil)))
 
-(defn- resolve-source [sourcemap row col]
-  (when-let [source ^js (some-> sourcemap
-                                (.originalPositionFor #js {:line (int row)
-                                                           :column (int col)}))]
-    (when (.-source source)
-      [(.-source source) (.-line source) (.-column source)])))
+(defn- resolve-source [^js sourcemap row col]
+  (when-let [source (some-> sourcemap
+                            (.originalPositionFor #js {:line (int row)
+                                                       :column (int col)}))]
+    (when (.-source ^js source)
+      [(.-source ^js source) (.-line ^js source) (.-column ^js source)])))
 
 (defn- demunge-js-name [js-name]
   (-> js-name
