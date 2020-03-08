@@ -55,6 +55,13 @@
                                     "    str))"))]
     {:file-name (:result from-repl) :line (-> meta :line dec)}))
 
+(defn resolve-possible-path [repl meta]
+  ; FIXME: use REPL detection here
+  (p/let [with-contents (full-file-position meta)
+          with-contents (or with-contents (from-classpath repl meta))
+          with-contents (or with-contents (from-clr repl meta))]
+    (or with-contents (throw "Error"))))
+
 (defn find-var-definition [cljs-repl clj-aux ns-name symbol-name]
   (p/let [cmd (str "(clojure.core/->> `" symbol-name " "
                    "clojure.core/resolve "
@@ -64,9 +71,5 @@
                    ")")
           meta (eval/eval cljs-repl cmd {:namespace ns-name :ignore true})
           meta (select-keys (:result meta)
-                            [:name :file :status :column :line])
-          ; FIXME: use REPL detection here
-          with-contents (full-file-position meta)
-          with-contents (or with-contents (from-classpath clj-aux meta))
-          with-contents (or with-contents (from-clr clj-aux meta))]
-    with-contents))
+                            [:file :line])]
+    (resolve-possible-path clj-aux meta)))

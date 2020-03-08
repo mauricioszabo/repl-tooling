@@ -11,6 +11,7 @@
             [repl-tooling.editor-integration.autocomplete :as autocomplete]
             [repl-tooling.integrations.repls :as repls]
             [repl-tooling.editor-integration.renderer :as renderer]
+            [repl-tooling.editor-integration.definition :as definition]
             [repl-tooling.editor-integration.doc :as doc]
             [repl-tooling.editor-integration.schemas :as schemas]
             [schema.core :as s]
@@ -98,7 +99,11 @@
                                                opts {:repl-kind (-> @state :repl/info :kind)
                                                      :repl-name (-> @state :repl/info :kind-name)
                                                      :repl (:clj/aux @state)
-                                                     :editor-data %})))}}
+                                                     :editor-data %})))}
+    :go-to-var-definition {:name "Goto VAR definition"
+                           :description "Goes to definition of the current variable"
+                           :command (fn [] (ensure-data (editor-data)
+                                                        #(definition/goto-var % state)))}}
 
    (= :clj repl-kind)
    (assoc
@@ -137,6 +142,7 @@
 
 (def ^:private default-opts
   {:on-start-eval identity
+   :open-editor identity
    :get-rendered-results (constantly [])
    :on-eval identity
    :on-result identity
@@ -256,6 +262,9 @@ Expects host, port, and some callbacks:
     :filename - the current file's name. Can be nil if file was not saved yet.
     :range - a vector containing [[start-row start-col] [end-row end-col]], representing
       the current selection
+* open-editor -> asks the editor to open an editor. Expects a map with `:filename`,
+  `:line` and maybe `:contents`. If there's `:contents` key, it defines a \"virtual
+  file\" so it's better to open up an read-only editor
 * notify -> when something needs to be notified, this function will be called with a map
   containing :type (one of :info, :warning, or :error), :title and :message
 * get-config -> when some function needs the configuration from the editor, this fn
