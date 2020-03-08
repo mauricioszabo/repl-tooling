@@ -307,9 +307,9 @@
     (catch :default e nil)))
 
 (defn- resolve-source [sourcemap row col]
-  (when-let [source (some-> sourcemap
-                            (.originalPositionFor #js {:line (int row)
-                                                       :column (int col)}))]
+  (when-let [source ^js (some-> sourcemap
+                                (.originalPositionFor #js {:line (int row)
+                                                           :column (int col)}))]
     (when (.-source source)
       [(.-source source) (.-line source) (.-column source)])))
 
