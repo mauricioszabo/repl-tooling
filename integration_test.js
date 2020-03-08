@@ -49,7 +49,7 @@ const runTestAndCollectResult = async (client, idx, numTests, numFailures) => {
 }
 
 const collectTest = async (client, idx, numTests, totalFailures) => {
-  let failures = 1
+  let failures = -1
   for(let tries = 0; tries < 3; tries++) {
     try {
       await sleep(1000)
@@ -71,6 +71,7 @@ const collectTest = async (client, idx, numTests, totalFailures) => {
     }
   }
 
+  if(failures == -1) failures = 0
   const total = failures + totalFailures
   if(idx >= numTests) {
     return total
