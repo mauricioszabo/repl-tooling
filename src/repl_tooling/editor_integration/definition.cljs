@@ -10,7 +10,7 @@
         [_ var] (helpers/current-var contents (first range))
         [_ namespace] (helpers/ns-range-for contents (first range))
         aux (:clj/aux @state)
-        repl (e-eval/repl-for callbacks state filename false)]
+        repl (e-eval/repl-for callbacks state filename true)]
     (when-not
       (some-> repl (def/find-var-definition aux namespace var)
               (.then #(open-editor %)))
