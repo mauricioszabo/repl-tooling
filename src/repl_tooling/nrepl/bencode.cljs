@@ -19,7 +19,6 @@
 
 (defn- decode-fragment [fragment acc]
   (let [f (-> fragment first str)]
-    (println (= "i" f) fragment acc)
     (cond
       (= "i" f)
       (if-let [[res value] (re-find #"i(\-?\d+)e" fragment)]
@@ -53,8 +52,6 @@
   (let [state (atom "")]
     (fn [fragment]
       (swap! state str fragment)
-      (println)
       (let [[rest parsed] (decode-fragment @state [])]
         (reset! state rest)
-        (prn :PARSED parsed)
         (doseq [p parsed] (callback p))))))
