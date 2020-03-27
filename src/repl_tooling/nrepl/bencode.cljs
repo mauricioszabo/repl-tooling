@@ -58,11 +58,3 @@
         (reset! state rest)
         (prn :PARSED parsed)
         (doseq [p parsed] (callback p))))))
-
-; (re-find #"^l(([^fooe])*?)e" "li0ei2eele")
-
-#_
-(re-find #"i(\d+)e" "i200ei10e")
-;
-; (drop 1 "foobar")
-; (subs ".{}" 2)
