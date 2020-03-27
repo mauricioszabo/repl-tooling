@@ -61,10 +61,14 @@
       (decode! "i")
       (check @results => ["i"]))
 
-    (testing "encode lists"
+    (testing "decode lists"
       (decode! "li0ei2ee")
-      (check @results => [[0 2]])
-      (check (bencode/encode '("a" "b")) => "l1:a1:be"))))
+      (check @results => [[0 2]]))
 
-  ; (testing "encode maps"
-  ;   (check (bencode/encode {"a" "b"}) => "d1:a1:be")))
+    (testing "decode maps"
+      (decode! "d1:a1:be")
+      (check @results => [{"a" "b"}]))
+
+    (testing "decode nested data"
+      (decode! "d1:a1:bi0eli0ei2eee")
+      (check @results => [{"a" "b", 0 [0 2]}]))))

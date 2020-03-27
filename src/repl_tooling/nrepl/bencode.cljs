@@ -32,6 +32,12 @@
           (recur (subs rest 1) (conj acc inner))
           [fragment acc]))
 
+      (= "d" f)
+      (let [[rest inner] (decode-fragment (subs fragment 1) [])]
+        (if (= "e" (first rest))
+          (recur (subs rest 1) (conj acc (apply hash-map inner)))
+          [fragment acc]))
+
       (re-find #"\d" f)
       (let [[_ c] (re-find #"^(\d+):" fragment)
             re (re-pattern (str "^\\d*:(.{" c "})"))
