@@ -1,6 +1,6 @@
 (ns repl-tooling.nrepl.nrepl-test
   (:require [devcards.core :as cards]
-            [clojure.test :refer [testing]]
+            [clojure.test :refer [testing is]]
             [check.core :refer [check] :as c]
             [clojure.core.async :as async]
             [check.async :refer [async-test await!]]
@@ -30,45 +30,29 @@
     (check (bencode/encode {"a" "b"}) => "d1:a1:be")))
 
 (cards/deftest decode
-  (let [results (atom [])
-        dec! (bencode/decoder #(swap! results conj %))
-        decode! (fn [frag]
-                  (reset! results [])
-                  (dec! frag))]
+  (let [decode! (bencode/decoder)]
 
     (testing "decode numbers"
-      (decode! "i210e")
-      (check @results => [210])
-      (decode! "i-210e")
-      (check @results => [-210])
-      (decode! "i21ei20e")
-      (check @results => [21 20]))
+      (check (decode! "i210e") => [210])
+      (check (decode! "i-210e") => [-210])
+      (check (decode! "i21ei20e") => [21 20]))
 
     (testing "decode partially"
-      (decode! "i21")
-      (check @results => [])
-      (decode! "0ei20e")
-      (check @results => [210 20]))
+      (check (decode! "i21") => [])
+      (check (decode! "0ei20e") => [210 20]))
 
     (testing "decode strings"
-      (decode! "3:fo")
-      (check @results => [])
-      (decode! "o")
-      (check @results => ["foo"])
+      (check (decode! "3:fo") => [])
+      (check (decode! "o") => ["foo"])
 
-      (decode! "1:")
-      (check @results => [])
-      (decode! "i")
-      (check @results => ["i"]))
+      (check (decode! "1:") => [])
+      (check (decode! "i") => ["i"]))
 
     (testing "decode lists"
-      (decode! "li0ei2ee")
-      (check @results => [[0 2]]))
+      (check (decode! "li0ei2ee") => [[0 2]]))
 
     (testing "decode maps"
-      (decode! "d1:a1:be")
-      (check @results => [{"a" "b"}]))
+      (check (decode! "d1:a1:be") => [{"a" "b"}]))
 
     (testing "decode nested data"
-      (decode! "d1:a1:bi0eli0ei2eee")
-      (check @results => [{"a" "b", 0 [0 2]}]))))
+      (check (decode! "d1:a1:bi0eli0ei2eee") => [{"a" "b", 0 [0 2]}]))))

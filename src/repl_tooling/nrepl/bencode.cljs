@@ -48,10 +48,10 @@
       :else
       [fragment acc])))
 
-(defn decoder [callback]
+(defn decoder []
   (let [state (atom "")]
     (fn [fragment]
       (swap! state str fragment)
       (let [[rest parsed] (decode-fragment @state [])]
         (reset! state rest)
-        (doseq [p parsed] (callback p))))))
+        parsed))))
