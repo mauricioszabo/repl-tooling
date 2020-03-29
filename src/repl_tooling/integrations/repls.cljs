@@ -18,11 +18,14 @@
            kind-chan (async/promise-chan)]
        (js/setTimeout
         (fn []
-          (.write conn (str "#?(:cljs :using-cljs-repl :clj :using-clj-repl "
-                              ":cljr :using-cljr-repl "
-                              ":joker :using-joker-repl "
-                              ":clje :using-clje-repl "
-                              ":bb :using-bb-repl)\n"))))
+          (.write conn (str "#?("
+                            ":bb :using-bb-repl "
+                            ":joker :using-joker-repl "
+                            ":clje :using-clje-repl "
+                            ":cljs :using-cljs-repl "
+                            ":cljr :using-cljr-repl "
+                            ":clj :using-clj-repl "
+                            ")\n"))))
        (js/setTimeout
         (fn []
           (.write conn ":using-unknown-repl\n")))
