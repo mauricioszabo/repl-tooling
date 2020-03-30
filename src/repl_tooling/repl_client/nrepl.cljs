@@ -58,6 +58,16 @@
                        (p/resolve! p session-id))))))
     p))
 
+(def ^:private detection (str "#?("
+                              ":bb :bb "
+                              ":joker :joker "
+                              ":clje :clje "
+                              ":cljs :cljs "
+                              ":cljr :cljr "
+                              ":clj :clj "
+                              ":default :unknown"
+                              ")"))
+
 (defn repl-for [^js conn buffer on-output]
   (p/let [decode! (bencode/decoder)
           pending (atom {})
@@ -65,15 +75,19 @@
                     (on-output out)
                     (when (nil? out) (remove-watch buffer :nrepl-evaluator)))
           _ (.write conn (bencode/encode {:op :clone}) "binary")
-          session-id (capture-session-id! buffer)]
-    (add-watch buffer :nrepl-evaluator
-               (fn [_ _ _ [val]]
-                 (treat-socket-output! {:decode! decode!
-                                        :buffer buffer
-                                        :val val
-                                        :pending pending
-                                        :on-output new-out})))
-    {:evaluator (->Evaluator conn pending session-id)
+          session-id (capture-session-id! buffer)
+          _ (add-watch buffer :nrepl-evaluator
+                       (fn [_ _ _ [val]]
+                         (treat-socket-output! {:decode! decode!
+                                                :buffer buffer
+                                                :val val
+                                                :pending pending
+                                                :on-output new-out})))
+          evaluator (->Evaluator conn pending session-id)
+          repl-kind (-> (eval/eval evaluator detection)
+                        (p/then :result)
+                        (p/catch (constantly :unknown)))]
+    {:evaluator evaluator
      :conn conn
      :buffer buffer
-     :repl-kind :clj}))
+     :repl-kind repl-kind}))
