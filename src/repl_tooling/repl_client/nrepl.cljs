@@ -74,8 +74,11 @@
           new-out (fn [out]
                     (on-output out)
                     (when (nil? out) (remove-watch buffer :nrepl-evaluator)))
-          _ (.write conn (bencode/encode {:op :clone}) "binary")
-          session-id (capture-session-id! buffer)
+          session-id (->> @buffer
+                          first
+                          decode!
+                          (some #(get % "new-session")))
+          _ (reset! buffer [])
           _ (add-watch buffer :nrepl-evaluator
                        (fn [_ _ _ [val]]
                          (treat-socket-output! {:decode! decode!
