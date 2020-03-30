@@ -27,7 +27,9 @@
 
 (defn- detect-socket-kind [^js conn buffer]
   (let [kind-p (p/deferred)]
-    (p/let [_ (.write conn (str "#?("
+    (p/let [_ (.write conn "\n") ; Flush nREPL data detection
+            _ (delay 2)
+            _ (.write conn (str "#?("
                                 ":bb :using-bb-repl "
                                 ":joker :using-joker-repl "
                                 ":clje :using-clje-repl "
