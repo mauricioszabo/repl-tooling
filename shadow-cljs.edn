@@ -1,6 +1,8 @@
 {:source-paths ["src" "test" "resources"]
 
  :socket-repl {:port 2233}
+ :nrepl {:port 3322}
+
  :dependencies [[org.clojure/core.async "0.4.490"]
                 [check "0.1.0-SNAPSHOT"]
                 [funcool/promesa "4.0.2"]
