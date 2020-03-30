@@ -2,7 +2,9 @@
   (:require ["buffer" :refer [Buffer]]
             [clojure.string :as str]))
 
-(defn encode [this]
+(defn encode
+  "Encodes a map/vector/string/number into BEncode format"
+  [this]
   (cond
     (number? this) (str "i" this "e")
     (string? this) (str (.byteLength Buffer this) ":" this)
@@ -48,10 +50,23 @@
       :else
       [fragment acc])))
 
-(defn decoder []
+(defn decoder
+  "Starts a stateful decoder. It will return a function that accepts one parameter
+(a string) and it'll try to decode it as a BEncode value. It'll return the BEncode
+structures it finds, or an empty vector if it didn't found anything.
+
+Ex:
+(let [decode! (decoder)]
+  (is (= [10] (decode! \"i10e\")))
+  (is (= [] (decode! \"i1\")))
+  (is (= [10] (decode! \"0e\"))))"
+  []
   (let [state (atom "")]
     (fn [fragment]
       (swap! state str fragment)
       (let [[rest parsed] (decode-fragment @state [])]
         (reset! state rest)
         parsed))))
+
+(encode {:op :eval :code "(+ 1 2)"})
+(encode {:op :clone})
