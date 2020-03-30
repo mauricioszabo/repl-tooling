@@ -39,7 +39,7 @@
 
       (re-find #"\d" f)
       (let [[_ c] (re-find #"^(\d+):" fragment)
-            re (re-pattern (str "^\\d*:(.{" c "})"))
+            re (re-pattern (str "(?s)^\\d*:(.{" c "})"))
             [res value] (re-find re fragment)]
         (if value
           (recur (subs fragment (count res)) (conj acc value))
