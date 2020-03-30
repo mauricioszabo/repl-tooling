@@ -1,76 +1,24 @@
 (ns repl-tooling.repl-client.nrepl
-  ; (:require-macros [repl-tooling.repl-client.clj-helper :refer [blob-contents]])
-  (:require [repl-tooling.editor-helpers :as helpers]
-            [repl-tooling.nrepl.bencode :as bencode]
+  (:require [repl-tooling.nrepl.bencode :as bencode]
             [repl-tooling.eval :as eval]
-            [promesa.core :as p]
-            ["nrepl-client" :as nrepl]))
+            [promesa.core :as p]))
 
-; (def repl (js/require "nrepl-client"))
-;
-; (defn- connect-socket! [host port]
-;   (let [p (p/deferred)
-;         client (. repl connect #js {:host host :port port})]
-;     (.on client "connect" #(p/resolve! p client))
-;     p))
-;
-; (defrecord Evaluator [^js client pending session-id]
-;   eval/Evaluator
-;   (evaluate [this command opts callback]
-;     (when-let [namespace (:namespace opts)]
-;       (.send client (str "(in-ns '" namespace ")") identity))
-;
-;     (let [id (:id opts (gensym "eval"))
-;           op {:op "eval"
-;               :code (str command)
-;               :id id
-;               :session session-id}
-;           full-op (cond-> op
-;                           (:filename opts) (assoc :file (:filename opts))
-;                           (:col opts) (assoc :column (:col opts))
-;                           (:row opts) (assoc :line (:row opts)))]
-;       (swap! pending assoc (str id) {:callback callback})
-;       (.send client (clj->js full-op))
-;       id))
-;
-;   (break [_ _]
-;     (.interrupt client session-id)))
-;
-; (defn- treat-output! [pending on-output msg]
-;   (when-let [value (get msg "value" (get msg "ex"))]
-;     (let [{:keys [callback]} (get @pending (get msg "id"))
-;           key (if (contains? msg "value") :result :error)]
-;       (when callback
-;         (callback {key value :as-text value})
-;         (swap! pending dissoc))))
-;
-;   (when (some #{"interrupted"} (get msg "status"))
-;     (let [{:keys [callback]} (get @pending (get msg "id"))]
-;       (when callback (callback {:error "Interrupted!" :as-text "Interrupted!"}))))
-;
-;   (when-let [out (get msg "out")]
-;     (on-output {:out out})))
-;
-; (defn connect! [host port on-output]
-;   (p/let [pending (atom {})
-;           client (connect-socket! host port)
-;           sess (js/Promise. (fn [resolve] (.clone client #(resolve (js->clj %2)))))
-;           session (-> sess first (get "new-session"))]
-;     (.on ^js client "close" #(on-output nil))
-;     (.. ^js client
-;         -messageStream
-;         (on "messageSequence" #(doseq [msg (js->clj %2)]
-;                                  (treat-output! pending on-output msg))))
-;     (->Evaluator client pending session)))
-;
-; #_
-; (.end (:client client))
-; #_
-; (.then (connect! "localhost" 1337 #(prn :OUT %)) #(def client %))
-; #_
-; (.then (connect! "localhost" 46565 #(prn :OUT %)) #(def client %))
-; #_
-; (eval/eval client "(/ 10 0)")
+(defrecord Evaluator [^js conn pending session-id]
+  eval/Evaluator
+  (evaluate [this command opts callback]
+    (let [id (:id opts (gensym "eval"))
+          op {:op "eval"
+              :code (str command)
+              :id id
+              :session session-id}
+          full-op (cond-> op
+                          (:namespace opts) (assoc :ns (:namespace opts))
+                          (:filename opts) (assoc :file (:filename opts))
+                          (:col opts) (assoc :column (:col opts))
+                          (:row opts) (assoc :line (:row opts)))]
+      (swap! pending assoc (str id) {:callback callback})
+      (.write conn (bencode/encode full-op) "binary")
+      id)))
 
 (defn- treat-output! [pending on-output msg]
   (when-let [value (get msg "value" (get msg "ex"))]
@@ -85,51 +33,47 @@
       (when callback (callback {:error "Interrupted!" :as-text "Interrupted!"}))))
 
   (when-let [out (get msg "out")]
-    (on-output {:out out})))
+    (on-output {:out out}))
+  (when-let [out (get msg "err")]
+    (on-output {:err out})))
 
-(defrecord Evaluator [^js client pending session-id]
-  eval/Evaluator
-  (evaluate [this command opts callback]
-    (when-let [namespace (:namespace opts)]
-      (.send client (str "(in-ns '" namespace ")") identity))
-
-    (let [id (:id opts (gensym "eval"))
-          op {:op "eval"
-              :code (str command)
-              :id id
-              :session session-id}
-          full-op (cond-> op
-                          (:filename opts) (assoc :file (:filename opts))
-                          (:col opts) (assoc :column (:col opts))
-                          (:row opts) (assoc :line (:row opts)))]
-      (swap! pending assoc (str id) {:callback callback})
-      (.send client (clj->js full-op))
-      id)))
-
-(defn- treat-socket-output! [decode! buffer val]
-  (prn :TREAT val)
+(defn- treat-socket-output! [{:keys [pending decode! buffer val on-output]}]
+  (when (= :closed val)
+    (on-output nil))
   (when val
     (swap! buffer subvec 1)
-    (let [results (decode! val)]
-      (prn :RES results))))
+    (doseq [result (decode! val)]
+      (treat-output! pending on-output result))))
 
-(defn repl-for [^js conn buffer]
-  (prn :REPL?)
+(defn- capture-session-id! [buffer]
   (let [decode! (bencode/decoder)
-        pending (atom {})]
-    (reset! buffer [])
-    (prn :REPLete)
-    (add-watch :nrepl-evaluator buffer
-               (fn [_ _ _ [val]] (treat-socket-output! decode! buffer val)))
-    (prn :WRITING)
-    (.write conn (bencode/encode {:op :clone}) "binary")
-    (prn :WROTE)))
-  ; (let [
-  ;       sess (js/Promise. (fn [resolve] (.clone client #(resolve (js->clj %2)))))
-  ;       session (-> sess first (get "new-session"))]
-  ;   (.on ^js client "close" #(on-output nil))
-  ;   (.. ^js client
-  ;       -messageStream
-  ;       (on "messageSequence" #(doseq [msg (js->clj %2)]
-  ;                                (treat-output! pending on-output msg))))
-  ;   (->Evaluator client pending session)))
+        p (p/deferred)]
+    (add-watch buffer :nrepl-evaluator-session
+               (fn [_ _ _ [val]]
+                 (when val
+                   (swap! buffer subvec 1)
+                   (doseq [result (decode! val)]
+                     (when-let [session-id (get result "new-session")]
+                       (remove-watch buffer :nrepl-evaluator-session)
+                       (p/resolve! p session-id))))))
+    p))
+
+(defn repl-for [^js conn buffer on-output]
+  (p/let [decode! (bencode/decoder)
+          pending (atom {})
+          new-out (fn [out]
+                    (on-output out)
+                    (when (nil? out) (remove-watch buffer :nrepl-evaluator)))
+          _ (.write conn (bencode/encode {:op :clone}) "binary")
+          session-id (capture-session-id! buffer)]
+    (add-watch buffer :nrepl-evaluator
+               (fn [_ _ _ [val]]
+                 (treat-socket-output! {:decode! decode!
+                                        :buffer buffer
+                                        :val val
+                                        :pending pending
+                                        :on-output new-out})))
+    {:evaluator (->Evaluator conn pending session-id)
+     :conn conn
+     :buffer buffer
+     :repl-kind :clj}))
