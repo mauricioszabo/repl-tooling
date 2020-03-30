@@ -46,6 +46,17 @@
     (wait-for #(and (not= old (:stdout @state))
                     (:stdout @state)))))
 
+(defn txt-for-selector [sel]
+  (str (some-> js/document
+               (.querySelector sel)
+               .-innerText
+               .trim)))
+
+(defn change-result []
+  (let [old (txt-for-selector "#result")]
+    (wait-for #(and (not= old (txt-for-selector "#result"))
+                    (txt-for-selector "#result")))))
+
 (defn handle-disconnect []
   (reset! (:eval-result @state) nil)
   (swap! state assoc
