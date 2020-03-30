@@ -4,7 +4,10 @@
             [check.core :refer [check] :as c]
             [clojure.core.async :as async]
             [check.async :refer [async-test await!]]
-            [repl-tooling.nrepl.bencode :as bencode]))
+            [repl-tooling.nrepl.bencode :as bencode]
+            [repl-tooling.integration.fake-editor :as editor]
+            [repl-tooling.editor-integration.connection :as conn]))
+            ; [repl-tooling.integrations.repls :as repls]))
 
 (cards/deftest bencode
   (testing "encode numbers"
@@ -12,6 +15,7 @@
 
   (testing "encode strings"
     (check (bencode/encode "foo") => "3:foo")
+    (check (bencode/encode "foo\n") => "4:foo\n")
     (check (bencode/encode "á") => "2:á"))
 
   (testing "encode keywords"
@@ -45,6 +49,8 @@
       (check (decode! "3:fo") => [])
       (check (decode! "o") => ["foo"])
 
+      (check (decode! "4:foo\n") => ["foo\n"])
+
       (check (decode! "1:") => [])
       (check (decode! "i") => ["i"]))
 
@@ -56,3 +62,33 @@
 
     (testing "decode nested data"
       (check (decode! "d1:a1:bi0eli0ei2eee") => [{"a" "b", 0 [0 2]}]))))
+
+(cards/defcard-rg fake-editor
+  editor/editor
+  editor/state)
+
+(cards/deftest nrepl-connection
+  (let [out (async/chan)]
+    (async-test "connecting to a nREPL REPL" {:timeout 8000
+                                              :teardown (do
+                                                          (swap! editor/state assoc
+                                                                 :port 2233)
+                                                          (async/close! out)
+                                                          (conn/disconnect!))}
+      (swap! editor/state assoc :port 3322)
+      (editor/connect! {:on-stderr #(swap! editor/state update :stdout
+                                           (fn [e] (str e "ERR: " %)))})
+      (await! (editor/wait-for #(-> @editor/state :repls :eval)))
+
+      (testing "evaluation works"
+        (editor/type-and-eval "(+ 2 3)")
+        (check (await! (editor/change-result)) => "5")
+        (is (not (re-find #"=>" (editor/txt-for-selector "#stdout")))))
+
+      (testing "STDOUT works"
+        (editor/type-and-eval "(prn :some-message)")
+        (check (await! (editor/change-stdout)) => #":some-message"))
+
+      (testing "STDERR works"
+        (editor/type-and-eval "(binding [*out* *err*] (prn :some-error))")
+        (check (await! (editor/change-stdout)) => #"ERR: :some-error")))))
