@@ -19,7 +19,7 @@
       (add-watch buffer :nrepl
                  (fn [_ _ _ [val]]
                    (remove-watch buffer :nrepl)
-                   (if (re-find #"^d\d+:.*:nreple" val)
+                   (if (re-find #"\d:new-session" val)
                      (p/resolve! p true)
                      (p/resolve! p false))))
       (p/resolve! p false))
@@ -51,7 +51,7 @@
 (defn connect-and-detect! [host port on-output]
     (p/let [{:keys [conn buffer]} (connection/connect! host port)
             _ (p/delay 2)
-            _ (.write conn (bencode/encode {:op :eval :code ":nrepl"}) "binary")
+            _ (.write conn (bencode/encode {:op :clone}) "binary")
             nrepl? (detect-nrepl buffer)]
       (if nrepl?
         (nrepl/repl-for conn buffer on-output)
