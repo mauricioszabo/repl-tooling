@@ -190,7 +190,7 @@
                       :editor/features (features-for state options :joker)}))
 
 (defn- prepare-generic [primary aux host port state options kind]
-  (when (= :clj kind)
+  (when (and (= :clj kind) (instance? clj-repl/Evaluator aux))
     (eval/evaluate aux ":aux-connected" {:ignore true} #(clj-repl/disable-limits! aux)))
 
   (swap! state merge {:clj/aux aux
