@@ -207,7 +207,7 @@
                            "Socket REPL started on this host/port")})
     (notify {:type :error
              :title "REPL not connected"
-             :message (str "Unknow error while connecting to the REPL: "
+             :message (str "Unknown error while connecting to the REPL: "
                            error)}))
   nil)
 
