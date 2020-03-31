@@ -18,7 +18,10 @@
                           (:row opts) (assoc :line (:row opts)))]
       (swap! pending assoc (str id) {:callback callback})
       (.write conn (bencode/encode full-op) "binary")
-      id)))
+      id))
+
+  (break [_ _]
+    (.write conn (bencode/encode {:op :interrupt :session session-id}) "binary")))
 
 (defn- treat-output! [pending on-output msg]
   (when-let [value (get msg "value" (get msg "ex"))]
