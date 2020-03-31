@@ -19,7 +19,7 @@
           res (async/promise-chan)
           clj (async/promise-chan)
           cljs (async/promise-chan)
-          a (. (conn/connect! "localhost" 2233
+          _ (. (conn/connect! "localhost" 2233
                               {:editor-data #(deref data)
                                :prompt (constantly (.resolve js/Promise "fixture"))
                                :on-disconnect identity
@@ -48,5 +48,4 @@
         (. (autocomplete) then #(async/put! cljs %))
         (check (async/<! cljs) => (embeds [{:candidate "foo", :type :local}
                                            {:candidate "for", :type :macro, :ns "cljs.core"}
-                                           {:candidate "force", :type :function, :ns "cljs.core"}])))
-      (async/<! (async/timeout 500)))))
+                                           {:candidate "force", :type :function, :ns "cljs.core"}]))))))
