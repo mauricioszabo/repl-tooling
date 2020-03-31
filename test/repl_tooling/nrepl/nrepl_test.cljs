@@ -91,4 +91,9 @@
 
       (testing "STDERR works"
         (editor/type-and-eval "(binding [*out* *err*] (prn :some-error))")
-        (check (await! (editor/change-stdout)) => #"ERR: :some-error")))))
+        (check (await! (editor/change-stdout)) => #"ERR: :some-error"))
+
+      (testing "break works"
+        (editor/type-and-eval "(Thread/sleep 1000)")
+        ((-> @editor/state :commands :break-evaluation :command))
+        (check (await! (editor/change-result)) => #"Interrupted")))))
