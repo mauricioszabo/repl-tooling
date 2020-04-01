@@ -57,29 +57,3 @@
                           (filter #(= (.-innerText %) link-label))
                           first)]
        (.click elem))))
-
-
-; (defn evaluate-cljs [nss code]
-;   (let [[v e] (->
-;                (shadow.cljs.devtools.server.worker/worker-request
-;                 (shadow.cljs.devtools.api/get-worker :integration)
-;                 {:type :repl-eval
-;                  :session-id "1234"
-;                  :input (str "(in-ns '" nss ") " code)})
-;                :results
-;                last
-;                :result
-;                ((juxt :value :error)))]
-;     {:error e
-;      :value (some-> v clojure.edn/read-string)}))
-;
-; (require '[suitable.js-completions :as js-c])
-; (js-c/cljs-completions evaluate-cljs
-;                        "fo"
-;                        {:ns "repl-tooling.features.autocomplete.compliment"
-;                         :context "(let [foo 10] __prefix__ )"})
-;
-; (require '[suitable.compliment.sources.cljs :as suit])
-; (binding [suit/*compiler-env*
-;           (shadow.cljs.devtools.api/compiler-env :integration)]
-;   (suit/candidates "js/go" 'cljs.user "(let [foo 10] __prefix__ )"))

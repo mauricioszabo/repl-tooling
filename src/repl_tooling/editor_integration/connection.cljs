@@ -207,7 +207,7 @@
                            "Socket REPL started on this host/port")})
     (notify {:type :error
              :title "REPL not connected"
-             :message (str "Unknow error while connecting to the REPL: "
+             :message (str "Unknown error while connecting to the REPL: "
                            error)}))
   nil)
 
@@ -297,7 +297,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
         aux (delay (repls/connect-repl! :clj-aux host port callback))]
 
     (.. primary
-        (then #(eval/eval (second %) ":connected"))
+        (then #(eval/eval (second %) "1234"))
         (then (constantly primary))
         (then (fn [[kind primary]]
                 (notify {:type :info

@@ -1,39 +1,61 @@
 (ns repl-tooling.integrations.repls
   (:require [repl-tooling.repl-client.connection :as connection]
+            [promesa.core :as p]
             [clojure.string :as str]
-            [clojure.core.async :include-macros true :as async]
+            [repl-tooling.nrepl.bencode :as bencode]
             [repl-tooling.repl-client.source :as source]
             [repl-tooling.repl-client.clojure :as clj]
+            [repl-tooling.repl-client.nrepl :as nrepl]
             [repl-tooling.eval :as eval]))
 
 ;; Detection
-(defn- detect-output-kind [row chan]
+(defn- detect-output-kind [row kind-p]
   (when-let [row-kind (re-find #":using-(.*)-repl" (str row))]
-    (async/put! chan (keyword (second row-kind)))))
+    (p/resolve! kind-p (keyword (second row-kind)))))
 
-(defn connect-and-detect! [host port]
-  (. (connection/connect! host port)
-    then
-    #(let [{:keys [conn buffer]} %
-           kind-chan (async/promise-chan)]
-       (js/setTimeout
-        (fn []
-          (.write conn (str "#?("
-                            ":bb :using-bb-repl "
-                            ":joker :using-joker-repl "
-                            ":clje :using-clje-repl "
-                            ":cljs :using-cljs-repl "
-                            ":cljr :using-cljr-repl "
-                            ":clj :using-clj-repl "
-                            ")\n"))))
-       (js/setTimeout
-        (fn []
-          (.write conn ":using-unknown-repl\n")))
-       {:conn conn
-        :buffer buffer
-        :control (connection/treat-buffer!
-                  buffer (fn [out] (detect-output-kind out kind-chan)) identity)
-        :repl-kind (js/Promise. (fn [resolve] (-> kind-chan async/<! resolve async/go)))})))
+(defn- detect-nrepl [buffer]
+  (let [p (p/deferred)]
+    (if (= [] @buffer)
+      (add-watch buffer :nrepl
+                 (fn [_ _ _ [val]]
+                   (remove-watch buffer :nrepl)
+                   (if (re-find #"\d:new-session" val)
+                     (p/resolve! p true)
+                     (p/resolve! p false))))
+      (p/resolve! p false))
+    p))
+
+(defn- detect-socket-kind [^js conn buffer]
+  (let [kind-p (p/deferred)]
+    (p/let [_ (.write conn "\n") ; Flush nREPL data detection
+            _ (delay 2)
+            _ (.write conn (str "#?("
+                                ":bb :using-bb-repl "
+                                ":joker :using-joker-repl "
+                                ":clje :using-clje-repl "
+                                ":cljs :using-cljs-repl "
+                                ":cljr :using-cljr-repl "
+                                ":clj :using-clj-repl "
+                                ")\n"))
+            _ (p/delay 2)
+            _ (.write conn ":using-unknown-repl\n")
+            control (connection/treat-buffer! buffer
+                                              #(detect-output-kind % kind-p)
+                                              identity)
+            kind kind-p]
+      {:conn conn
+       :buffer buffer
+       :control control
+       :repl-kind kind})))
+
+(defn connect-and-detect! [host port on-output]
+    (p/let [{:keys [conn buffer]} (connection/connect! host port)
+            _ (p/delay 2)
+            _ (.write conn (bencode/encode {:op :clone}) "binary")
+            nrepl? (detect-nrepl buffer)]
+      (if nrepl?
+        (nrepl/repl-for conn buffer on-output)
+        (detect-socket-kind conn buffer))))
 
 ;; REPLs
 (defn add-to-eval-queue [cmd-for command opts callback pending-evals eval-cmd]
@@ -113,13 +135,15 @@
 
 (defonce connections (atom {}))
 (defn connect-repl! [id host port on-output]
-  (.. (connect-and-detect! host port)
-      (then (fn [{:keys [conn control repl-kind buffer]}]
-              (ignore-output-on-control control repl-kind)
-              (swap! connections assoc id {:conn conn :buffer buffer})
-              (.then ^js repl-kind
-                     (fn [kind]
-                       [kind (instantiate-correct-evaluator kind conn control on-output)]))))))
+  (p/let [{:keys [conn control repl-kind buffer evaluator]}
+          (connect-and-detect! host port on-output)]
+
+    (swap! connections assoc id {:conn conn :buffer buffer})
+    (if evaluator
+      [repl-kind evaluator]
+      (do
+        (ignore-output-on-control control repl-kind)
+        [repl-kind (instantiate-correct-evaluator repl-kind conn control on-output)]))))
 
 (defn disconnect! [id]
   (when-let [{:keys [conn buffer]} ^js (get @connections id)]

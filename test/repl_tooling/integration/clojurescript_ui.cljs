@@ -148,6 +148,7 @@
                (.querySelector sel)
                .-innerText
                .trim)))
+
 (defn- change-result []
   (let [old (txt-for-selector "#result")]
     (wait-for #(and (not= old (txt-for-selector "#result"))
@@ -158,7 +159,6 @@
 
 (set! cards/test-timeout 8000)
 
-(txt-for-selector "#stdout")
 (cards/deftest repl-evaluation
   (async done
     (async/go

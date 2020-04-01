@@ -85,10 +85,14 @@
 
 (def cmd-for-watch (h/contents-for-fn "shadow_commands.clj" "watch-events"))
 (defn- redirect-output! [repl build-id]
-  (let [unrepl-cmd (clj-repl/unrepl-cmd (-> repl :session deref :state)
-                                        :patch-result
-                                        {:unrepl/id (symbol "%1")
-                                         :unrepl/result (symbol "%2")})]
+  (let [unrepl-cmd
+        (if (instance? clj-repl/Evaluator repl)
+          (clj-repl/unrepl-cmd (-> repl :session deref :state)
+                               :patch-result
+                               {:unrepl/id (symbol "%1")
+                                :unrepl/result (symbol "%2")})
+          '(clojure.core/prn (clojure.core/tagged-literal 'repl-tooling/patch
+                                                          [%1 %2])))]
     (eval/eval repl (str "(" cmd-for-watch " " build-id
                          " #" unrepl-cmd
                          ")"))))
