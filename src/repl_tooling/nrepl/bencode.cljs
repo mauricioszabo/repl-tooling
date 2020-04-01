@@ -41,10 +41,11 @@
 
       (re-find #"\d" f)
       (let [[_ c] (re-find #"^(\d+):" fragment)
-            re (re-pattern (str "(?s)^\\d*:(.{" c "})"))
-            [res value] (re-find re fragment)]
-        (if value
-          (recur (subs fragment (count res)) (conj acc value))
+            chars (js/parseInt c)
+            start (-> c count inc)
+            value (str (.slice (.from js/Buffer fragment) start (+ start chars)))]
+        (if (->> value (.byteLength js/Buffer) (= chars))
+          (recur (subs fragment (-> value count (+ start))) (conj acc value))
           [fragment acc]))
 
       :else
