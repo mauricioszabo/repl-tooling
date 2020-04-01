@@ -54,6 +54,9 @@
       (check (decode! "1:") => [])
       (check (decode! "i") => ["i"]))
 
+    (testing "decode multi-byte strings"
+      (check (decode! "2:á3:lá") => ["á" "lá"]))
+
     (testing "decode lists"
       (check (decode! "li0ei2ee") => [[0 2]]))
 
@@ -84,6 +87,10 @@
         (editor/type-and-eval "(+ 2 3)")
         (check (await! (editor/change-result)) => "5")
         (is (not (re-find #"=>" (editor/txt-for-selector "#stdout")))))
+
+      (testing "exception works"
+        (editor/type-and-eval "(/ 10 0)")
+        (check (await! (editor/change-result)) => #"java.lang.ArithmeticException"))
 
       (testing "STDOUT works"
         (editor/type-and-eval "(prn :some-message)")

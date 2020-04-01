@@ -24,11 +24,15 @@
     (.write conn (bencode/encode {:op :interrupt :session session-id}) "binary")))
 
 (defn- treat-output! [pending on-output msg]
-  (when-let [value (get msg "value" (get msg "ex"))]
-    (let [{:keys [callback]} (get @pending (get msg "id"))
-          key (if (contains? msg "value") :result :error)]
-      (when callback
-        (callback {key value :as-text value})
+  (when-let [value (get msg "value")]
+    (when-let [{:keys [callback]} (get @pending (get msg "id"))]
+      (callback {:result value :as-text value})
+      (swap! pending dissoc)))
+
+  (when-let [value (get msg "ex")]
+    (when-let [{:keys [callback]} (get @pending (get msg "id"))]
+      (let [value (->> value (tagged-literal 'repl-tooling/literal-render) pr-str)]
+        (callback {:error value :as-text value})
         (swap! pending dissoc))))
 
   (when (some #{"interrupted"} (get msg "status"))
