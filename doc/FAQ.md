@@ -36,6 +36,8 @@ A block is _almost_ the same as a form in Clojure. There are specifics for detec
 ### Why not nREPL?
 nREPL is a great tool, and it'll probably help solve lots of problems that I'm having right now while developing (mostly about "cutting the output" and "detecting evaluation results"). The problem with nREPL is that is Clojure-only. There are some implementations for other languages, but they are outdated, don't work, or need a specific dependency. This library uses the "bare minimum" to work on most implementations, so porting to a new runtime is really easy too.
 
+Now, Chlorine does have support for nREPL too, but again the target of the project is to connect to most Clojure implementations that's possible. Adding support for nREPL also adds supports for MORE languages, but it'll probably never be the target of this project to support custom middlewares or other advanced nREPL features
+
 ### Will you support prepl?
 Short answer: no.
 
