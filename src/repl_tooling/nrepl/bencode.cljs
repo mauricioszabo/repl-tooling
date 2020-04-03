@@ -68,6 +68,3 @@ Ex:
       (let [[rest parsed] (decode-fragment @state [])]
         (reset! state rest)
         parsed))))
-
-(encode {:op :eval :code "(+ 1 2)"})
-(encode {:op :clone})
