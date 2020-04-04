@@ -51,7 +51,7 @@
 (defn connect-and-detect! [host port on-output]
     (p/let [{:keys [conn buffer]} (connection/connect! host port)
             _ (p/delay 2)
-            _ (.write conn (bencode/encode {:op :clone}) "binary")
+            _ (.write conn (bencode/encode {:id "new-session" :op :clone}) "binary")
             nrepl? (detect-nrepl buffer)]
       (if nrepl?
         (nrepl/repl-for conn buffer on-output)
