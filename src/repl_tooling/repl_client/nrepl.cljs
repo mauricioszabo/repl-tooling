@@ -44,26 +44,13 @@
   (when-let [out (get msg "err")]
     (on-output {:err out})))
 
-(defn- treat-socket-output! [{:keys [pending decode! buffer val on-output]}]
+(defn- treat-socket-output! [{:keys [decode! buffer val treat on-output]}]
   (when (= :closed val)
     (on-output nil))
   (when val
     (swap! buffer subvec 1)
     (doseq [result (decode! val)]
-      (treat-output! pending on-output result))))
-
-(defn- capture-session-id! [buffer]
-  (let [decode! (bencode/decoder)
-        p (p/deferred)]
-    (add-watch buffer :nrepl-evaluator-session
-               (fn [_ _ _ [val]]
-                 (when val
-                   (swap! buffer subvec 1)
-                   (doseq [result (decode! val)]
-                     (when-let [session-id (get result "new-session")]
-                       (remove-watch buffer :nrepl-evaluator-session)
-                       (p/resolve! p session-id))))))
-    p))
+      (treat result))))
 
 (def ^:private detection (str "#?("
                               ":bb :bb "
@@ -75,24 +62,48 @@
                               ":default :unknown"
                               ")"))
 
+(defn- callback-fns []
+  (let [calls (atom #{})]
+    [calls
+     (fn [arg]
+       (doseq [call @calls]
+         (call arg)))]))
+
+(defn- wait-for [calls id timeout]
+  (let [p (p/deferred)
+        f (fn [msg]
+            (when (= id (get msg "id"))
+              (p/resolve! p msg)))]
+    (swap! calls conj f)
+    (p/do!
+     (p/delay timeout)
+     (swap! calls disj f)
+     (p/reject! p :timeout))
+    p))
+
+(defn- session-for [buffer on-output]
+  (let [decode! (bencode/decoder)
+        pending (atom {})
+        new-out (fn [out]
+                  (on-output out)
+                  (when (nil? out) (remove-watch buffer :nrepl-evaluator)))
+        [calls callback] (callback-fns)
+        session-msg (wait-for calls "new-session" 1000)]
+    (swap! calls conj #(treat-output! pending new-out %))
+    (add-watch buffer :nrepl-evaluator
+               (fn [_ _ _ [val]]
+                 (treat-socket-output! {:decode! decode!
+                                        :buffer buffer
+                                        :val val
+                                        :treat callback
+                                        :on-output new-out})))
+    (swap! buffer identity)
+    (p/then session-msg
+            #(vector pending %))))
+
 (defn repl-for [^js conn buffer on-output]
-  (p/let [decode! (bencode/decoder)
-          pending (atom {})
-          new-out (fn [out]
-                    (on-output out)
-                    (when (nil? out) (remove-watch buffer :nrepl-evaluator)))
-          session-id (->> @buffer
-                          first
-                          decode!
-                          (some #(get % "new-session")))
-          _ (reset! buffer [])
-          _ (add-watch buffer :nrepl-evaluator
-                       (fn [_ _ _ [val]]
-                         (treat-socket-output! {:decode! decode!
-                                                :buffer buffer
-                                                :val val
-                                                :pending pending
-                                                :on-output new-out})))
+  (p/let [[pending session-msg] (session-for buffer on-output)
+          session-id (get session-msg "new-session")
           evaluator (->Evaluator conn pending session-id)
           repl-kind (-> (eval/eval evaluator detection)
                         (p/then :result)
