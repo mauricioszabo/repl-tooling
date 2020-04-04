@@ -19,7 +19,7 @@
       (add-watch buffer :nrepl
                  (fn [_ _ _ [val]]
                    (remove-watch buffer :nrepl)
-                   (if (re-find #"\d:new-session" val)
+                   (if (re-find #"^d\d" val)
                      (p/resolve! p true)
                      (p/resolve! p false))))
       (p/resolve! p false))
