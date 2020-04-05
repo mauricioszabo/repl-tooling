@@ -19,7 +19,7 @@
                   "        drv  (clojure.string/lower-case (subs path 0 1))"
                   ;; ...and map to a Windows Subsystem for Linux mount path:
                   "        path (if (and nix? win?) (str \"/mnt/\" drv (subs path 2)) path)]"
-                  "   (load-file path))"
+                  "   (clojure.core/load-file path))"
                   "  (catch Throwable t"
                   "   (doseq [e (:via (Throwable->map t))]"
                   "    (println (:message e))))))")]
@@ -30,7 +30,7 @@
 
 (defn- do-load-file-simple [filename repl notify]
   (let [filename (str/replace filename "\\" "/")
-        code (str "(load-file \"" filename "\")")]
+        code (str "(clojure.core/load-file \"" filename "\")")]
     (eval/evaluate repl
                    code
                    {}
