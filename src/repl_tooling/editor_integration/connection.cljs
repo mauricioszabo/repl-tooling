@@ -4,7 +4,6 @@
             [clojure.string :as str]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
-            [clojure.walk :as walk]
             [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.editor-integration.loaders :as loaders]
             [repl-tooling.editor-integration.evaluation :as e-eval]
@@ -15,6 +14,7 @@
             [repl-tooling.editor-integration.definition :as definition]
             [repl-tooling.editor-integration.doc :as doc]
             [repl-tooling.editor-integration.schemas :as schemas]
+            [repl-tooling.repl-client.nrepl :as nrepl]
             [schema.core :as s]
             [paprika.schemas :as schema :include-macros true]))
 
@@ -300,11 +300,14 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
            callback (partial callback-fn state options)
            [kind primary] (repls/connect-repl! :clj-eval host port callback)
            _ (eval/eval primary "1234")
-           [_ aux] (case kind
-                     :cljs (prepare-cljs primary host port state options)
-                     :joker (prepare-joker primary host port state options)
-                     (p/let [[_ aux] (repls/connect-repl! :clj-aux host port callback)]
-                       (prepare-generic primary aux host port state options kind)))]
-     (notify {:type :info :title (str (tr-kind kind) " REPL Connected")})
+           aux (case kind
+                 :cljs (prepare-cljs primary host port state options)
+                 :joker (prepare-joker primary host port state options)
+                 (p/let [[_ aux] (repls/connect-repl! :clj-aux host port callback)]
+                   (prepare-generic primary aux host port state options kind)))
+           nrepl? (instance? nrepl/Evaluator primary)]
+     (notify {:type :info :title (str (tr-kind kind)
+                                      (if nrepl? " nREPL" " socket REPL")
+                                      " Connected")})
      state)
    #(connection-error! % notify)))
