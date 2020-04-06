@@ -7,7 +7,6 @@
             [repl-tooling.nrepl.bencode :as bencode]
             [repl-tooling.integration.fake-editor :as editor]
             [repl-tooling.editor-integration.connection :as conn]))
-            ; [repl-tooling.integrations.repls :as repls]))
 
 (cards/deftest bencode
   (testing "encode numbers"

@@ -1,9 +1,9 @@
 (ns repl-tooling.editor-integration.connection
   (:require [reagent.core :as r]
+            [promesa.core :as p]
             [clojure.string :as str]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
-            [clojure.walk :as walk]
             [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.editor-integration.loaders :as loaders]
             [repl-tooling.editor-integration.evaluation :as e-eval]
@@ -14,6 +14,7 @@
             [repl-tooling.editor-integration.definition :as definition]
             [repl-tooling.editor-integration.doc :as doc]
             [repl-tooling.editor-integration.schemas :as schemas]
+            [repl-tooling.repl-client.nrepl :as nrepl]
             [schema.core :as s]
             [paprika.schemas :as schema :include-macros true]))
 
@@ -200,15 +201,18 @@
                       :editor/features (features-for state options kind)}))
 
 (defn- connection-error! [error notify]
+  (disconnect!)
   (if (= "ECONNREFUSED" error)
     (notify {:type :error
              :title "REPL not connected"
              :message (str "Connection refused. Ensure that you have a "
                            "Socket REPL started on this host/port")})
-    (notify {:type :error
-             :title "REPL not connected"
-             :message (str "Unknown error while connecting to the REPL: "
-                           error)}))
+    (do
+      (notify {:type :error
+               :title "REPL not connected"
+               :message (str "Unknown error while connecting to the REPL: "
+                             error)})
+      (.error js/console error)))
   nil)
 
 (defn- callback-fn [state callbacks output]
@@ -290,25 +294,20 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
   [host :- s/Str
    port :- s/Int
    {:keys [notify] :as opts} :- s/Any]
-  (let [options (-> default-opts (merge opts) prepare-patch)
-        state (r/atom {:editor/callbacks options})
-        callback (partial callback-fn state options)
-        primary (repls/connect-repl! :clj-eval host port callback)
-        aux (delay (repls/connect-repl! :clj-aux host port callback))]
-
-    (.. primary
-        (then #(eval/eval (second %) "1234"))
-        (then (constantly primary))
-        (then (fn [[kind primary]]
-                (notify {:type :info
-                         :title (str (tr-kind kind) " REPL Connected")})
-                (.. js/Promise
-                    (resolve
-                     (case kind
-                       :cljs (prepare-cljs primary host port state options)
-                       :joker (prepare-joker primary host port state options)
-                       (.then @aux (fn [[_ aux]]
-                                     (prepare-generic primary aux host port state
-                                                      options kind)))))
-                    (then (fn [] state)))))
-        (catch #(connection-error! % notify)))))
+  (p/catch
+   (p/let [options (-> default-opts (merge opts) prepare-patch)
+           state (r/atom {:editor/callbacks options})
+           callback (partial callback-fn state options)
+           [kind primary] (repls/connect-repl! :clj-eval host port callback)
+           _ (eval/eval primary "1234")
+           aux (case kind
+                 :cljs (prepare-cljs primary host port state options)
+                 :joker (prepare-joker primary host port state options)
+                 (p/let [[_ aux] (repls/connect-repl! :clj-aux host port callback)]
+                   (prepare-generic primary aux host port state options kind)))
+           nrepl? (instance? nrepl/Evaluator primary)]
+     (notify {:type :info :title (str (tr-kind kind)
+                                      (if nrepl? " nREPL" " socket REPL")
+                                      " Connected")})
+     state)
+   #(connection-error! % notify)))
