@@ -15,7 +15,8 @@
   (testing "encode strings"
     (check (bencode/encode "foo") => "3:foo")
     (check (bencode/encode "foo\n") => "4:foo\n")
-    (check (bencode/encode "á") => "2:á"))
+    (check (bencode/encode "á") => "2:á")
+    (check (bencode/encode "Здравей, Свят!") => "25:Здравей, Свят!"))
 
   (testing "encode keywords"
     (check (bencode/encode :foo) => "3:foo")
@@ -45,7 +46,9 @@
       (check (decode! "0ei20e") => [210 20]))
 
     (testing "decode strings"
-      (check (decode! "3:fo") => [])
+      (check (decode! "3") => [])
+      (check (decode! ":") => [])
+      (check (decode! "fo") => [])
       (check (decode! "o") => ["foo"])
 
       (check (decode! "4:foo\n") => ["foo\n"])
@@ -57,13 +60,13 @@
       (check (decode! "2:á3:lá") => ["á" "lá"]))
 
     (testing "decode lists"
-      (check (decode! "li0ei2ee") => [[0 2]]))
+      (check (decode! "li0ei2ee") => [[0 2]]))))
 
-    (testing "decode maps"
-      (check (decode! "d1:a1:be") => [{"a" "b"}]))
-
-    (testing "decode nested data"
-      (check (decode! "d1:a1:bi0eli0ei2eee") => [{"a" "b", 0 [0 2]}]))))
+    ; (testing "decode maps"
+    ;   (check (decode! "d1:a1:be") => [{"a" "b"}]))
+    ;
+    ; (testing "decode nested data"
+    ;   (check (decode! "d1:a1:bi0eli0ei2eee") => [{"a" "b", 0 [0 2]}]))))
 
 (cards/defcard-rg fake-editor
   editor/editor
