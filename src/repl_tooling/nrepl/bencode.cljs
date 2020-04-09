@@ -140,6 +140,75 @@
       :else
       (decode-leaf state fragment f))))
 
+(defn- remove-chars [state char-size]
+  (swap! state update :buffer subs char-size))
+
+(defn- parse-int [state fragment]
+  (let [buffer (:buffer @state)
+        total (str fragment buffer)
+        [res number term?] (re-find #"(\-?\d+)(e)?" total)]
+    (prn :INT res number term? total)
+    (cond
+      term?
+      (do
+        (->> buffer (re-find #"\-?\d+e") count (remove-chars state))
+        (js/parseInt number))
+
+      res
+      (do
+        (remove-chars state (count buffer))
+        #(parse-int state total))
+
+      :else
+      (throw (ex-info "Error parsing INT" {:string total})))))
+
+(declare decode-one)
+(defn- parse-list [state acc]
+  (prn :PARSING-LIST acc @state)
+  (if (-> @state :buffer first (= "e"))
+    (do (remove-chars state 1) acc)
+    (let [result (decode-one state)]
+      (if (fn? result)
+        nil
+        (recur state (conj acc result))))))
+
+(defn- remove-chars-and-continue [state char-size cont]
+  (remove-chars state char-size)
+  (cont state))
+
+(defn- decode-one [state]
+  (let [fragment (:buffer @state)
+        f (first fragment)]
+    (cond
+      (= "i" f)
+      (remove-chars-and-continue state 1 #(parse-int % ""))
+
+      (= "l" f)
+      (remove-chars-and-continue state 1 #(parse-list % []))
+
+      :else
+      (throw (ex-info "Garbage on parsing bencode" {:string fragment})))))
+
+; Tries to use continuations to decode
+(defn- decode-cont [state acc]
+  (prn :DECODE-CONT :ACC acc :STATE @state)
+  (if (= "" (:buffer @state))
+    acc
+    (let [cont (:cont @state)
+          fragment (:buffer @state)
+          f (first fragment)
+          res (if cont
+                (cont)
+                (decode-one state))]
+
+      (if (fn? res)
+        (do
+          (swap! state assoc :cont res)
+          [])
+        (do
+          (swap! state assoc :cont nil)
+          (recur state (conj acc res)))))))
+
 (defn decoder
   "Starts a stateful decoder. It will return a function that accepts one parameter
 (a string) and it'll try to decode it as a BEncode value. It'll return the BEncode
@@ -151,13 +220,11 @@ Ex:
   (is (= [] (decode! \"i1\")))
   (is (= [10] (decode! \"0e\"))))"
   []
-  (let [state (atom {:buffer "" :status [] :list-status [] :acc-str ""})]
+  (let [state (atom {:buffer "" :cont nil})]
     (fn [fragment]
       (println "\nAdding fragment" fragment)
-      (swap! state #(-> %
-                        (update :buffer str fragment)
-                        (assoc :acc [] :level 0)))
-      (doto (decode-sm state)
+      (swap! state update :buffer str fragment)
+      (doto (decode-cont state [])
             (println "\n" :FINAL-STATE (pr-str @state))))))
 
 

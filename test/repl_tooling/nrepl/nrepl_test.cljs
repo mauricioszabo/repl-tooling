@@ -35,32 +35,51 @@
 
 (cards/deftest decode
   (let [decode! (bencode/decoder)]
-
+    (check (decode! "") => [])
     (testing "decode numbers"
       (check (decode! "i210e") => [210])
       (check (decode! "i-210e") => [-210])
       (check (decode! "i21ei20e") => [21 20]))
 
     (testing "decode partially"
-      (check (decode! "i21") => [])
-      (check (decode! "0ei20e") => [210 20]))
+      (check (decode! "i2") => [])
+      (check (decode! "1") => [])
+      (check (decode! "0ei20e") => [210 20]))))
 
-    (testing "decode strings"
-      (check (decode! "3") => [])
-      (check (decode! ":") => [])
-      (check (decode! "fo") => [])
-      (check (decode! "o") => ["foo"])
+    ; (testing "decode strings"
+    ;   (check (decode! "3") => [])
+    ;   (check (decode! ":") => [])
+    ;   (check (decode! "fo") => [])
+    ;   (check (decode! "o") => ["foo"])
+    ;
+    ;   (check (decode! "4:foo\n") => ["foo\n"])
+    ;
+    ;   (check (decode! "1:") => [])
+    ;   (check (decode! "i") => ["i"]))
+    ;
+    ; (testing "decode multi-byte strings"
+    ;   (check (decode! "2:á3:lé") => ["á" "lé"]))
 
-      (check (decode! "4:foo\n") => ["foo\n"])
+(cards/deftest decode-lists
+  (let [decode! (bencode/decoder)]
+    (testing "full lists"
+      (check (decode! "le") => [[]])
+      (check (decode! "llee") => [[[]]])
+      (check (decode! "llei10ee") => [[[] 10]]))
 
-      (check (decode! "1:") => [])
-      (check (decode! "i") => ["i"]))
+    (testing "multiple lists"
+      (check (decode! "llei10eeli12ee") => [[[] 10] [12]]))
 
-    (testing "decode multi-byte strings"
-      (check (decode! "2:á3:lá") => ["á" "lá"]))
-
-    (testing "decode lists"
-      (check (decode! "li0ei2ee") => [[0 2]]))))
+    (testing "lazily decode lists"
+      (check (decode! "l") => [])
+      (check (decode! "e") => [[]]))))
+    ;   ; (check (decode! "li0ei2ee") => [[0 2]])
+    ;   (check (decode! "l") => [])
+    ;   (check (decode! "l") => [])
+    ;   (check (decode! "i1") => [])
+    ;   (check (decode! "1e") => [])
+    ;   (check (decode! "l") => [])
+    ;   (check (decode! "l") => [[[11]]]))))
 
     ; (testing "decode maps"
     ;   (check (decode! "d1:a1:be") => [{"a" "b"}]))
