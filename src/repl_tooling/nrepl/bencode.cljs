@@ -51,58 +51,29 @@
       :else
       [fragment acc])))
 
-(defn- accumulate [state result]
-  (-> state
-      (assoc-in (cons :acc (:level state)) result)))
-
-; (defn- change-status [state status acc-str buffer-size]
-;   (swap! state #(cond-> (update % :buffer subs buffer-size)
-;                         acc-str (update :acc-str str acc-str)
-;                         status (update :status conj status))))
-;
-; (defn- clear-status [state result]
-;   (let [level (:level @state)]
-;     (swap! state #(-> %
-;                       (assoc :acc-str "")
-;                       (update :status pop)
-;                       (accumulate result)
-;                       (update-in [:level (-> level count dec)] inc)))))
 (defn- change-status [state status acc-str buffer-size]
   (swap! state #(-> %
-                    (update :leaf-status conj status)
+                    (assoc :leaf-status status)
                     (update :acc-str str acc-str)
                     (update :buffer subs buffer-size))))
 
 (defn- clear-status [state result]
   (swap! state #(-> %
-                    (assoc :acc-str "")
-                    (update :leaf-status empty)
+                    (assoc :acc-str "" :leaf-status nil)
                     (update :acc conj result))))
 
-; FIXME: Remove this
-(defn debug-step [state]
-  (let [fragment (:buffer @state)
-        status (-> @state :status (get (-> @state :level count dec)))
-        f (first fragment)]
-    (prn :F f :level (-> @state :level count) :status status :FRAG fragment)))
-
 (declare decode-sm)
-(defn- decode-leaf [state]
-  (let [fragment (:buffer @state)
-        status (-> @state :leaf-status first)
-        f (first fragment)]
+(defn- decode-leaf [state fragment f]
+  (let [status (:leaf-status @state)]
+    (prn :DECODING-LEAF status @state)
     (cond
-      (= "" fragment)
-      (let [acc (:acc @state)]
-        (swap! state assoc :acc [])
-        acc)
-
       (and (nil? status) (re-find #"\d" f))
       (let [[_ c term?] (re-find #"^(\d+)(:)" fragment)
             bytes (-> c js/parseInt delay)
             start (-> c count inc delay)]
         (if term?
           (do
+            (prn :WAT? @start)
             (change-status state :s "" @start)
             (swap! state assoc :acc-bytes 0 :bytes-expected @bytes)
             (decode-sm state))
@@ -111,12 +82,14 @@
       (= :s status)
       (let [{:keys [bytes-expected acc-bytes]} @state
             cut-frag (.. Buffer (from fragment) (slice 0 (- bytes-expected acc-bytes)))
+            _ (prn :CUT cut-frag)
             curr-bytes (+ acc-bytes (.-length cut-frag))
             cut-str (str cut-frag)]
         (swap! state #(-> %
                           (assoc :acc-bytes curr-bytes)
                           (update :acc-str str cut-str)
                           (update :buffer subs (count cut-str))))
+        (prn :AND? curr-bytes bytes-expected)
         (when (= curr-bytes bytes-expected)
           (clear-status state (:acc-str @state)))
         (decode-sm state))
@@ -132,7 +105,40 @@
       (throw (ex-info "Garbage on parsing bencode" {:string fragment})))))
 
 (defn- decode-sm [state]
-  (decode-leaf state))
+  (let [level (:level @state)
+        fragment (:buffer @state)
+        f (first fragment)]
+    (prn :DECODING @state)
+    (cond
+      (= "" fragment)
+      (let [acc (:acc @state)]
+        (prn :THE-END acc)
+        (swap! state assoc :acc [])
+        acc)
+
+      (:leaf-status @state)
+      (decode-leaf state fragment f)
+
+      (#{"l" "m"} f)
+      (do
+        (swap! state #(-> %
+                          (update :buffer subs 1)
+                          (update :level inc)
+                          (update :list-status conj (keyword f))
+                          (assoc :list-acc [])
+                          (update :buffer subs 1)))
+        (recur state))
+
+      (-> @state :list-status (get level) (= :l))
+      (if (= "e" f)
+        (let [result (decode-sm state)]
+          (swap! state #(-> %
+                            (update :list-acc conj result)
+                            (update :buffer subs 1)))
+          (:list-acc @state)))
+
+      :else
+      (decode-leaf state fragment f))))
 
 (defn decoder
   "Starts a stateful decoder. It will return a function that accepts one parameter
@@ -145,19 +151,14 @@ Ex:
   (is (= [] (decode! \"i1\")))
   (is (= [10] (decode! \"0e\"))))"
   []
-  ; (let [state (atom "")]
-  (let [state (atom {:buffer "" :status [] :acc-str ""})]
+  (let [state (atom {:buffer "" :status [] :list-status [] :acc-str ""})]
     (fn [fragment]
       (println "\nAdding fragment" fragment)
-      ; (swap! state str fragment)
       (swap! state #(-> %
                         (update :buffer str fragment)
-                        (assoc :acc [])))
+                        (assoc :acc [] :level 0)))
       (doto (decode-sm state)
             (println "\n" :FINAL-STATE (pr-str @state))))))
-      ; (let [[rest parsed] (decode-fragment @state [])]
-      ;   (reset! state rest)
-      ;   parsed))))
 
 
 (defn old-decoder
