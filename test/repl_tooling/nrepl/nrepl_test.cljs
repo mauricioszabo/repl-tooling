@@ -44,21 +44,29 @@
     (testing "decode partially"
       (check (decode! "i2") => [])
       (check (decode! "1") => [])
-      (check (decode! "0ei20e") => [210 20]))))
+      (check (decode! "0ei20e") => [210 20]))
 
-    ; (testing "decode strings"
-    ;   (check (decode! "3") => [])
-    ;   (check (decode! ":") => [])
-    ;   (check (decode! "fo") => [])
-    ;   (check (decode! "o") => ["foo"])
-    ;
-    ;   (check (decode! "4:foo\n") => ["foo\n"])
-    ;
-    ;   (check (decode! "1:") => [])
-    ;   (check (decode! "i") => ["i"]))
-    ;
-    ; (testing "decode multi-byte strings"
-    ;   (check (decode! "2:á3:lé") => ["á" "lé"]))
+    (testing "decode strings"
+      (check (decode! "0:") => [""])
+      (check (decode! "3:foo") => ["foo"])
+
+      (check (decode! "0") => [])
+      (check (decode! ":") => [""])
+
+      (check (decode! "3") => [])
+      (check (decode! ":") => [])
+      (check (decode! "fo") => [])
+      (check (decode! "o") => ["foo"])
+
+      (check (decode! "4:foo\n") => ["foo\n"])
+
+      (check (decode! "1:") => [])
+      (check (decode! "i") => ["i"])
+      (check (decode! "1:") => [])
+      (check (decode! "i") => ["i"]))
+
+    (testing "decode multi-byte strings"
+      (check (decode! "2:á3:lé") => ["á" "lé"]))))
 
 (cards/deftest decode-lists
   (let [decode! (bencode/decoder)]
@@ -72,20 +80,25 @@
 
     (testing "lazily decode lists"
       (check (decode! "l") => [])
-      (check (decode! "e") => [[]]))))
-    ;   ; (check (decode! "li0ei2ee") => [[0 2]])
-    ;   (check (decode! "l") => [])
-    ;   (check (decode! "l") => [])
-    ;   (check (decode! "i1") => [])
-    ;   (check (decode! "1e") => [])
-    ;   (check (decode! "l") => [])
-    ;   (check (decode! "l") => [[[11]]]))))
+      (check (decode! "e") => [[]])
 
-    ; (testing "decode maps"
-    ;   (check (decode! "d1:a1:be") => [{"a" "b"}]))
-    ;
-    ; (testing "decode nested data"
-    ;   (check (decode! "d1:a1:bi0eli0ei2eee") => [{"a" "b", 0 [0 2]}]))))
+      (check (decode! "li0") => [])
+      (check (decode! "ei") => [])
+      (check (decode! "2ee") => [[0 2]]))
+
+    (testing "lazily decode multiple lists"
+      (check (decode! "li0ei2") => [])
+      (check (decode! "eelli10eee") => [[0 2] [[10]]]))
+
+    (testing "decode maps"
+      (check (decode! "de") => [{}])
+      (check (decode! "di10ei20eli11eedi99ei98eee") => [{10 20, [11] {99 98}}]))
+
+    (testing "decode maps"
+      (check (decode! "d1:a1:be") => [{"a" "b"}]))
+
+    (testing "decode nested data"
+      (check (decode! "d1:a1:bi0eli0ei2eee") => [{"a" "b", 0 [0 2]}]))))
 
 (cards/defcard-rg fake-editor
   editor/editor

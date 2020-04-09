@@ -161,9 +161,30 @@
       :else
       (throw (ex-info "Error parsing INT" {:string total})))))
 
+(defn- extract-string
+  "Extracts string. Accumulates in acc-str, counts how many bytes are accumulated (on
+acc-bytes), until the total (bytes-expected) is fulfilled"
+  [state acc-str bytes-expected acc-bytes]
+  (let [fragment (:buffer @state)
+        cut-frag (.. Buffer (from fragment) (slice 0 (- bytes-expected acc-bytes)))
+        curr-bytes (+ acc-bytes (.-length cut-frag))
+        cut-str (str cut-frag)]
+    (remove-chars state (count cut-str))
+    (if (= curr-bytes bytes-expected)
+      (str acc-str cut-str)
+      #(extract-string state (str acc-str cut-str) bytes-expected curr-bytes))))
+
+(defn- parse-str [state fragment]
+  (let [buffer (:buffer @state)
+        total (str fragment buffer)
+        [res number term?] (re-find #"^(\d+)(:)?" total)]
+    (->> buffer (re-find #"\d*:?") count (remove-chars state))
+    (if term?
+      (extract-string state "" (js/parseInt number) 0)
+      #(parse-str state total))))
+
 (declare decode-one)
 (defn- parse-list [state acc]
-  (prn :PARSING-LIST acc @state)
   (let [inner (fn decode-inner [result]
                 (if (fn? result)
                   #(decode-inner (result))
@@ -178,6 +199,13 @@
       :else
       (inner (decode-one state)))))
 
+(defn- parse-map [state acc]
+  (let [inner (fn decode-inner [result]
+                (if (fn? result)
+                  #(decode-inner (result))
+                  (apply hash-map result)))]
+    (inner (parse-list state acc))))
+
 (defn- remove-chars-and-continue [state char-size cont]
   (remove-chars state char-size)
   (cont state))
@@ -189,15 +217,20 @@
       (= "i" f)
       (remove-chars-and-continue state 1 #(parse-int % ""))
 
+      (re-find #"\d" f)
+      (parse-str state "")
+
       (= "l" f)
       (remove-chars-and-continue state 1 #(parse-list % []))
+
+      (= "d" f)
+      (remove-chars-and-continue state 1 #(parse-map % []))
 
       :else
       (throw (ex-info "Garbage on parsing bencode" {:string fragment})))))
 
 ; Tries to use continuations to decode
 (defn- decode-cont [state acc]
-  (prn :DECODE-CONT :ACC acc :STATE @state)
   (if (= "" (:buffer @state))
     acc
     (let [cont (:cont @state)
@@ -228,11 +261,8 @@ Ex:
   []
   (let [state (atom {:buffer "" :cont nil})]
     (fn [fragment]
-      (println "\nAdding fragment" fragment)
       (swap! state update :buffer str fragment)
-      (doto (decode-cont state [])
-            (println "\n" :FINAL-STATE (pr-str @state))))))
-
+      (decode-cont state []))))
 
 (defn old-decoder
   []
