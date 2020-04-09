@@ -146,12 +146,11 @@
 (defn- parse-int [state fragment]
   (let [buffer (:buffer @state)
         total (str fragment buffer)
-        [res number term?] (re-find #"(\-?\d+)(e)?" total)]
-    (prn :INT res number term? total)
+        [res number term?] (re-find #"(\-?\d*)(e)?" total)]
     (cond
       term?
       (do
-        (->> buffer (re-find #"\-?\d+e") count (remove-chars state))
+        (->> buffer (re-find #"\-?\d*e") count (remove-chars state))
         (js/parseInt number))
 
       res
@@ -165,12 +164,19 @@
 (declare decode-one)
 (defn- parse-list [state acc]
   (prn :PARSING-LIST acc @state)
-  (if (-> @state :buffer first (= "e"))
-    (do (remove-chars state 1) acc)
-    (let [result (decode-one state)]
-      (if (fn? result)
-        nil
-        (recur state (conj acc result))))))
+  (let [inner (fn decode-inner [result]
+                (if (fn? result)
+                  #(decode-inner (result))
+                  (parse-list state (conj acc result))))]
+    (cond
+      (-> @state :buffer first (= "e"))
+      (do (remove-chars state 1) acc)
+
+      (-> @state :buffer (= ""))
+      #(parse-list state acc)
+
+      :else
+      (inner (decode-one state)))))
 
 (defn- remove-chars-and-continue [state char-size cont]
   (remove-chars state char-size)
