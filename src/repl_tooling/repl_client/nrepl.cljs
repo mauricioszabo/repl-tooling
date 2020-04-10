@@ -26,6 +26,7 @@
 (defn- treat-output! [pending on-output msg]
   (when-let [value (get msg "value")]
     (when-let [{:keys [callback]} (get @pending (get msg "id"))]
+      ; (callback {:result "\"[1 2 3 4]\"" :as-text ""})
       (callback {:result value :as-text value})
       (swap! pending dissoc)))
 
@@ -45,12 +46,12 @@
     (on-output {:err out})))
 
 (defn- treat-socket-output! [{:keys [decode! buffer val treat on-output]}]
-  (when (= :closed val)
-    (on-output nil))
-  (when val
-    (swap! buffer subvec 1)
-    (doseq [result (decode! val)]
-      (treat result))))
+  (if (= :closed val)
+    (on-output nil)
+    (when val
+      (swap! buffer subvec 1)
+      (doseq [result (decode! val)]
+        (treat result)))))
 
 (def ^:private detection (str "#?("
                               ":bb :bb "
