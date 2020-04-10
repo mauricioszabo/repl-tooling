@@ -1,8 +1,10 @@
 (ns repl-tooling.features.definition
-  (:require [repl-tooling.eval :as eval]
+  (:require [clojure.string :as str]
+            [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as editor-helpers]
             [promesa.core :as p]
-            ["fs" :as fs]))
+            ["fs" :as fs]
+            ["os" :refer [platform]]))
 
 (defn- cmd-for-read-jar [jar-file-name]
   `(~'clojure.core/let [[jar# path#] (~'clojure.string/split ~jar-file-name #"!/" 2)
@@ -62,6 +64,11 @@
           with-contents (or with-contents (from-clr repl meta))]
     (or with-contents (throw "Error"))))
 
+(defn- norm-result [file-name]
+  (cond-> file-name
+          (and (re-find #"win" (platform)))
+          (str/replace-first #"^/" "")))
+
 (defn find-var-definition [cljs-repl clj-aux ns-name symbol-name]
   (p/let [cmd (str "(clojure.core/->> `" symbol-name " "
                    "clojure.core/resolve "
@@ -71,5 +78,9 @@
                    ")")
           meta (eval/eval cljs-repl cmd {:namespace ns-name :ignore true})
           meta (select-keys (:result meta)
-                            [:file :line])]
-    (resolve-possible-path clj-aux meta)))
+                            [:file :line :column])
+          result (resolve-possible-path clj-aux meta)]
+
+    (cond-> result
+            (:file-name result) (update :file-name norm-result)
+            (:column result) (update :column dec))))
