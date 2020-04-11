@@ -4,8 +4,18 @@
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.evaluation :as e-eval]))
 
-(defn- do-load-file [filename repl notify]
-  (let [filename (str/replace filename "\\" "/")
+(defn- eval-code [code {:keys [editor-data notify evaluate on-eval]}]
+  (let [filename (:filename editor-data)]
+    (.. (evaluate code {:auto-opts true :aux true})
+        (then #(notify {:type :info :title "Loaded file" :message filename}))
+        (catch (fn [error]
+                 (notify {:type :error :title "Error loading file" :message filename})
+                 (on-eval {:id (gensym "load-file")
+                           :editor-data editor-data
+                           :result error}))))))
+
+(defn- do-load-file [{:keys [editor-data] :as options}]
+  (let [filename (str/replace (:filename editor-data) "\\" "/")
         code (str "(do"
                   " (require 'clojure.string)"
                   " (println \"Loading\" \"" filename "\")"
@@ -19,40 +29,34 @@
                   "        drv  (clojure.string/lower-case (subs path 0 1))"
                   ;; ...and map to a Windows Subsystem for Linux mount path:
                   "        path (if (and nix? win?) (str \"/mnt/\" drv (subs path 2)) path)]"
-                  "   (clojure.core/load-file path))"
-                  "  (catch Throwable t"
-                  "   (doseq [e (:via (Throwable->map t))]"
-                  "    (println (:message e))))))")]
-    (eval/evaluate repl
-                   code
-                   {:namespace "user" :ignore true}
-                   #(notify {:type :info :title "Loaded file" :message filename}))))
+                  "   (clojure.core/load-file path))))")]
+    (eval-code code options)))
 
-(defn- do-load-file-simple [filename repl notify]
-  (let [filename (str/replace filename "\\" "/")
+(defn- do-load-file-simple [{:keys [editor-data] :as options}]
+  (let [filename (str/replace (:filename editor-data) "\\" "/")
         code (str "(clojure.core/load-file \"" filename "\")")]
-    (eval/evaluate repl
-                   code
-                   {}
-                   #(if (contains? % :result)
-                      (notify {:type :info :title "Loaded file" :message filename})
-                      (notify {:type :error :title "Error loading file"
-                               :message "Loading failed. Check console for more info"})))))
+    (eval-code code options)))
 
-(defn load-file [{:keys [notify get-config] :as opts}
-                 {:keys [repl-kind repl-name repl editor-data]}]
-  (if-let [filename (:filename editor-data)]
-    (cond
-      (e-eval/need-cljs? (get-config) filename)
+(defn load-file [editor-data state]
+  (let [{:keys [notify get-config on-eval]} (:editor/callbacks state)
+        repl-kind (-> state :repl/info :kind)
+        repl-name (-> state :repl/info :kind-name)
+        options {:notify notify
+                 :evaluate (-> state :editor/features :eval)
+                 :on-eval on-eval
+                 :editor-data editor-data}]
+    (if-let [filename (:filename editor-data)]
+      (cond
+        (e-eval/need-cljs? (get-config) filename)
+        (notify {:type :error
+                 :title "Can't load-file in a CLJS file"
+                 :message "ClojureScript files are not supported to load file"})
+
+        (= :clj repl-kind) (do-load-file options)
+
+        :else (do-load-file-simple options))
+
       (notify {:type :error
-               :title "Can't load-file in a CLJS file"
-               :message "ClojureScript files are not supported to load file"})
-
-      (= :clj repl-kind) (do-load-file filename repl notify)
-
-      :else (do-load-file-simple filename repl notify))
-
-    (notify {:type :error
-             :title "No file to load"
-             :message (str "Can't find a file to load. Please, ensure that "
-                           "you're editing a saved file.")})))
+               :title "No file to load"
+               :message (str "Can't find a file to load. Please, ensure that "
+                             "you're editing a saved file.")}))))

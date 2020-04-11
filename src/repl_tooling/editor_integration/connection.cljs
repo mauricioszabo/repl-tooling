@@ -96,11 +96,7 @@
     :load-file {:name "Load File"
                 :description "Loads current file on a Clojure REPL"
                 :command (fn [] (ensure-data (editor-data)
-                                             #(loaders/load-file
-                                               opts {:repl-kind (-> @state :repl/info :kind)
-                                                     :repl-name (-> @state :repl/info :kind-name)
-                                                     :repl (:clj/aux @state)
-                                                     :editor-data %})))}
+                                             #(loaders/load-file % @state)))}
     :go-to-var-definition {:name "Goto VAR definition"
                            :description "Goes to definition of the current variable"
                            :command (fn [] (ensure-data (editor-data)
