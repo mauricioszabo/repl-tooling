@@ -66,7 +66,7 @@
 
 (defn- norm-result [file-name]
   (cond-> file-name
-          (and (re-find #"win" (platform)))
+          (and (re-find #"win\d+" (platform)))
           (str/replace-first #"^/" "")))
 
 (defn find-var-definition [cljs-repl clj-aux ns-name symbol-name]
