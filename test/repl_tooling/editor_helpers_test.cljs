@@ -134,7 +134,12 @@
     (check (helpers/ns-range-for ns-code [1 2]) => [[[0 0] [0 10]] 'foobar]))
 
   (testing "getting second NS in form"
-    (check (helpers/ns-range-for ns-code [3 4]) => [[[2 0] [2 10]] 'barbaz])))
+    (check (helpers/ns-range-for ns-code [3 4]) => [[[2 0] [2 10]] 'barbaz]))
+
+  (testing "namespace declaration with complex metadata"
+    (let [txt "(ns ^{:config '{:some-keyword some-symbol}} my-ns)\n\n"]
+      (check (helpers/ns-range-for txt [2 0])
+             => [[[0 0] [0 49]] 'my-ns]))))
 
 (deftest getting-current-var
   (testing "getting var under cursor"

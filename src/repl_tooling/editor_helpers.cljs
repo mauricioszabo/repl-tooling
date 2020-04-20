@@ -1,6 +1,7 @@
 (ns repl-tooling.editor-helpers
   (:require [clojure.string :as str]
             [cljs.reader :as edn]
+            [cljs.tools.reader :as reader]
             [rewrite-clj.zip.move :as move]
             [rewrite-clj.zip :as zip]
             [rewrite-clj.zip.base :as zip-base]
@@ -132,7 +133,7 @@
         (->> (str/join "\n")))))
 
 (defn- simple-read [str]
-  (edn/read-string {:default (fn [_ res] res)} str))
+  (reader/read-string {:default (fn [_ res] res)} str))
 
 (defn- parse-reader [reader]
   (try
