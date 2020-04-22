@@ -69,9 +69,7 @@
                          :command #(eval-selection state (editor-data) opts)}
     :run-tests-in-ns {:name "Run tests in NS"
                       :description "Run all tests on the current namespace"
-                      :command (fn []
-                                 (ensure-data (editor-data)
-                                   #(e-eval/run-tests-in-ns! state %)))}
+                      :command #(e-eval/run-tests-in-ns! state)}
     :run-test-for-var {:name "Run test for current Var"
                        :description "Run current var as a testcase"
                        :command (fn []
@@ -122,7 +120,7 @@
                (:clj/repl @state))]
     (renderer/parse-result (:result res) repl state)))
 
-(defn- features-for [state {:keys [editor-data] :as opts} repl-kind]
+(defn- features-for [state {:keys [editor-data] :as opts} _repl-kind]
   {:autocomplete #(ensure-data (editor-data)
                                (fn [data] (autocomplete/command state opts data)))
    :eval-and-render (fn eval-and-render
@@ -296,11 +294,11 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
            callback (partial callback-fn state options)
            [kind primary] (repls/connect-repl! :clj-eval host port callback)
            _ (eval/eval primary "1234")
-           aux (case kind
-                 :cljs (prepare-cljs primary host port state options)
-                 :joker (prepare-joker primary host port state options)
-                 (p/let [[_ aux] (repls/connect-repl! :clj-aux host port callback)]
-                   (prepare-generic primary aux host port state options kind)))
+           _ (case kind
+               :cljs (prepare-cljs primary host port state options)
+               :joker (prepare-joker primary host port state options)
+               (p/let [[_ aux] (repls/connect-repl! :clj-aux host port callback)]
+                 (prepare-generic primary aux host port state options kind)))
            nrepl? (instance? nrepl/Evaluator primary)]
      (notify {:type :info :title (str (tr-kind kind)
                                       (if nrepl? " nREPL" " socket REPL")

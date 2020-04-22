@@ -82,7 +82,7 @@
 
 (defn as-obj [data]
   (let [params (last data)
-        [browseable pr-str-obj obj-id repr] data]
+        [browseable pr-str-obj obj-id] data]
     (if pr-str-obj
       (->browseable pr-str-obj (get (:bean params) {:repl-tooling/... nil}))
       (->browseable (str (:object browseable) "@" obj-id) (get (:bean params) {:repl-tooling/... nil})))))

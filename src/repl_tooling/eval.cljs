@@ -1,7 +1,6 @@
 (ns repl-tooling.eval
   (:refer-clojure :exclude [eval])
-  (:require [cljs.core.async :refer [put! <! >! chan] :refer-macros [go go-loop]]
-            [repl-tooling.editor-helpers :as helpers]
+  (:require [repl-tooling.editor-helpers :as helpers]
             [promesa.core :as p]))
 
 (defprotocol MoreData
@@ -37,22 +36,6 @@ If no argument is passed to opts, {:ignore true} is assumed"
                                             (p/resolve! p parsed)
                                             (p/reject! p parsed)))))
      p)))
-
-(defn evaluator
-  ([in out on-line] (evaluator in out on-line identity))
-  ([in out on-line on-unexpected]
-   (let [pending-cmds (atom {})]
-     (go-loop []
-       (let [{:keys [id out result]} (<! out)]
-         (on-line out)
-         (when out
-           (if-let [handler (get @pending-cmds id)]
-             (handler result)
-             (on-unexpected result))))
-       (recur))
-     {:pending-cmds pending-cmds
-      :in in
-      :out out})))
 
 (defn- without-ellision-list [lst]
   (cond-> lst (-> lst last :repl-tooling/...) butlast))
@@ -103,11 +86,10 @@ If no argument is passed to opts, {:ignore true} is assumed"
       (fn more
         ([repl callback] (more repl true callback))
         ([repl combine? callback]
-         (let [call #(let [not-ellided (without-ellision %)]
-                       (callback (cond->> %
-                                          combine? (assoc self
-                                                          :more-fn nil
-                                                          :attributes))))]
+         (let [call #(callback (cond->> %
+                                        combine? (assoc self
+                                                        :more-fn nil
+                                                        :attributes)))]
            (if (coll? fun)
              (evaluate repl fun {:ignore true} #(-> % helpers/parse-result :result call))
              (fun repl call)))))))
@@ -121,7 +103,7 @@ If no argument is passed to opts, {:ignore true} is assumed"
       (fn more
         ([repl callback] (more repl true callback))
         ([repl combine? callback]
-         (fun repl combine? #(helpers/WithTag. % (helpers/tag self)))))))
+         (fun repl combine? #(callback (helpers/WithTag. % (helpers/tag self))))))))
 
   helpers/IncompleteStr
   (without-ellision [self]
