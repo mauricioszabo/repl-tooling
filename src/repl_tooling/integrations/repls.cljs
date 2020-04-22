@@ -96,7 +96,7 @@
                            (let [o (source/wrap-command id command "Error" false)
                                  res (:result o)]
                              (if res
-                               {:result (str/replace-all res #"clojure\.core/" "joker.core/")}
+                               {:result (str/replace res #"clojure\.core/" "joker.core/")}
                                o)))
                   :cljs (fn [{:keys [command id]}]
                           (source/wrap-command id command ":default" true))
