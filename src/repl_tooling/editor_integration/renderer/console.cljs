@@ -31,14 +31,15 @@
 (defn- console-elem []
   (. div (querySelector "div.repl-tooling")))
 
-(defn- all-scrolled? []
+(defn all-scrolled? []
   (let [console (console-elem)
         console-height (.-scrollHeight console)
         parent-height (.. div -clientHeight)
         offset (- console-height parent-height)
         scroll-pos (.-scrollTop console)]
     (>= scroll-pos offset)))
-(defn- scroll-to-end! [scrolled?]
+
+(defn scroll-to-end! [scrolled?]
   (let [console (console-elem)]
     (when @scrolled?
       (set! (.-scrollTop console) (.-scrollHeight console)))))
