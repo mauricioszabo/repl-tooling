@@ -35,6 +35,7 @@
     [:row txt]))
 
 (declare txt-for-result)
+;; FIXME: Checl why first-line-only? is not being used
 (defn textual->text [elements first-line-only?]
   (let [els (cond->> elements first-line-only? (remove #(and (coll? %) (-> % first (= :row)))))]
     (->> els
@@ -90,16 +91,14 @@
                     :obj (vec (concat obj (:obj new-idx)))
                     :more-fn (:more-fn new-idx))))))
 
-(defn- link-to-copy [ratom editor-state]
+(defn- link-to-copy [ratom editor-state first-line-only?]
   [:a {:class "icon clipboard"
        :href "#"
-       :on-click (fn [^js evt]
-                   (.preventDefault evt)
-                   (.stopPropagation evt)
-                   (copy-to-clipboard
-                    ratom
-                    editor-state
-                    true))}])
+       :on-click
+       (fn [^js evt]
+         (.preventDefault evt)
+         (.stopPropagation evt)
+         (copy-to-clipboard ratom editor-state first-line-only?))}])
 
 (defrecord Indexed [open obj close kind expanded? more-fn repl editor-state]
   proto/Renderable
@@ -126,7 +125,7 @@
                                  (parse-inner-root obj more-fn a-for-more))]
         [:div {:class "delim closing"} close]
         (when root?
-          [link-to-copy ratom editor-state])]
+          [link-to-copy ratom editor-state true])]
 
        (when (and root? expanded?)
          [:div {:class "children"}
@@ -177,7 +176,7 @@
                (boolean? obj) "bool"
                (nil? obj) "nil"
                :else "other")]
-      [:div {:class tp} (pr-str obj) (when root? [link-to-copy ratom editor-state])]))
+      [:div {:class tp} (pr-str obj) (when root? [link-to-copy ratom editor-state true])]))
   (as-text [_ _ _]
     [:text (pr-str obj)]))
 
@@ -203,7 +202,7 @@
                         (get-more repl #(swap! ratom assoc :string %)))}
          "..."])
      "\""
-     (when root? [link-to-copy ratom editor-state])])
+     (when root? [link-to-copy ratom editor-state true])])
 
   (as-text [_ ratom root?]
     (if root?
@@ -230,7 +229,7 @@
 
   (as-html [_ ratom root?]
     (let [will-be-open? (and root? open?)
-          copy-elem [link-to-copy ratom editor-state]]
+          copy-elem [link-to-copy ratom editor-state true]]
       [:div {:class "tagged"}
        (when root?
          [:a {:class ["chevron" (if open? "opened" "closed")] :href "#"
@@ -306,7 +305,7 @@
                                (str ".map")
                                readFileSync
                                str))
-    (catch :default e nil)))
+    (catch :default _ nil)))
 
 (defn- resolve-source [^js sourcemap row col]
   (when-let [source (some-> sourcemap
