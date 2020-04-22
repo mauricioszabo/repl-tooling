@@ -4,12 +4,9 @@
             [clojure.string :as str]
             ["path" :as path]
             ["fs" :refer [existsSync readFileSync]]
-            [repl-tooling.integrations.repls :as repls]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj-repl]
-            [repl-tooling.repl-client.source :as source]
-            [repl-tooling.editor-helpers :as helpers]
-            [promesa.core :as p]))
+            [repl-tooling.editor-helpers :as helpers]))
 
 (defn- readfile [shadow-path]
   (-> shadow-path readFileSync str edn/read-string
@@ -69,7 +66,6 @@
   (evaluate [self command opts callback]
     (let [id (or (:id opts) (gensym))
           clj-opts (dissoc opts :namespace)
-          name-space (:namespace opts)
           code (str/replace wrapped-cmd #"__COMMAND__" (str command "\n"))
           clj-cmd (str "(" cmd-for-shadow " " build-id " " (pr-str code) ")")]
 

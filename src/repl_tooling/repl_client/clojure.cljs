@@ -2,7 +2,6 @@
   (:require-macros [repl-tooling.repl-client.clj-helper :refer [blob-contents]])
   (:require [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
-            [cljs.core.async :as async :refer-macros [go go-loop]]
             [cljs.reader :as reader]
             [clojure.string :as str]
             [clojure.walk :as walk]
@@ -58,8 +57,7 @@
 
 (def ^:private decoders
   (let [param-decoder (fn [p] {:repl-tooling/param p})
-        more-decoder (fn [{:keys [get]}] {:repl-tooling/... get})
-        ns-decoder identity]
+        more-decoder (fn [{:keys [get]}] {:repl-tooling/... get})]
     {'unrepl/param param-decoder
      'class identity
      'unrepl/... more-decoder}))
@@ -72,18 +70,6 @@
   (swap! state update :processing #(assoc %
                                           :interrupt (:interrupt actions)
                                           :background (:background actions))))
-
-(defn- parse-res [result]
-  (let [to-string #(cond
-                     (and (instance? helpers/WithTag %) (-> % helpers/tag (= "#unrepl/string ")))
-                     (-> % helpers/obj first (str "..."))
-
-                     (and (map? %) (:repl-tooling/... %))
-                     (with-meta '... {:get-more (:repl-tooling/... %)})
-
-                     :else
-                     %)]
-    {:as-text (pr-str result)}))
 
 (defrecord Evaluator [session]
   eval/Evaluator
@@ -112,10 +98,10 @@
       (eval/evaluate repl interrupt {:ignore true} identity))))
 
 (defn- send-result! [res exception? state]
-  (let [parsed (parse-res res)
-        msg (->> (pr-str res)
-                 (assoc parsed (if exception? :error :result))
-                 (merge (-> @state :processing :opts)))
+  (let [as-text (pr-str res)
+        key (if exception? :error :result)
+        msg (merge (-> @state :processing :opts)
+                   {:as-text as-text key as-text})
         on-out (:on-output @state)]
     (when-not (-> @state :processing :ignore-result?)
       (on-out msg))
@@ -130,13 +116,13 @@
       (on-out {:out out}))))
 
 (defn- send-patch! [[_ id res] state]
-  (let [{:keys [as-text] :as parsed} (parse-res res)
+  (let [as-text (pr-str res)
         on-out (:on-output @state)]
-    (on-out {:patch {:id id :result (assoc parsed :result as-text)}})))
+    (on-out {:patch {:id id :result {:as-text as-text :result as-text}}})))
 
 (defn- treat-unrepl-message! [raw-out state]
   (let [parsed (try (reader/read-string {:readers decoders :default default-tags} raw-out)
-                 (catch :default e))
+                 (catch :default _))
         [cmd args] (when (vector? parsed) parsed)]
     (case cmd
       :prompt (eval-next! state)
