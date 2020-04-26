@@ -26,22 +26,13 @@ a variable `repl` that points to the evaluator"
      (async/<! res2#)
      ~@body))
 
-; (defmacro async-with-clj-repl [ txt & body]
-;   (let [conn-id (str (gensym "connection"))]
-;     `(let [~'out (async/chan)]
-;       (async-test ~txt {:timeout 8000
-;                         :teardown (fn []
-;                                     (async/close! ~'out)
-;                                     (repl-tooling.integrations.repls/disconnect! ~conn-id))}
-;        ~(prepare-repl 'repl body conn-id 'out false)))))
-;
 (defmacro async-with-clj-repl [ txt & body]
   (let [conn-id (str (gensym "connection"))
         aux-id (str (gensym "connection"))]
     `(let [~'out (async/chan)
            ~'out-aux (async/chan)]
       (async-test ~txt {:timeout 8000
-                        :teardown (fn []
+                        :teardown (do
                                     (async/close! ~'out)
                                     (async/close! ~'out-aux)
                                     (repl-tooling.integrations.repls/disconnect! ~conn-id)
@@ -54,7 +45,7 @@ a variable `repl` that points to the evaluator"
   (let [conn-id (str (gensym "connection"))]
     `(let [~'out (async/chan)]
       (async-test ~txt {:timeout 8000
-                        :teardown (fn []
+                        :teardown (do
                                     (async/close! ~'out)
                                     (repl-tooling.integrations.repls/disconnect! ~conn-id))}
        ~(prepare-repl 'repl body conn-id 'out true)))))
@@ -65,7 +56,7 @@ a variable `repl` that points to the evaluator"
     `(let [~'out (async/chan)
            ~'out-aux (async/chan)]
       (async-test ~txt {:timeout 8000
-                        :teardown (fn []
+                        :teardown (do
                                     (async/close! ~'out)
                                     (async/close! ~'out-aux)
                                     (repl-tooling.integrations.repls/disconnect! ~conn-id)
