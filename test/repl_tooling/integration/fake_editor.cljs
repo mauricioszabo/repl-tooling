@@ -1,5 +1,6 @@
 (ns repl-tooling.integration.fake-editor
   (:require [clojure.string :as str]
+            [promesa.core :as p]
             [reagent.core :as r]
             [clojure.core.async :as async :include-macros true]
             [repl-tooling.editor-integration.renderer :as render]
@@ -27,9 +28,10 @@
                         :eval-result (r/atom nil)}))
 
 (defn- res [result]
-  (let [parse (-> @state :features :result-for-renderer)]
-    (reset! (:eval-result @state) (parse result)))
-  (swap! state update :stdout (fn [e] (str e "=> " (-> result :result :as-text) "\n"))))
+  (p/let [parse (-> @state :features :result-for-renderer)
+          res (parse result)]
+    (reset! (:eval-result @state) res)
+    (swap! state update :stdout (fn [e] (str e "=> " (-> result :result :as-text) "\n")))))
 
 (defn evaluate []
   (let [lines (-> @state :code str/split-lines)

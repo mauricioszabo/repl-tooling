@@ -1,5 +1,6 @@
 (ns repl-tooling.editor-integration.renderer.console
   (:require [reagent.core :as r]
+            [promesa.core :as p]
             [repl-tooling.editor-integration.renderer :as render]
             ["ansi_up" :default Ansi]))
 
@@ -60,4 +61,5 @@
   (append-text :stderr txt))
 
 (defn result [parsed-result parse-fn]
-  (swap! out-state conj [:result (parse-fn parsed-result)]))
+  (p/let [res (parse-fn parsed-result)]
+    (swap! out-state conj [:result res])))
