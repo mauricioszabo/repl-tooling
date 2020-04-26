@@ -62,6 +62,11 @@
    :get-config identity ;FIXME
    :prompt (fn [ & _] (js/Promise. (fn [])))})
 
+(defn- swap-state! [state options kind]
+  (p/let [cmds (cmds/all state options kind)
+          feats (features-for state options kind)]
+    (swap! state assoc :editor/commands cmds :editor/features feats)))
+
 (defn connect-evaluator!
   ""
   [evaluators opts]
@@ -71,9 +76,7 @@
            options (merge default-opts opts)]
 
        ; TODO: Check this last parameter
-       (swap! state assoc
-              :editor/commands (cmds/all state options :clj)
-              :editor/features (features-for state options :clj))
+       (swap-state! state options :clj)
        (resolve state)))))
 
 (defn- tr-kind [kind]
@@ -86,17 +89,15 @@
 
 (defn- prepare-cljs [primary host port state options]
   (swap! state merge {:cljs/repl primary
-                      :repl/info {:host host :port port :kind :cljs :kind-name (tr-kind :cljs)}
-                      :editor/commands (cmds/all state options :cljs)
-                      :editor/features (features-for state options :cljs)}))
+                      :repl/info {:host host :port port :kind :cljs :kind-name (tr-kind :cljs)}})
+  (swap-state! state options :cljs))
 
 (defn- prepare-joker [primary host port state options]
   (swap! state merge {:clj/repl primary
                       :clj/aux primary
                       :repl/info {:host host :port port
-                                  :kind :joker :kind-name (tr-kind :joker)}
-                      :editor/commands (cmds/all state options :joker)
-                      :editor/features (features-for state options :joker)}))
+                                  :kind :joker :kind-name (tr-kind :joker)}})
+  (swap-state! state options :joker))
 
 (defn- prepare-generic [primary aux host port state options kind]
   (when (= :clj kind)
@@ -104,9 +105,8 @@
 
   (swap! state merge {:clj/aux aux
                       :clj/repl primary
-                      :repl/info {:host host :port port :kind kind :kind-name (tr-kind kind)}
-                      :editor/commands (cmds/all state options kind)
-                      :editor/features (features-for state options kind)}))
+                      :repl/info {:host host :port port :kind kind :kind-name (tr-kind kind)}})
+  (swap-state! state options kind))
 
 (defn- connection-error! [error notify]
   (disconnect!)
