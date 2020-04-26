@@ -81,7 +81,7 @@
 (def EditorFeatures {:autocomplete s/Any
                      :eval-and-render s/Any
                      :eval s/Any
-                     :result-for-renderer s/Any})
+                     :result-for-renderer js/Promise})
 
 (def EditorState (s/atom {:editor/callbacks Callbacks
                           :editor/features EditorFeatures
