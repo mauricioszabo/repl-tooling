@@ -1,10 +1,12 @@
 (ns repl-tooling.integration.fake-editor
+  (:refer-clojure :exclude [type])
   (:require [clojure.string :as str]
             [promesa.core :as p]
             [reagent.core :as r]
             [clojure.core.async :as async :include-macros true]
             [repl-tooling.editor-integration.renderer :as render]
-            [repl-tooling.editor-integration.connection :as conn]))
+            [repl-tooling.editor-integration.connection :as conn]
+            [repl-tooling.commands-to-repl.all-cmds :as cmds]))
 
 (defn wait-for [f]
   (async/go
@@ -39,8 +41,14 @@
     (swap! state assoc :range [[0 0] [(-> lines count dec) (-> lines last count dec)]])
     (eval-sel)))
 
+(defn run-command! [command]
+  (if-let [cmd (get-in @state [:commands command :command])]
+    (cmd)
+    (prn "Command not found" command)))
+
+(defn type [txt] (swap! state assoc :code txt))
 (defn type-and-eval [txt]
-  (swap! state assoc :code txt)
+  (type txt)
   (evaluate))
 
 (defn change-stdout []
@@ -69,7 +77,8 @@
 (defn connect!
   ([] (connect! {}))
   ([additional-callbacks]
-   (when-not (-> @state :repls :eval)
+   (if (-> @state :repls :eval)
+     (.resolve js/Promise @state)
      (.
        (conn/connect! (:host @state) (:port @state)
                       (merge {:on-disconnect handle-disconnect
@@ -89,6 +98,8 @@
                       :features (:editor/features @res)
                       :stdout "" :stderr "")))))))
 
+(defn disconnect! [] (cmds/disconnect!))
+
 (defn editor [state]
   [:div
    [:h4 "Socket REPL connections"]
@@ -104,7 +115,7 @@
       [:span
        [:button {:on-click evaluate}
         "Evaluate"] " "
-       [:button {:on-click conn/disconnect!} "Disconnect!"]]
+       [:button {:on-click disconnect!} "Disconnect!"]]
       [:button {:on-click #(connect!)} "Connect!"])]
    [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]
    [:div
