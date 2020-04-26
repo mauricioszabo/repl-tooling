@@ -3,104 +3,64 @@
             [repl-tooling.eval :as eval]
             [reagent.core :as r]
             [repl-tooling.editor-helpers :as helpers]
+            [clojure.string :as str]
+            [repl-tooling.eval :as eval]
+            [cljs.tools.reader :as reader]
             [repl-tooling.editor-integration.renderer.protocols :as proto]))
 
-(defonce ^:private renderers (atom {}))
-(defonce ^:private events (atom {}))
+(defn edn? [obj]
+  (or (number? obj)
+      (string? obj)
+      (coll? obj)
+      (boolean? obj)
+      (nil? obj)
+      (regexp? obj)
+      (symbol? obj)
+      (keyword? obj)))
 
-(defn- render [{:keys [this dispatch]}]
-  (let [edn (second this)
-        obj (dispatch [:assign-renderable edn])]
-     (r/as-element (proto/as-html @obj obj true))))
+(defn norm-evt [obj depth]
+  (cond
+    (>= depth 3) obj
 
-(defn- normalize-html-actions [reagent-params {:keys [dispatch]}]
-  (->> reagent-params
-       (map (fn [[key val]]
-              (if (and (keyword? key)
-                       (->> key name (re-find #"^on-"))
-                       (vector? val))
-                [key (fn [e]
-                       (.preventDefault e)
-                       (.stopPropagation e)
-                       (dispatch val))]
-                [key val])))
-       (into {})))
+    (not (edn? obj))
+    (->> obj
+         (.keys js/Object)
+         js->clj
+         (map (fn [k] [(keyword k) (norm-evt (aget obj k) (inc depth))]))
+         (filter (fn [[_ v]] (edn? v)))
+         (into {}))
 
-(defn- normalize-tags [vector params]
-  (let [event (get @renderers (first vector))
-        p-params (second vector)]
-    (cond
-      event (event (assoc params :this vector))
-      (map? p-params) (update vector 1 normalize-html-actions params)
-      :else vector)))
+    :else obj))
 
-(defn- html [{:keys [this] :as params}]
-  (let [hiccup (second this)]
-    (walk/prewalk #(cond-> % (vector? %) (normalize-tags params)) hiccup)))
+(defn- norm-fn [element state fns repl]
+  (let [fn-name (-> element str (str/replace-first #"\?" "") keyword)
+        fun (fn-name fns)]
+    (fn [e] fun
+      (.preventDefault e)
+      (.stopPropagation e)
+      (.. (eval/eval repl (str "(" fun " " (pr-str (norm-evt (.-target e) 1)) " " (pr-str @state) ")") {:ignore true})
+          (then #(reset! state (:result %)))))))
 
-(defn- interactive [{:keys [this dispatch]}]
-  (let [interactive (-> this second helpers/Interactive.)
-        obj (dispatch [:assign-renderable interactive])]
-    (r/as-element (proto/as-html @obj obj true))))
+(defn- norm-html [html state fns repl]
+  (walk/postwalk (fn [e]
+                   (cond
+                     (= '?state e) @state
 
-(defn register-renderer!
-  [key renderer]
-  (swap! renderers assoc key renderer))
+                     (and (symbol? e) (-> e str (str/starts-with? "?")))
+                     (norm-fn e state fns repl)
 
-(defn reset-renderers! []
-  (reset! renderers {})
-  (register-renderer! :render render)
-  (register-renderer! :html html)
-  (register-renderer! :interactive interactive))
-(reset-renderers!)
+                     :else e))
+                 html))
 
-(defn- dispatcher-fn [state repl editor-state]
-  (let [params {:state state :repl repl :editor-state editor-state}]
-    (fn dispatcher [event]
-      (if-let [evt (get @events (first event))]
-        (evt event (assoc params :dispatch  dispatcher))
-        ;FIXME add error
-        (prn :no-dispatcher-for (first event))))))
+(defn- render-interactive [{:keys [state html fns]} repl]
+  (def state state)
+  (def html html)
+  (def fns fns)
+  (let [state (r/atom state)
+        html (fn [state] (norm-html html state fns repl))]
+    [html state]))
 
 (defrecord Interactive [edn repl editor-state]
   proto/Renderable
   (as-html [_ ratom _]
-    (let [renderer (-> edn first)
-          renderer (get @renderers renderer)
-          dispatcher (dispatcher-fn ratom repl editor-state)]
-      [renderer {:this edn
-                 :dispatch dispatcher
-                 :editor-state editor-state}])))
-
-;; EVENTS
-(defn register-event!
-  [key event]
-  (swap! events assoc key event))
-
-(defn assign-renderable [[_ edn] {:keys [state repl editor-state]}]
-  (let [edn-s (pr-str edn)]
-    (if-let [renderable (get-in @state [:additional-states edn-s])]
-      renderable
-      (let [renderable (proto/as-renderable edn repl editor-state)]
-        (swap! state assoc-in [:additional-states edn-s] renderable)
-        renderable))))
-
-(defn- replace-view [[_ this] {:keys [state]}]
-  (swap! state assoc :edn this))
-
-(defn- evaluate [[_ code maybe-opts] {:keys [editor-state dispatch] :as args}]
-  (when-let [evaluate (-> @editor-state :editor/features :eval)]
-    (let [eval-opts (or maybe-opts {})
-          evaluate (evaluate code (-> eval-opts
-                                      (assoc :ignore true)
-                                      (assoc-in [:pass :interactive] true)))]
-      (.then evaluate #(dispatch (:result %)))
-      (when-let [rescue (:on-error eval-opts)]
-        (.catch evaluate #(rescue % args))))))
-
-(defn reset-events! []
-  (reset! events {})
-  (register-event! :replace replace-view)
-  (register-event! :assign-renderable assign-renderable)
-  (register-event! :eval evaluate))
-(reset-events!)
+    (render-interactive edn repl)))
