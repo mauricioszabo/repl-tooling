@@ -30,18 +30,17 @@
     (e-eval/eval-cmd state code namespace eval-range data opts)))
 
 (defn- eval-block [state data opts]
-  (p/let [data data]
-    (eval-range state data opts helpers/block-for)))
+  (p/let [d data]
+    (eval-range state d opts helpers/block-for)))
 
 (defn- eval-top-block [state data opts]
-  (p/let [data data]
-    (eval-range state data opts helpers/top-block-for)))
+  (p/let [d data]
+    (eval-range state d opts helpers/top-block-for)))
 
 (defn- eval-selection [state data opts]
-  (p/let [{:keys [range] :as data} data]
-    (eval-range state data opts
-                (fn [contents _]
-                  [range (helpers/text-in-range contents range)]))))
+  (p/let [{:keys [range] :as d} data]
+    (eval-range state d opts (fn [contents _]
+                               [range (helpers/text-in-range contents range)]))))
 
 (defn all [state {:keys [editor-data] :as opts} repl-kind]
   (cond->
