@@ -26,7 +26,7 @@
                                `(shadow.cljs.devtools.api/compiler-env ~target))))))
 
 (defn- connect-and-update-state! [state opts target upgrade-cmd]
-  (let [{:keys [notify on-result on-stdout on-stderr]} opts
+  (let [{:keys [notify on-result on-stdout]} opts
         {:keys [host port]} (:repl/info @state)
         after-connect #(if-let [error (:error %)]
                          (treat-error error notify)

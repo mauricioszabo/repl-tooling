@@ -35,6 +35,7 @@
     [:row txt]))
 
 (declare txt-for-result)
+;; FIXME: Checl why first-line-only? is not being used
 (defn textual->text [elements first-line-only?]
   (let [els (cond->> elements first-line-only? (remove #(and (coll? %) (-> % first (= :row)))))]
     (->> els
@@ -91,13 +92,13 @@
                     :more-fn (:more-fn new-idx))))))
 
 (defn- link-to-copy [ratom editor-state first-line-only?]
-  [:a {:class "icon clipboard" :href "#" :on-click (fn [^js evt]
-                                                     (.preventDefault evt)
-                                                     (.stopPropagation evt)
-                                                     (copy-to-clipboard
-                                                      ratom
-                                                      editor-state
-                                                      true))}])
+  [:a {:class "icon clipboard"
+       :href "#"
+       :on-click
+       (fn [^js evt]
+         (.preventDefault evt)
+         (.stopPropagation evt)
+         (copy-to-clipboard ratom editor-state first-line-only?))}])
 
 (defrecord Indexed [open obj close kind expanded? more-fn repl editor-state]
   proto/Renderable
@@ -304,7 +305,7 @@
                                (str ".map")
                                readFileSync
                                str))
-    (catch :default e nil)))
+    (catch :default _ nil)))
 
 (defn- resolve-source [^js sourcemap row col]
   (when-let [source (some-> sourcemap

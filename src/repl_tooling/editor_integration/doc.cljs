@@ -3,9 +3,7 @@
   (:require [repl-tooling.editor-helpers :as helpers]
             [promesa.core :as p]
             [repl-tooling.eval :as eval]
-            [repl-tooling.editor-integration.evaluation :as e-eval]
-            [schema.core :as s]
-            [repl-tooling.editor-integration.schemas :as schemas]))
+            [repl-tooling.editor-integration.evaluation :as e-eval]))
 
 (defn- doc-cmd [var filename]
   `(~'clojure.core/let
@@ -58,7 +56,7 @@
                                                     :as-text (pr-str error)})))
     (and on-result (on-result {:error error :parsed? true :as-text (pr-str error)}))))
 
-(defn- run-documentation-code [{:keys [var editor-data opts repl] :as options}]
+(defn- run-documentation-code [{:keys [var editor-data repl] :as options}]
   (let [on-start (-> options :opts :on-start-eval)]
     (on-start (:eval-data options)))
   (p/catch (p/let [var (eval/eval repl (str "`" var) {:namespace (:ns options) :ignore true})
@@ -92,6 +90,6 @@
   (let [cmd (str "(" spec-cmd-str " '" var " )")]
     (eval/eval repl cmd {:pass {:interactive true}})))
 
-(s/defn specs-for-var [{:keys [contents range filename] :as editor-data}
-                       opts
-                       editor-state :- schemas/EditorState])
+; (s/defn specs-for-var [{:keys [range filename] :as editor-data}
+;                        opts
+;                        editor-state :- schemas/EditorState])

@@ -32,9 +32,9 @@
   (let [cmd (parse-command cmd strip-newlines?)]
     (if-let [res (:result cmd)]
       (-> template
-          (str/replace-all #"__COMMAND__" (str res "\n"))
-          (str/replace-all #"__ID__" id)
-          (str/replace-all #"__EX_TYPE__" ex-type)
+          (str/replace #"__COMMAND__" (str res "\n"))
+          (str/replace #"__ID__" id)
+          (str/replace #"__EX_TYPE__" ex-type)
           (parse-command strip-newlines?)
           (update :result str "\n"))
       cmd)))

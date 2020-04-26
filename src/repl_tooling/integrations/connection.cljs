@@ -10,13 +10,13 @@
 
 (def blob (cljs-blob-contents))
 
-(defn- treat-result [id evaluator resolve ret]
+(defn- treat-result [id resolve ret]
   (if (:error ret)
     (do (resolve ret) (repls/disconnect! id))
     (eval/evaluate ret
                    "(/ 10 0)"
                    {:ignore true}
-                   (fn [{:keys [error result]}]
+                   (fn [{:keys [result]}]
                      (cond
                        (= result "##Inf") (do
                                             (eval/evaluate ret blob
@@ -46,7 +46,7 @@ runs the command to change it to CLJS, and returns an evaluator for CLJS."
       (p/let [repl-info @repl-info
               [_ clj-repl] repl-info
               self-hosted (clj-repl/self-host clj-repl code)]
-        (js/Promise. (fn [resolve] (treat-result identifier clj-repl resolve self-hosted)))))))
+        (js/Promise. (fn [resolve] (treat-result identifier resolve self-hosted)))))))
 
 (defn connect-shadow!
   "Given a host, port, and a clojure command, connects on a Clojure REPL and returns

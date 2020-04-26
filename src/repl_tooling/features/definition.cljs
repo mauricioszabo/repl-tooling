@@ -1,7 +1,6 @@
 (ns repl-tooling.features.definition
   (:require [clojure.string :as str]
             [repl-tooling.eval :as eval]
-            [repl-tooling.editor-helpers :as editor-helpers]
             [promesa.core :as p]
             ["fs" :as fs]
             ["os" :refer [platform]]))

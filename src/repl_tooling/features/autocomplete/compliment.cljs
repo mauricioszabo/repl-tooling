@@ -1,9 +1,7 @@
 (ns repl-tooling.features.autocomplete.compliment
   (:require [clojure.string :as str]
             [promesa.core :as p]
-            [repl-tooling.eval :as eval]
-            [repl-tooling.editor-helpers :as helpers]
-            [clojure.core.async :as async :include-macros true]))
+            [repl-tooling.eval :as eval]))
 
 (defn- re-escape [str]
   (str/replace str #"[.*+?^${}()|\[\]\\]" "\\$&"))

@@ -29,7 +29,7 @@
                    "command, or by connecting a Clojure REPL and running "
                    "'Connect Embedded' command")
 
-              :clj
+              :else
               (str "REPL not connected for Clojure\n\n"
                    "You can connect a REPL by running 'Connect Socket REPL' command"))]
     (notify! {:type :error
@@ -121,7 +121,7 @@ REPL available"
          (str ", " error " errored"))
        "."))
 
-(defn run-tests-in-ns! [state {:keys [filename range contents]}]
+(defn run-tests-in-ns! [state]
   (let [notify (-> @state :editor/callbacks :notify)
         evaluate (-> @state :editor/features :eval)]
     (p/let [res (evaluate "(clojure.test/run-tests)"
@@ -130,15 +130,16 @@ REPL available"
                :title "(clojure.test/run-tests)"
                :message (format-test-result (:result res))}))))
 
-(defn run-test-at-cursor! [state {:keys [filename range contents]}]
+(defn run-test-at-cursor! [state {:keys [range contents]}]
   (let [notify (-> @state :editor/callbacks :notify)
         evaluate (-> @state :editor/features :eval)
         [_ current-var] (helpers/current-var contents (first range))]
-    (p/let [res (evaluate (str "(clojure.test/test-vars [#'" current-var "])")
-                          {:auto-detect true})]
+    (p/do!
+     (evaluate (str "(clojure.test/test-vars [#'" current-var "])")
+               {:auto-detect true}
       (notify {:type :info
                :title (str "Ran test: " current-var)
-               :message "See REPL for any failures"}))))
+               :message "See REPL for any failures"})))))
 
 (defn source-for-var! [state {:keys [filename range contents]}]
   (let [notify (-> @state :editor/callbacks :notify)

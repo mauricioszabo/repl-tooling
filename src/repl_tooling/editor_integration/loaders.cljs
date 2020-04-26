@@ -1,7 +1,6 @@
 (ns repl-tooling.editor-integration.loaders
   (:refer-clojure :exclude [load-file])
   (:require [clojure.string :as str]
-            [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.evaluation :as e-eval]))
 
 (defn- eval-code [code {:keys [editor-data notify evaluate on-eval]}]
@@ -40,7 +39,6 @@
 (defn load-file [editor-data state]
   (let [{:keys [notify get-config on-eval]} (:editor/callbacks state)
         repl-kind (-> state :repl/info :kind)
-        repl-name (-> state :repl/info :kind-name)
         options {:notify notify
                  :evaluate (-> state :editor/features :eval)
                  :on-eval on-eval
