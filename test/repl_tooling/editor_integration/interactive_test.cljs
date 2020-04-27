@@ -32,4 +32,18 @@
               repl)
       (check (wait-for-change m/text-on-result) => {:text "20"})
       (m/click-on "20")
-      (check (wait-for-change m/text-on-result) => {:text "21"}))))
+      (check (wait-for-change m/text-on-result) => {:text "21"}))
+
+    (testing "maps in states"
+      (render '{:html [:div (:val ?state)]
+                :state {:val 20}
+                :fns {:inc (fn [event state] (inc state))}}
+              repl)
+      (check (wait-for-change m/text-on-result) => {:text "20"}))
+
+    (testing "nested state"
+      (render '{:html [:div (:val (:v ?state))]
+                :state {:v {:val 20}}
+                :fns {:inc (fn [event state] (inc state))}}
+              repl)
+      (check (wait-for-change m/text-on-result) => {:text "20"}))))

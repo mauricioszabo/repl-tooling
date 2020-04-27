@@ -46,6 +46,9 @@
                    (cond
                      (= '?state e) @state
 
+                     (and (list? e) (-> e first keyword?))
+                     (get (second e) (first e))
+
                      (and (symbol? e) (-> e str (str/starts-with? "?")))
                      (norm-fn e state fns repl)
 
