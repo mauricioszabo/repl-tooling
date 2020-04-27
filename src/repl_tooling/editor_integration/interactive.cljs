@@ -33,16 +33,23 @@
 
     :else obj))
 
+(defn- run-evt-fun! [e fun state repl additional-args]
+  (.preventDefault e)
+  (.stopPropagation e)
+  (.. (eval/eval repl
+                 (str "(" fun " "
+                      (pr-str (norm-evt (.-target e) 1))
+                      " '" (pr-str @state)
+                      " " (->> additional-args (map #(str "'"(pr-str %))) (str/join " "))
+                      ")")
+                 {:ignore true})
+      (then #(reset! state (:result %)))))
+
 (defn- prepare-fn [fun state repl]
-  (fn [e] fun
-    (.preventDefault e)
-    (.stopPropagation e)
-    (.. (eval/eval repl
-                   (str "(" fun " "
-                        (pr-str (norm-evt (.-target e) 1))
-                        " '" (pr-str @state) ")")
-                   {:ignore true})
-        (then #(reset! state (:result %))))))
+  (fn [ & args]
+    (if (-> args first edn?)
+      (fn [e] (run-evt-fun! e fun state repl args))
+      (run-evt-fun! (first args) fun state repl []))))
 
 (defn- bindings-for [state fns repl]
   (->> fns

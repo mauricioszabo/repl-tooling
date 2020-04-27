@@ -55,4 +55,13 @@
              => {:html (str "<div>"
                             "<div><span>2</span><span>3</span><span>4</span></div>"
                             "<div>{:some {:nested [2 2]}}</div>"
-                            "</div>")}))))
+                            "</div>")}))
+
+    (testing "passing params to callback fns"
+      (render '{:html [:a {:href "#" :on-click (?inc :n)} (:n ?state)]
+                :state {:n 20}
+                :fns {:inc (fn [event state key] (update state key inc))}}
+              repl)
+      (check (wait-for-change m/text-on-result) => {:text "20"})
+      (m/click-on "20")
+      (check (wait-for-change m/text-on-result) => {:text "21"}))))
