@@ -1,4 +1,4 @@
-(defn info! [ns-name var-name]
+(defn info [ns-name var-name]
   (let [s (orchard.info/info (symbol ns-name) (symbol var-name))]
     (tagged-literal
      'repl-tooling/interactive
