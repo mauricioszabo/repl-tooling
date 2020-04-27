@@ -6,9 +6,10 @@
             [clojure.string :as str]
             [repl-tooling.eval :as eval]
             [cljs.tools.reader :as reader]
-            [repl-tooling.editor-integration.renderer.protocols :as proto]))
+            [repl-tooling.editor-integration.renderer.protocols :as proto]
+            [sci.core :as sci]))
 
-(defn edn? [obj]
+(defn- edn? [obj]
   (or (number? obj)
       (string? obj)
       (coll? obj)
@@ -18,7 +19,7 @@
       (symbol? obj)
       (keyword? obj)))
 
-(defn norm-evt [obj depth]
+(defn- norm-evt [obj depth]
   (cond
     (>= depth 3) obj
 
@@ -32,35 +33,43 @@
 
     :else obj))
 
-(defn- norm-fn [element state fns repl]
-  (let [fn-name (-> element str (str/replace-first #"\?" "") keyword)
-        fun (fn-name fns)]
-    (fn [e] fun
-      (.preventDefault e)
-      (.stopPropagation e)
-      (.. (eval/eval repl (str "(" fun " " (pr-str (norm-evt (.-target e) 1)) " " (pr-str @state) ")") {:ignore true})
-          (then #(reset! state (:result %)))))))
+(defn- prepare-fn [fun state repl]
+  (fn [e] fun
+    (.preventDefault e)
+    (.stopPropagation e)
+    (.. (eval/eval repl
+                   (str "(" fun " "
+                        (pr-str (norm-evt (.-target e) 1))
+                        " '" (pr-str @state) ")")
+                   {:ignore true})
+        (then #(reset! state (:result %))))))
 
-(defn- norm-html [html state fns repl]
-  (walk/postwalk (fn [e]
-                   (cond
-                     (= '?state e) @state
+(defn- bindings-for [state fns repl]
+  (->> fns
+       (map (fn [[f-name f-body]] [(->> f-name name (str "?") symbol)
+                                   (prepare-fn f-body state repl)]))
+       (into {'?state @state})))
 
-                     (and (list? e) (-> e first keyword?))
-                     (get (second e) (first e))
+(def ^:private walk-ns {'postwalk walk/postwalk
+                        'prewalk walk/prewalk
+                        'keywordize-keys walk/keywordize-keys
+                        'walk walk/walk
+                        'postwalk-replace walk/postwalk-replace
+                        'prewalk-replace walk/prewalk-replace
+                        'stringify-keys walk/stringify-keys})
 
-                     (and (symbol? e) (-> e str (str/starts-with? "?")))
-                     (norm-fn e state fns repl)
-
-                     :else e))
-                 html))
-
-(defn- render-interactive [{:keys [state html fns]} repl]
+(defn- render-interactive [{:keys [state html fns] :as edn} repl]
   (def state state)
   (def html html)
   (def fns fns)
   (let [state (r/atom state)
-        html (fn [state] (norm-html html state fns repl))]
+        html (fn [state]
+               (try
+                (sci/eval-string (pr-str html) {:bindings (bindings-for state fns repl)
+                                                :preset {:termination-safe true}
+                                                :namespaces {'walk walk-ns}})
+                (catch :default e
+                  [:div.error "Can't render this code - " (pr-str e)])))]
     [html state]))
 
 (defrecord Interactive [edn repl editor-state]

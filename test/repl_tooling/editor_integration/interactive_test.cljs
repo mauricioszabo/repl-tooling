@@ -20,9 +20,8 @@
 (cards/deftest interactive-renderer
   (reset! state nil)
   (e/async-with-repl "will render a hiccup, based on a state"
-    (render '{:html [:div ?state] :state 20} repl)
-
     (testing "renders initial state"
+      (render '{:html [:div ?state] :state 20} repl)
       (check (wait-for-change m/text-on-result) => {:text "20" :html "<div>20</div>"}))
 
     (testing "updates initial state with fn"
@@ -36,14 +35,24 @@
 
     (testing "maps in states"
       (render '{:html [:div (:val ?state)]
-                :state {:val 20}
-                :fns {:inc (fn [event state] (inc state))}}
+                :state {:val 20}}
               repl)
       (check (wait-for-change m/text-on-result) => {:text "20"}))
 
     (testing "nested state"
       (render '{:html [:div (:val (:v ?state))]
-                :state {:v {:val 20}}
-                :fns {:inc (fn [event state] (inc state))}}
+                :state {:v {:val 20}}}
               repl)
-      (check (wait-for-change m/text-on-result) => {:text "20"}))))
+      (check (wait-for-change m/text-on-result) => {:text "20"}))
+
+    (testing "code on HTML"
+      (render '{:html [:div [:div (map #(vector :span (inc %)) (:vec ?state))]
+                            [:div (pr-str (walk/postwalk-replace {1 2} (:nested ?state)))]]
+                :state {:vec [1 2 3]
+                        :nested {:some {:nested [1 1]}}}}
+              repl)
+      (check (wait-for-change m/text-on-result)
+             => {:html (str "<div>"
+                            "<div><span>2</span><span>3</span><span>4</span></div>"
+                            "<div>{:some {:nested [2 2]}}</div>"
+                            "</div>")}))))
