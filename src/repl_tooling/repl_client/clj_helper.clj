@@ -1,7 +1,7 @@
 (ns repl-tooling.repl-client.clj-helper
   (:require [clojure.java.io :as io]
-            [clojure.string :as str]
-            [clojure.edn :as edn]))
+            [clojure.tools.reader :as r]
+            [clojure.string :as str]))
 
 (defmacro contents-for-fn
   ([source-file] (slurp (io/resource source-file)))
@@ -11,7 +11,7 @@
          io/resource
          slurp
          (str/replace re "(clojure.core/fn $1 ")
-         (edn/read-string)
+         r/read-string
          str))))
 
 (defmacro blob-contents []
