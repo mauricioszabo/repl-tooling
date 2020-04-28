@@ -3,7 +3,8 @@
     (tagged-literal
      'repl-tooling/interactive
      {:html '[:div.rows
-              [:div.title (str (:ns ?state) "/" (:name ?state))]
+              [:div.title (cond->> (str (:name ?state))
+                                   (:ns ?state) (str (:ns ?state) "/"))]
               [:div.indent (str (:arglists ?state))]
               [:div.space]
               [:div.pre (str (:doc ?state))]
