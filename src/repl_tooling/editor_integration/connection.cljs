@@ -28,11 +28,8 @@
   [res :- schemas/EvalResult,
    state
    {:keys [filename]} :- {:filename s/Str, s/Any s/Any}
-   {:keys [get-config]}]
-  (let [repl (if (e-eval/need-cljs? (get-config) filename)
-               (:cljs/repl @state)
-               (:clj/repl @state))]
-    (renderer/parse-result (:result res) repl state)))
+   {:keys [get-config]}])
+
 
 (defn- features-for [state {:keys [editor-data] :as opts} _repl-kind]
   {:autocomplete #(p/let [data (editor-data)]
@@ -46,8 +43,7 @@
                                           (assoc opts :pass pass)
                                           (constantly [range code])))))
    :eval (fn [code eval-opts] (e-eval/eval-with-promise state opts code eval-opts))
-   :result-for-renderer #(p/let [data (editor-data)]
-                           (result-for-renderer % state data opts))})
+   :result-for-renderer #(renderer/parse-result (:result %) (:repl %) state)})
 
 (def ^:private default-opts
   {:on-start-eval identity
@@ -101,6 +97,7 @@
 
 (defn- prepare-generic [primary aux host port state options kind]
   (when (= :clj kind)
+    ; (clj-repl/disable-limits! primary)
     (eval/evaluate aux ":aux-connected" {:ignore true} #(clj-repl/disable-limits! aux)))
 
   (swap! state merge {:clj/aux aux
