@@ -74,7 +74,9 @@
                         ;; FIXME: this is kinda bad, we're re-using opts...
                         :pass (:pass opts)}
                        #(when (and on-eval @state)
-                          (on-eval (assoc eval-data :result (helpers/parse-result %)))))))))
+                          (on-eval (assoc eval-data
+                                          :repl repl
+                                          :result (helpers/parse-result %)))))))))
 
 (defn- auto-opts [editor-data]
   (p/let [{:keys [filename range contents]} (editor-data)
