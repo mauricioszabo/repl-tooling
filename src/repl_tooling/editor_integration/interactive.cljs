@@ -34,7 +34,7 @@
   (.preventDefault e)
   (.stopPropagation e)
   (.. (eval/eval repl
-                 (str "(" fun " "
+                 (str "(" fun " '"
                       (pr-str (norm-evt (.-target e)))
                       " '" (pr-str @state)
                       " " (->> additional-args (map #(str "'"(pr-str %))) (str/join " "))

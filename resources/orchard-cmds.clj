@@ -46,6 +46,6 @@
       :fns {:info (list 'fn '[_ s var-name]
                         (list 'orchard.info/info '(symbol (namespace var-name))
                                                  '(symbol (name var-name))
-                              (list 'eval params)))
+                              params))
             :change-class '(fn [e s]
                              (assoc s :sel (symbol (:value e))))}})))
