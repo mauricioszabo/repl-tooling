@@ -24,8 +24,8 @@
           [range var] (helpers/current-var contents start)
           full-var-name (evaluate (str "`" var) {:ignore true :auto-detect true :aux true})
           splitted (-> full-var-name :result str (str/split #"/" 2))
-          [ns-name name] (cond-> splitted
-                                 (= 1 (count splitted)) (cons "user"))
+          [ns-name name] (cond->> splitted
+                                  (= 1 (count splitted)) (cons "user"))
 
           params {:id id :editor-data ed :range range}
           cljs? (e-eval/need-cljs? (get-config) filename)
