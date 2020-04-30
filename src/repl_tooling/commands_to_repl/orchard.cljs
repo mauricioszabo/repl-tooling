@@ -2,6 +2,8 @@
   (:require-macros [repl-tooling.repl-client.clj-helper :as h])
   (:require [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]
+            [clojure.string :as str]
+            [repl-tooling.editor-integration.evaluation :as e-eval]
             [promesa.core :as p]))
 
 (defn- have-ns? [repl namespace]
@@ -12,22 +14,31 @@
 (def ^:private info-msg (h/contents-for-fn "orchard-cmds.clj" "info"))
 
 (defn- info! [repl editor-state]
-  (p/let [{:keys [on-start-eval on-eval editor-data]} (:editor/callbacks @editor-state)
-          {:keys [contents range] :as ed} (editor-data)
-          eval-code (-> @editor-state :editor/features :eval-and-render)
+  (p/let [{:keys [on-start-eval on-eval editor-data get-config]}
+          (:editor/callbacks @editor-state)
+          evaluate (-> @editor-state :editor/features :eval)
+
+          {:keys [contents range filename] :as ed} (editor-data)
           start (first range)
           id (gensym "info")
-          [_ ns-name] (helpers/ns-range-for contents start)
-          ns-name (or ns-name (p/then (eval/eval repl "(str clojure.core/*ns*)") :result))
           [range var] (helpers/current-var contents start)
+          full-var-name (evaluate (str "`" var) {:ignore true :auto-detect true :aux true})
+          [ns-name name] (-> full-var-name :result str (str/split #"/" 2))
+
           params {:id id :editor-data ed :range range}
-          cmd (str "(" info-msg " " (pr-str (str ns-name)) " " (pr-str var) ")")
+          cljs? (e-eval/need-cljs? (get-config) filename)
+          cmd (str "(" info-msg " "
+                   (pr-str ns-name) " "
+                   (pr-str name) " '"
+                   (pr-str {:dialect (if cljs? :cljs :clj)
+                            :env (-> @editor-state :repl/info :cljs/repl-env)})
+                   ")")
           [row col] start]
     (on-start-eval params)
     (eval/evaluate repl
                    cmd
-                   {:ignore true :namespace ns-name :row row :col col}
-                   #(on-eval (assoc params :result %)))))
+                   {:ignore true :row row :col col}
+                   #(on-eval (assoc params :result % :repl repl)))))
 
 (defn cmds [editor-state]
   (p/let [aux-repl (:clj/aux @editor-state)
