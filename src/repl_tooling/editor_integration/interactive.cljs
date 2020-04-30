@@ -19,26 +19,23 @@
       (symbol? obj)
       (keyword? obj)))
 
-(defn- norm-evt [obj depth]
-  (cond
-    (>= depth 3) obj
-
-    (not (edn? obj))
-    (->> obj
-         (.keys js/Object)
-         js->clj
-         (map (fn [k] [(keyword k) (norm-evt (aget obj k) (inc depth))]))
-         (filter (fn [[_ v]] (edn? v)))
-         (into {}))
-
-    :else obj))
+(defn- norm-evt [obj]
+  (->> obj
+       js/Object.getPrototypeOf
+       js/Object.getOwnPropertyNames
+       (map #(let [norm (-> %
+                            (str/replace #"[A-Z]" (fn [r] (str "-" (str/lower-case r))))
+                            keyword)]
+               [norm (aget obj %)]))
+       (filter (comp edn? second))
+       (into {})))
 
 (defn- run-evt-fun! [e fun state repl additional-args]
   (.preventDefault e)
   (.stopPropagation e)
   (.. (eval/eval repl
                  (str "(" fun " "
-                      (pr-str (norm-evt (.-target e) 1))
+                      (pr-str (norm-evt (.-target e)))
                       " '" (pr-str @state)
                       " " (->> additional-args (map #(str "'"(pr-str %))) (str/join " "))
                       ")")
@@ -66,9 +63,6 @@
                         'stringify-keys walk/stringify-keys})
 
 (defn- render-interactive [{:keys [state html fns] :as edn} repl]
-  (def state state)
-  (def html html)
-  (def fns fns)
   (let [state (r/atom state)
         html (fn [state]
                (try
