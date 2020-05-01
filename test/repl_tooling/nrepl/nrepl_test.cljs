@@ -136,5 +136,7 @@
 
       (testing "break works"
         (editor/type-and-eval "(Thread/sleep 1000)")
+        ; TODO - remove this delay
+        (async/<! (async/timeout 200))
         ((-> @editor/state :commands :break-evaluation :command))
         (check (await! (editor/change-result)) => #"Interrupted")))))
