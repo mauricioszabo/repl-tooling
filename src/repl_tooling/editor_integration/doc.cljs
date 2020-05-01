@@ -32,12 +32,12 @@
         (clojure.core/interpose \"\\n\")
         (clojure.core/apply str)))"))
 
-(defn- emit-result [document-part spec-part {:keys [opts eval-data]}]
+(defn- emit-result [document-part spec-part {:keys [opts eval-data repl]}]
   (let [docs (cond-> document-part spec-part (str "\n\nSpec:\n" spec-part))
         {:keys [on-eval on-result]} opts
         res {:result (pr-str docs) :literal true :as-text (pr-str docs)}]
 
-    (and on-eval (on-eval (assoc eval-data :result res)))
+    (and on-eval (on-eval (assoc eval-data :result res :repl repl)))
     (and on-result (on-result res))))
 
 (defn- try-spec [document-part options]
@@ -49,11 +49,13 @@
         (then #(emit-result document-part (:result %) options))
         (catch #(emit-result document-part nil options)))))
 
-(defn- treat-error [error {:keys [opts eval-data]}]
+(defn- treat-error [error {:keys [opts eval-data repl]}]
   (let [{:keys [on-eval on-result]} opts]
-    (and on-eval (on-eval (assoc eval-data :result {:error error
-                                                    :parsed? true
-                                                    :as-text (pr-str error)})))
+    (and on-eval (on-eval (assoc eval-data
+                                 :result {:error error
+                                          :parsed? true
+                                          :as-text (pr-str error)}
+                                 :repl repl)))
     (and on-result (on-result {:error error :parsed? true :as-text (pr-str error)}))))
 
 (defn- run-documentation-code [{:keys [var editor-data repl] :as options}]
@@ -82,14 +84,3 @@
                                :opts opts
                                :eval-data eval-data
                                :editor-data editor-data}))))
-
-(def spec-cmd-str (contents-for-fn "repl_tooling/commands_to_repl/doc_and_spec.cljs"
-                                   "spec2interactive"))
-
-(defn describe-spec [repl var]
-  (let [cmd (str "(" spec-cmd-str " '" var " )")]
-    (eval/eval repl cmd {:pass {:interactive true}})))
-
-; (s/defn specs-for-var [{:keys [range filename] :as editor-data}
-;                        opts
-;                        editor-state :- schemas/EditorState])

@@ -35,7 +35,7 @@
                :editor-data EditorData
                :range Range})
 
-(def EvalResult (assoc EvalData :result ReplResult))
+(def EvalResult (assoc EvalData :result ReplResult :repl s/Any))
 
 (def Config {:project-paths [s/Str]
              :eval-mode (s/enum :clj :cljs :prefer-clj :prefer-cljs)
