@@ -15,9 +15,7 @@
 
 (cards/deftest orchard-info
   (async-test "with editor infrastructure" {:timeout 8000
-                                            :teardown (do
-                                                        (prn :DONE)
-                                                        (fake/disconnect!))}
+                                            :teardown (fake/disconnect!)}
     (await! (fake/connect!))
 
     (testing "Info for Clojure vars"
@@ -31,7 +29,7 @@
     (testing "Info for Java methods"
       (fake/type ".toUpperCase")
       (fake/run-command! :info-for-var)
-      (check (await! (fake/change-result)) => #"to uppercase"))))
+      (check (await! (fake/change-result)) => #"toUpperCase"))))
 
 (cards/defcard-rg fake-editor
   fake/editor
