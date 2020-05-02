@@ -58,7 +58,7 @@
           {:keys [on-start-eval on-eval]} opts
           [[row col]] range
           ;; TODO: Remove UNREPL and always evaluate on primary
-          repl (repl-for opts state filename (doto (-> opts :pass :aux) (prn :AUX?)))
+          repl (repl-for opts state filename (-> opts :pass :aux))
           id (gensym)
           eval-data {:id id
                      :editor-data editor-data
