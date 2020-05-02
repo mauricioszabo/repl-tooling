@@ -186,6 +186,7 @@
 
 (defn- prepare-generic [primary aux host port state options kind]
   (when (= :clj kind)
+    ; (clj-repl/disable-limits! primary)
     (eval/evaluate aux ":aux-connected" {:ignore true} #(clj-repl/disable-limits! aux)))
 
   (swap! state merge {:clj/aux aux
