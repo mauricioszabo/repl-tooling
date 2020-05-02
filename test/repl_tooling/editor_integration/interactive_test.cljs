@@ -7,72 +7,61 @@
             [check.async :refer-macros [async-test]]
             [repl-tooling.eval-helpers :refer-macros [wait-for-change]]
             [repl-tooling.integration.ui-macros :as m :include-macros true]
+            [repl-tooling.eval-helpers :as e]
             [clojure.core.async :as async]
             [devcards.core :as cards]))
 
 (m/card-for-renderer!)
+(defn render [interactive-obj repl]
+  (let [obj (int/->Interactive interactive-obj repl {})]
+    (reset! state obj)
+    (m/text-on-result)))
 
-(defn render
-  ([interactive-obj] (render interactive-obj {}))
-  ([interactive-obj editor-features]
-   (let [obj (int/->Interactive interactive-obj nil editor-features)]
-     (reset! state obj)
-     (m/text-on-result))))
-
-(def eval-data {:range [[1 1] [1 10]]
-                :editor-data {:filename "somecode.cljs"
-                              :range [[1 1] [1 20]]
-                              :contents "(ns lol)\nsome source code"}})
-(defn- ensure-eval [code opts]
-  (assert (= code "some-right-code"))
-  (assert (= opts {:ignore true :pass {:interactive true}}))
-  (.resolve js/Promise {:result [:replace [:html [:div 3]]]}))
-
-(cards/deftest rendering-elements
+(cards/deftest interactive-renderer
   (reset! state nil)
-  (async-test "interactive renderer" {:timeout 8000}
-    (testing "rendering :render - like normal tooling renderer"
-      (render [:render {:foo 10}])
-      (check (wait-for-change m/text-on-result) => {:text "{ :foo 10 }"})
-      (m/click-on "")
-      (check (wait-for-change m/text-on-result) => {:text "{ :foo 10 } [ :foo 10 ]"}))
+  (e/async-with-repl "will render a hiccup, based on a state"
+    (testing "renders initial state"
+      (render '{:html [:div ?state] :state 20} repl)
+      (check (wait-for-change m/text-on-result) => {:text "20" :html "<div>20</div>"}))
 
-    (testing "rendering HTML elements"
-      (render [:html [:div "LOL"]])
-      (check (wait-for-change m/text-on-result) => {:text "LOL"
-                                                    :html "<div>LOL</div>"}))
+    (testing "updates initial state with fn"
+      (render '{:html [:a {:href "#" :on-click ?inc} ?state]
+                :state 20
+                :fns {:inc (fn [event state] (inc state))}}
+              repl)
+      (check (wait-for-change m/text-on-result) => {:text "20"})
+      (m/click-on "20")
+      (check (wait-for-change m/text-on-result) => {:text "21"}))
 
-    (testing "rendering HTML replacement elements"
-      (render [:html [:a {:href "#" :on-click [:replace [:html [:div "New"]]]} "old"]])
-      (wait-for-change m/text-on-result)
-      (m/click-on "old")
-      (wait-for-change m/text-on-result)
-      (check (m/text-on-result) => {:text "New"}))
+    (testing "maps in states"
+      (render '{:html [:div (:val ?state)]
+                :state {:val 20}}
+              repl)
+      (check (wait-for-change m/text-on-result) => {:text "20"}))
 
-    (testing "deeply rendering HTML elements"
-      (render [:html
-               [:div
-                [:div "Keep this "]
-                [:interactive
-                 [:html [:div [:a {:href "#" :on-click [:replace [:html [:div "New"]]]}
-                               "old"]]]]]])
+    (testing "nested state"
+      (render '{:html [:div (:val (:v ?state))]
+                :state {:v {:val 20}}}
+              repl)
+      (check (wait-for-change m/text-on-result) => {:text "20"}))
 
-      (wait-for-change m/text-on-result)
-      (m/click-on "old")
-      (wait-for-change m/text-on-result)
-      (check (m/text-on-result) => {:text "Keep this New"}))
+    (testing "code on HTML"
+      (render '{:html [:div [:div (map #(vector :span (inc %)) (:vec ?state))]
+                            [:div (pr-str (walk/postwalk-replace {1 2} (:nested ?state)))]]
+                :state {:vec [1 2 3]
+                        :nested {:some {:nested [1 1]}}}}
+              repl)
+      (check (wait-for-change m/text-on-result)
+             => {:html (str "<div>"
+                            "<div><span>2</span><span>3</span><span>4</span></div>"
+                            "<div>{:some {:nested [2 2]}}</div>"
+                            "</div>")}))
 
-    (testing "rendering HTML mixed with default render"
-      (render [:html [:div [:render {:foo 10}]]])
-      (check (wait-for-change m/text-on-result) => {:text "{ :foo 10 }"})
-      (m/click-on "")
-      (check (wait-for-change m/text-on-result) => {:text "{ :foo 10 } [ :foo 10 ]"}))
-
-    (testing "re-eval and dispatch"
-      (render [:html [:a {:href "#" :on-click [:eval "some-right-code"]}
-                      "eval"]]
-              (r/atom {:editor/features {:eval ensure-eval}}))
-
-      (wait-for-change m/text-on-result)
-      (m/click-on "eval")
-      (check (wait-for-change m/text-on-result) => {:text "3"}))))
+    (testing "passing params to callback fns"
+      (render '{:html [:a {:href "#" :on-click (?inc :n)} (:n ?state)]
+                :state {:n 20}
+                :fns {:inc (fn [event state key] (update state key inc))}}
+              repl)
+      (check (wait-for-change m/text-on-result) => {:text "20"})
+      (m/click-on "20")
+      (check (wait-for-change m/text-on-result) => {:text "21"}))))
