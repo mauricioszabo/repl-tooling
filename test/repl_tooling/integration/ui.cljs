@@ -2,7 +2,7 @@
   (:require [clojure.walk :as walk]
             [repl-tooling.integration.fake-editor :refer [editor evaluate state connect!]]
             [repl-tooling.integration.ui-macros :as ui :include-macros true]
-            [clojure.test :refer [async testing is] :include-macros true]
+            [clojure.test :refer [async testing]]
             [check.core :refer-macros [check]]
             [clojure.core.async :as async :include-macros true]
             [devcards.core :as cards :include-macros true]

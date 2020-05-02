@@ -35,7 +35,7 @@
                :editor-data EditorData
                :range Range})
 
-(def EvalResult (assoc EvalData :result ReplResult))
+(def EvalResult (assoc EvalData :result ReplResult :repl s/Any))
 
 (def Config {:project-paths [s/Str]
              :eval-mode (s/enum :clj :cljs :prefer-clj :prefer-cljs)
@@ -81,7 +81,7 @@
 (def EditorFeatures {:autocomplete s/Any
                      :eval-and-render s/Any
                      :eval s/Any
-                     :result-for-renderer s/Any})
+                     :result-for-renderer js/Promise})
 
 (def EditorState (s/atom {:editor/callbacks Callbacks
                           :editor/features EditorFeatures
