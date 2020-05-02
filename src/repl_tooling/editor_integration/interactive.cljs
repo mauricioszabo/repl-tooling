@@ -7,6 +7,9 @@
             [repl-tooling.eval :as eval]
             [cljs.tools.reader :as reader]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
+            [pinkgorilla.ui.default-renderer]
+            [pinkgorilla.ui.pinkie :as pinkie]
+            [pinkgorilla.ui.leaflet :refer [leaflet-map]]
             [sci.core :as sci]))
 
 (defn- edn? [obj]
@@ -66,10 +69,12 @@
   (let [state (r/atom state)
         html (fn [state]
                (try
-                (sci/eval-string (pr-str html) {:bindings (bindings-for state fns repl)
-                                                :preset {:termination-safe true}
-                                                :namespaces {'walk walk-ns}})
+                 (pinkie/tag-inject
+                  (sci/eval-string (pr-str html) {:bindings (bindings-for state fns repl)
+                                                  :preset {:termination-safe true}
+                                                  :namespaces {'walk walk-ns}}))
                 (catch :default e
+                  (.log js/console e)
                   [:div.error "Can't render this code - " (pr-str e)])))]
     [html state]))
 
@@ -77,3 +82,5 @@
   proto/Renderable
   (as-html [_ ratom _]
     (render-interactive edn repl)))
+
+(pinkie/register-tag :p/leaflet leaflet-map)
