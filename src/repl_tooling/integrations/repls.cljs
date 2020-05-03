@@ -9,10 +9,6 @@
             [repl-tooling.eval :as eval]))
 
 ;; Detection
-(defn- detect-output-kind [row kind-p]
-  (when-let [row-kind (re-find #":using-(.*)-repl" (str row))]
-    (p/resolve! kind-p (keyword (second row-kind)))))
-
 (defn- detect-nrepl [buffer]
   (let [p (p/deferred)]
     (if (= [] @buffer)
@@ -25,8 +21,13 @@
       (p/resolve! p false))
     p))
 
+(defn- detect-output-kind [row kind-p]
+  (when-let [row-kind (re-find #":using-(.*)-repl" (str row))]
+    (p/resolve! kind-p (keyword (second row-kind)))))
+
 (defn- detect-socket-kind [^js conn buffer]
-  (let [kind-p (p/deferred)]
+  (let [kind-p (p/deferred)
+        control (connection/treat-buffer! buffer #(detect-output-kind % kind-p) identity)]
     (p/let [_ (.write conn "\n") ; Flush nREPL data detection
             _ (delay 2)
             _ (.write conn (str "#?("
@@ -39,10 +40,8 @@
                                 ")\n"))
             _ (p/delay 2)
             _ (.write conn ":using-unknown-repl\n")
-            control (connection/treat-buffer! buffer
-                                              #(detect-output-kind % kind-p)
-                                              identity)
             kind kind-p]
+      (swap! control assoc :on-line identity)
       {:conn conn
        :buffer buffer
        :control control
@@ -91,21 +90,21 @@
   (let [pending-evals (atom {})
         cmd-for (case repl-kind
                   :bb (fn [{:keys [command id]}]
-                        (source/wrap-command id command "java.lang.Throwable" true))
+                        (source/wrap-command id command 'java.lang.Throwable true))
                   :joker (fn [{:keys [command id]}]
-                           (let [o (source/wrap-command id command "Error" false)
+                           (let [o (source/wrap-command id command 'Error false)
                                  res (:result o)]
                              (if res
                                {:result (str/replace res #"clojure\.core/" "joker.core/")}
                                o)))
                   :cljs (fn [{:keys [command id]}]
-                          (source/wrap-command id command ":default" true))
+                          (source/wrap-command id command :default true))
                   :cljr (fn [{:keys [command id]}]
-                          (source/wrap-command id command "System.Exception" true))
+                          (source/wrap-command id command 'System.Exception true))
                   :clje (fn [{:keys [command id]}]
-                          (source/wrap-command id command ":error" false))
+                          (source/wrap-command id command :error false))
                   (fn [{:keys [command id]}]
-                    (source/wrap-command id command "Exception" true)))
+                    (source/wrap-command id command 'Exception true)))
         eval-command (case repl-kind
                        :bb (fn [{:keys [id command namespace]}]
                              (send-namespace conn "in-ns '" namespace control)
