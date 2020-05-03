@@ -7,9 +7,11 @@
             [repl-tooling.eval :as eval]
             [cljs.tools.reader :as reader]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
-            [pinkgorilla.ui.default-renderer]
+
+            [pinkgorilla.ui.default-setup]
+            [pinkgorilla.ui.json]
+            [pinkgorilla.ui.highchart]
             [pinkgorilla.ui.pinkie :as pinkie]
-            [pinkgorilla.ui.leaflet :refer [leaflet-map]]
             [sci.core :as sci]))
 
 (defn- edn? [obj]
@@ -90,5 +92,3 @@
   proto/Renderable
   (as-html [_ ratom _]
     (render-interactive edn repl)))
-
-(pinkie/register-tag :p/leaflet leaflet-map)
