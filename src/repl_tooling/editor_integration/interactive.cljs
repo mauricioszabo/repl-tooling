@@ -81,9 +81,9 @@
                                         :namespaces {'walk walk-ns}})
                      pinkie/tag-inject
                      treat-error)
-                (catch :default e
-                  (.log js/console e)
-                  [:div.error "Can't render this code - " (pr-str e)])))]
+                 (catch :default e
+                   (.log js/console e)
+                   [:div.error "Can't render this code - " (pr-str e)])))]
     [html state]))
 
 (defrecord Interactive [edn repl editor-state]
