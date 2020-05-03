@@ -57,7 +57,8 @@
     (let [filename (:filename editor-data)
           {:keys [on-start-eval on-eval]} opts
           [[row col]] range
-          repl (repl-for opts state filename false)
+          ;; TODO: Remove UNREPL and always evaluate on primary
+          repl (repl-for opts state filename (-> opts :pass :aux))
           id (gensym)
           eval-data {:id id
                      :editor-data editor-data

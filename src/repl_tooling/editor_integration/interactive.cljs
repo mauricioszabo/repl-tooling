@@ -65,14 +65,22 @@
                         'prewalk-replace walk/prewalk-replace
                         'stringify-keys walk/stringify-keys})
 
+(defn- treat-error [hiccup]
+  (let [d (. js/document createElement "div")]
+    (reagent.dom/render hiccup d)
+    hiccup))
+
 (defn- render-interactive [{:keys [state html fns] :as edn} repl]
   (let [state (r/atom state)
         html (fn [state]
                (try
-                 (pinkie/tag-inject
-                  (sci/eval-string (pr-str html) {:bindings (bindings-for state fns repl)
-                                                  :preset {:termination-safe true}
-                                                  :namespaces {'walk walk-ns}}))
+                 (-> html
+                     pr-str
+                     (sci/eval-string  {:bindings (bindings-for state fns repl)
+                                        :preset {:termination-safe true}
+                                        :namespaces {'walk walk-ns}})
+                     pinkie/tag-inject
+                     treat-error)
                 (catch :default e
                   (.log js/console e)
                   [:div.error "Can't render this code - " (pr-str e)])))]
