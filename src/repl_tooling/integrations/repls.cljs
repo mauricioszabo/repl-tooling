@@ -102,7 +102,7 @@
                   :cljr (fn [{:keys [command id]}]
                           (source/wrap-command id command 'System.Exception true))
                   :clje (fn [{:keys [command id]}]
-                          (source/wrap-command id command :error false))
+                          (source/wrap-command id command '_ false))
                   (fn [{:keys [command id]}]
                     (source/wrap-command id command 'Exception true)))
         eval-command (case repl-kind
