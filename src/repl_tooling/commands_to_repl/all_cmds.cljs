@@ -84,7 +84,7 @@
       :go-to-var-definition {:name "Goto VAR definition"
                              :description "Goes to definition of the current variable"
                              :command #(p/let [data (editor-data)]
-                                         (definition/goto-var data state))}}
+                                         (definition/goto-current-var data state))}}
 
      (= :clj repl-kind)
      (assoc
