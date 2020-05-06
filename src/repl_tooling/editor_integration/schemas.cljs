@@ -69,10 +69,13 @@
 (def Commands {:evaluate-top-block s/Any
                :evaluate-block s/Any
                :evaluate-selection s/Any
+               :run-tests-in-ns s/Any
+               :run-test-for-var s/Any
+               :source-for-var s/Any
                :disconnect s/Any
                :doc-for-var s/Any
-               ; :spec-for-var s/Any
                :load-file s/Any
+               :go-to-var-definition s/Any
                (s/optional-key :break-evaluation) s/Any
                (s/optional-key :connect-embedded) s/Any})
 
