@@ -7,7 +7,8 @@
             [repl-tooling.eval :as eval]
             [cljs.tools.reader :as reader]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
-            [sci.core :as sci]))
+            [sci.core :as sci]
+            [repl-tooling.editor-integration.commands :as cmds]))
 
 (defn- edn? [obj]
   (or (number? obj)
@@ -67,7 +68,11 @@
     (reagent.dom/render hiccup d)
     hiccup))
 
-(defn- render-interactive [{:keys [state html fns] :as edn} repl]
+(defn- editor-ns [state]
+  {'run-callback (partial cmds/run-callback! state)
+   'run-feature (partial cmds/run-feature! state)})
+
+(defn- render-interactive [{:keys [state html fns] :as edn} repl editor-state]
   (let [state (r/atom state)
         html (fn [state]
                (try
@@ -75,7 +80,8 @@
                      pr-str
                      (sci/eval-string  {:bindings (bindings-for state fns repl)
                                         :preset {:termination-safe true}
-                                        :namespaces {'walk walk-ns}})
+                                        :namespaces {'walk walk-ns
+                                                     'editor (editor-ns editor-state)}})
                      treat-error)
                 (catch :default e
                   [:div.error "Can't render this code - " (pr-str e)])))]
@@ -84,4 +90,4 @@
 (defrecord Interactive [edn repl editor-state]
   proto/Renderable
   (as-html [_ ratom _]
-    (render-interactive edn repl)))
+    (render-interactive edn repl editor-state)))
