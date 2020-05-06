@@ -13,7 +13,8 @@
             [repl-tooling.repl-client.nrepl :as nrepl]
             [repl-tooling.commands-to-repl.all-cmds :as cmds]
             [schema.core :as s]
-            [paprika.schemas :as schema :include-macros true]))
+            [paprika.schemas :as schema :include-macros true]
+            [repl-tooling.editor-integration.definition :as definition]))
 
 ; FIXME: This only here because of tests
 (defn disconnect!
@@ -43,7 +44,8 @@
                                           (assoc opts :pass pass)
                                           (constantly [range code])))))
    :eval (fn [code eval-opts] (e-eval/eval-with-promise state opts code eval-opts))
-   :result-for-renderer #(renderer/parse-result (:result %) (:repl %) state)})
+   :result-for-renderer #(renderer/parse-result (:result %) (:repl %) state)
+   :go-to-var-definition #(definition/goto-var (assoc % :state state))})
 
 (def ^:private default-opts
   {:on-start-eval identity
