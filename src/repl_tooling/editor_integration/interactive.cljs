@@ -2,6 +2,7 @@
   (:require [clojure.walk :as walk]
             [repl-tooling.eval :as eval]
             [reagent.core :as r]
+            [reagent.dom :as rdom]
             [repl-tooling.editor-helpers :as helpers]
             [clojure.string :as str]
             [repl-tooling.eval :as eval]
@@ -65,12 +66,18 @@
 
 (defn- treat-error [hiccup]
   (let [d (. js/document createElement "div")]
-    (reagent.dom/render hiccup d)
+    (rdom/render hiccup d)
     hiccup))
 
-(defn- editor-ns [state]
+(defn- editor-ns [repl state]
   {'run-callback (partial cmds/run-callback! state)
-   'run-feature (partial cmds/run-feature! state)})
+   'run-feature (fn [cmd & args]
+                  (if (= cmd :go-to-var-definition)
+                    (cmds/run-feature! state
+                                       :go-to-var-definition
+                                       (assoc (first args)
+                                              :repl repl))
+                    (apply cmds/run-feature! state cmd args)))})
 
 (defn- render-interactive [{:keys [state html fns] :as edn} repl editor-state]
   (let [state (r/atom state)
@@ -81,7 +88,8 @@
                      (sci/eval-string  {:bindings (bindings-for state fns repl)
                                         :preset {:termination-safe true}
                                         :namespaces {'walk walk-ns
-                                                     'editor (editor-ns editor-state)}})
+                                                     'editor (editor-ns repl
+                                                                        editor-state)}})
                      treat-error)
                 (catch :default e
                   [:div.error "Can't render this code - " (pr-str e)])))]
