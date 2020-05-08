@@ -1,6 +1,6 @@
 (defn info [ns-name var-name params]
   (clojure.core/let [s (orchard.info/info (symbol ns-name) (symbol var-name) (eval params))]
-    (tagged-literal
+    (clojure.core/tagged-literal
      'repl-tooling/interactive
      {:html '(cond
                (:ns ?state)
@@ -43,16 +43,16 @@
                [:div.title "Nothing found for this var"])
 
       :state s
-      :fns {:info (clojure.core/list 'fn '[_ s var-name]
-                        (clojure.core/list 'orchard.info/info '(symbol (namespace var-name))
-                                                              '(symbol (name var-name))
-                                           params))
-            :change-class '(fn [e s]
-                             (assoc s :sel (symbol (:value e))))}})))
+      :fns {:info (clojure.core/list 'clojure.core/fn '[_ s var-name]
+                    (clojure.core/list 'orchard.info/info
+                                       '(clojure.core/symbol (clojure.core/namespace var-name))
+                                       '(clojure.core/symbol (clojure.core/name var-name))
+                                        params))
+            :change-class '(clojure.core/fn [e s]
+                             (clojure.core/assoc s :sel (clojure.core/symbol (:value e))))}})))
 
-(require '[orchard.xref])
 (defn find-usages [symbol-name]
-  (let [sym (symbol symbol-name)
+  (let [sym (clojure.core/symbol symbol-name)
         refs (orchard.xref/fn-refs sym)
         grouped (clojure.core/group-by #(-> % meta :ns str) refs)]
     {:html
@@ -62,21 +62,20 @@
        ~@(for [ns-name (sort (keys grouped))]
            `[:div.rows
              [:div.title "In namespace: " ~ns-name]
-             ~@(for [variable (get grouped ns-name)
-                     :let [v (str (symbol variable))]]
+             ~@(for [variable (clojure.core/get grouped ns-name)
+                     :let [v (clojure.core/str (clojure.core/symbol variable))]]
                  [:div [:a {:href "#"
-                            :on-click (list 'fn '[_]
-                                            (list 'editor/run-feature
+                            :on-click (clojure.core/list 'fn '[_]
+                                            (clojure.core/list 'editor/run-feature
                                                   :go-to-var-definition
                                                   {:namespace "user"
                                                    :var-name v}))}
                         v]])
              [:div.space]])]}))
 
-(require '[orchard.clojuredocs])
 (defn clojure-docs [ns-name var-name]
-  (let [doc
-        (orchard.clojuredocs/find-doc ns-name var-name)]
+  (clojure.core/let [doc
+                     (orchard.clojuredocs/find-doc ns-name var-name)]
     {:html '(let [{:keys [doc nodes examples see-alsos ns name arglists]} ?state
                   fqn (str ns "/" name)]
               [:div.rows
@@ -104,6 +103,6 @@
                            (->> ex (take 10) (apply str)) "..."]
                           [:div.space]]))
                      examples (range))]])
-     :state (assoc doc :pages #{0})
-     :fns '{:open (fn [_ s idx] (update s :pages conj idx))
-            :close (fn [_ s idx] (update s :pages disj idx))}}))
+     :state (clojure.core/assoc doc :pages #{0})
+     :fns '{:open (fn [_ s idx] (clojure.core/update s :pages clojure.core/conj idx))
+            :close (fn [_ s idx] (clojure.core/update s :pages clojure.core/disj idx))}}))

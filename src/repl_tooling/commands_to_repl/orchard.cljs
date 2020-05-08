@@ -4,6 +4,7 @@
             [repl-tooling.editor-helpers :as helpers]
             [clojure.string :as str]
             [repl-tooling.editor-integration.evaluation :as e-eval]
+            [repl-tooling.editor-integration.commands :as cmds]
             [promesa.core :as p]))
 
 (defn- have-ns? [repl namespace]
@@ -42,10 +43,22 @@
                    {:ignore true :row row :col col}
                    #(on-eval (assoc params :result % :repl repl)))))
 
+(def ^:private xref-msg (h/contents-for-fn "orchard-cmds.clj" "find-usages"))
+(defn- xref! [aux-repl editor-state]
+  (p/let [fqn (cmds/run-feature! editor-state :get-full-var-name)
+          cmd (str "(" xref-msg " " (-> fqn :as-text pr-str) ")")]
+    (cmds/run-feature! editor-state :eval-and-render
+                       cmd (:range fqn) {:aux true :interactive true})))
+
 (defn cmds [editor-state]
   (p/let [aux-repl (:clj/aux @editor-state)
-          have-info? (have-ns? aux-repl "orchard.info")]
+          have-info? (have-ns? aux-repl "orchard.info")
+          have-xref? (have-ns? aux-repl "orchard.xref")
+          have-docs? (have-ns? aux-repl "orchard.clojuredocs")]
     (cond-> {}
             have-info? (assoc :info-for-var {:name "Info for var"
                                              :description "Gets information for the current var, under cursor"
-                                             :command #(info! aux-repl editor-state)}))))
+                                             :command #(info! aux-repl editor-state)})
+            have-xref? (assoc :find-usages {:name "Find usages"
+                                            :description "Find usages of the current var"
+                                            :command #(xref! aux-repl editor-state)}))))
