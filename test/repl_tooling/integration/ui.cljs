@@ -20,7 +20,7 @@
             [repl-tooling.editor-integration.autocomplete-test]
             [repl-tooling.repl-client.connection-test]
             [repl-tooling.integration.rendered-actions]
-            [repl-tooling.editor-integration.interactive-test]
+            [repl-tooling.editor-integration.renderer.interactive-test]
             [repl-tooling.editor-integration.doc-test]
             [repl-tooling.nrepl.nrepl-test]))
 

@@ -1,6 +1,6 @@
-(ns repl-tooling.editor-integration.interactive-test
+(ns repl-tooling.editor-integration.renderer.interactive-test
   (:require [clojure.string :as str]
-            [repl-tooling.editor-integration.interactive :as int]
+            [repl-tooling.editor-integration.renderer.interactive :as int]
             [reagent.core :as r]
             [clojure.test :refer [testing]]
             [check.core :refer-macros [check]]

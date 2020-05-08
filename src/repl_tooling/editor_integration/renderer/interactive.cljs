@@ -1,4 +1,4 @@
-(ns repl-tooling.editor-integration.interactive
+(ns repl-tooling.editor-integration.renderer.interactive
   (:require [clojure.walk :as walk]
             [repl-tooling.eval :as eval]
             [reagent.core :as r]
