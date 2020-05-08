@@ -44,6 +44,7 @@
 (def GotoEditorData
   {:file-name s/Str
    :line s/Int
+   (s/optional-key :column) s/Int
    (s/optional-key :contents) s/Str})
 
 (def Callbacks {:on-start-eval (s/=> s/Any EvalData)
@@ -84,15 +85,18 @@
 (def EditorFeatures {:autocomplete s/Any
                      :eval-and-render s/Any
                      :eval s/Any
-                     :result-for-renderer js/Promise})
+                     :result-for-renderer js/Promise
+                     :go-to-var-definition (s/=> s/Any {:var-name s/Str
+                                                        :namespace s/Str
+                                                        :repl s/Any})})
 
 (def EditorState (s/atom {:editor/callbacks Callbacks
-                          :editor/features EditorFeatures
-                          (s/optional-key :clj/aux) s/Any
-                          (s/optional-key :clj/repl) s/Any
-                          (s/optional-key :cljs/repl) s/Any
-                          (s/optional-key :repl/info) {:host s/Str
-                                                       :port s/Int
-                                                       :kind ReplKind
-                                                       :kind-name s/Str}
-                          :editor/commands Commands}))
+                               :editor/features EditorFeatures
+                               (s/optional-key :clj/aux) s/Any
+                               (s/optional-key :clj/repl) s/Any
+                               (s/optional-key :cljs/repl) s/Any
+                               (s/optional-key :repl/info) {:host s/Str
+                                                            :port s/Int
+                                                            :kind ReplKind
+                                                            :kind-name s/Str}
+                               :editor/commands Commands}))
