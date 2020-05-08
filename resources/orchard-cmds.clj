@@ -76,33 +76,36 @@
 (defn clojure-docs [ns-name var-name]
   (clojure.core/let [doc
                      (orchard.clojuredocs/find-doc ns-name var-name)]
-    {:html '(let [{:keys [doc nodes examples see-alsos ns name arglists]} ?state
-                  fqn (str ns "/" name)]
-              [:div.rows
-               [:div.title fqn]
-               [:<> (map (fn [a] [:div {:key a} "(" fqn " " a ")"]) arglists)]
-               [:div.space]
-               [:div.pre doc]
-               [:div.space]
-               [:div.title (count examples) " example(s)"]
-               [:<>
-                (map (fn [ex i]
-                       (if ((:pages ?state) i)
-                         [:div.rows {:key i}
-                          [:div.cols
-                           [:a.chevron.opened {:href "#" :on-click (?close i)}]
-                           [:div.space]
-                           [:a.icon.clipboard
-                                       {:on-click (fn [_] (editor/run-callback :on-copy ex))}]
-                           [:div.pre ex]]
-                          [:div.space]]
-                         [:div.rows {:key i}
-                          [:div.cols
-                           [:a.chevron.closed {:href "#" :on-click (?open i)}]
-                           [:div.space]
-                           (->> ex (take 10) (apply str)) "..."]
-                          [:div.space]]))
-                     examples (range))]])
-     :state (clojure.core/assoc doc :pages #{0})
+    {:html '(let [{:keys [doc nodes examples see-alsos ns name arglists]} ?state]
+              (if doc
+                [:div.rows
+                 [:div.title (:fqn ?state)]
+                 [:<> (map (fn [a] [:div {:key a} "(" (:fqn ?state) " " a ")"]) arglists)]
+                 [:div.space]
+                 [:div.pre doc]
+                 [:div.space]
+                 [:div.title (count examples) " example(s)"]
+                 [:<>
+                  (map (fn [ex i]
+                         (if ((:pages ?state) i)
+                           [:div.rows {:key i}
+                            [:div.cols
+                             [:a.chevron.opened {:href "#" :on-click (?close i)}]
+                             [:div.space]
+                             [:a.icon.clipboard
+                              {:on-click (fn [_] (editor/run-callback :on-copy ex))}]
+                             [:div.pre ex]]
+                            [:div.space]]
+                           [:div.rows {:key i}
+                            [:div.cols
+                             [:a.chevron.closed {:href "#" :on-click (?open i)}]
+                             [:div.space]
+                             (->> ex (take 10) (apply str)) "..."]
+                            [:div.space]]))
+                       examples (range))]]
+                [:div.error "No ClojureDoc for the variable " ns-name (:fqn ?state)]))
+     :state (clojure.core/assoc doc
+                                :pages #{0}
+                                :fqn (str ns-name "/" var-name))
      :fns '{:open (fn [_ s idx] (clojure.core/update s :pages clojure.core/conj idx))
             :close (fn [_ s idx] (clojure.core/update s :pages clojure.core/disj idx))}}))

@@ -101,7 +101,8 @@
 
 (defn fqn-for-var [editor-state]
   (p/let [{:keys [contents range filename]} (cmds/run-callback! editor-state :editor-data)
-          [_ var] (helpers/current-var contents (first range))]
-    (cmds/run-feature! editor-state :eval
-                       (str "`" var)
-                       {:ignore true :auto-detect true :aux true})))
+          [range var] (helpers/current-var contents (first range))
+          res (cmds/run-feature! editor-state :eval
+                                 (str "`" var)
+                                 {:ignore true :auto-detect true :aux true})]
+    (assoc res :range range)))
