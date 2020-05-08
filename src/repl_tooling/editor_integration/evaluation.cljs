@@ -37,10 +37,11 @@
               :message msg})
     nil))
 
-(defn repl-for [opts state filename aux?]
+(s/defn repl-for :- s/Any
+  [opts state filename :- s/Str, aux? :- (s/enum true false :always nil)]
   (let [cljs? (need-cljs? ((:get-config opts)) filename)
         repl (cond
-               cljs? (:cljs/repl @state)
+               (and cljs? (not= aux? :always)) (:cljs/repl @state)
                aux? (:clj/aux @state)
                :else (:clj/repl @state))]
     (if (nil? repl)

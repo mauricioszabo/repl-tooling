@@ -44,6 +44,7 @@
 (def GotoEditorData
   {:file-name s/Str
    :line s/Int
+   (s/optional-key :column) s/Int
    (s/optional-key :contents) s/Str})
 
 (def Callbacks {:on-start-eval (s/=> s/Any EvalData)
@@ -69,27 +70,34 @@
 (def Commands {:evaluate-top-block s/Any
                :evaluate-block s/Any
                :evaluate-selection s/Any
+               :run-tests-in-ns s/Any
+               :run-test-for-var s/Any
+               :source-for-var s/Any
                :disconnect s/Any
                :doc-for-var s/Any
-               ; :spec-for-var s/Any
                :load-file s/Any
+               :go-to-var-definition s/Any
                (s/optional-key :break-evaluation) s/Any
                (s/optional-key :connect-embedded) s/Any})
 
 (def ReplKind (s/enum :clj :cljs :joker :bb :clr))
 
 (def EditorFeatures {:autocomplete s/Any
-                     :eval-and-render s/Any
-                     :eval s/Any
-                     :result-for-renderer js/Promise})
+                     :eval-and-render (s/=> s/Any s/Any s/Any s/Any)
+                     :eval (s/=> s/Any s/Any s/Any)
+                     :result-for-renderer js/Promise
+                     :go-to-var-definition (s/=> s/Any {:var-name s/Str
+                                                        :namespace s/Str
+                                                        :repl s/Any})
+                     :get-full-var-name (s/=> js/Promise)})
 
 (def EditorState (s/atom {:editor/callbacks Callbacks
-                          :editor/features EditorFeatures
-                          (s/optional-key :clj/aux) s/Any
-                          (s/optional-key :clj/repl) s/Any
-                          (s/optional-key :cljs/repl) s/Any
-                          (s/optional-key :repl/info) {:host s/Str
-                                                       :port s/Int
-                                                       :kind ReplKind
-                                                       :kind-name s/Str}
-                          :editor/commands Commands}))
+                               :editor/features EditorFeatures
+                               (s/optional-key :clj/aux) s/Any
+                               (s/optional-key :clj/repl) s/Any
+                               (s/optional-key :cljs/repl) s/Any
+                               (s/optional-key :repl/info) {:host s/Str
+                                                            :port s/Int
+                                                            :kind ReplKind
+                                                            :kind-name s/Str}
+                               :editor/commands Commands}))

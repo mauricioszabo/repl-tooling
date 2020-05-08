@@ -4,6 +4,7 @@
             [repl-tooling.editor-helpers :as helpers]
             [clojure.string :as str]
             [repl-tooling.editor-integration.evaluation :as e-eval]
+            [repl-tooling.editor-integration.commands :as cmds]
             [promesa.core :as p]))
 
 (defn- have-ns? [repl namespace]
@@ -42,10 +43,34 @@
                    {:ignore true :row row :col col}
                    #(on-eval (assoc params :result % :repl repl)))))
 
+(def ^:private xref-msg (h/contents-for-fn "orchard-cmds.clj" "find-usages"))
+(defn- xref! [editor-state]
+  (p/let [fqn (cmds/run-feature! editor-state :get-full-var-name)
+          cmd (str "(" xref-msg " " (-> fqn :result str pr-str) ")")]
+    (cmds/run-feature! editor-state :eval-and-render
+                       cmd (:range fqn) {:aux true :interactive true})))
+
+(def ^:private doc-msg (h/contents-for-fn "orchard-cmds.clj" "clojure-docs"))
+(defn- cljdoc! [editor-state]
+  (p/let [fqn (cmds/run-feature! editor-state :get-full-var-name)
+          s (-> fqn :result str (str/split #"/" 2))
+          [ns-name var-name] (cond->> s (-> s count (= 1)) (cons ""))
+          cmd (str "(" doc-msg " " (pr-str ns-name) " " (pr-str var-name) ")")]
+    (cmds/run-feature! editor-state :eval-and-render
+                       cmd (:range fqn) {:aux :always :interactive true})))
+
 (defn cmds [editor-state]
   (p/let [aux-repl (:clj/aux @editor-state)
-          have-info? (have-ns? aux-repl "orchard.info")]
+          have-info? (have-ns? aux-repl "orchard.info")
+          have-xref? (have-ns? aux-repl "orchard.xref")
+          have-docs? (have-ns? aux-repl "orchard.clojuredocs")]
     (cond-> {}
             have-info? (assoc :info-for-var {:name "Info for var"
                                              :description "Gets information for the current var, under cursor"
-                                             :command #(info! aux-repl editor-state)}))))
+                                             :command #(info! aux-repl editor-state)})
+            have-xref? (assoc :find-usages {:name "Find usages"
+                                            :description "Find usages of the current var"
+                                            :command #(xref! editor-state)})
+            have-docs? (assoc :clojure-doc-for-var {:name "Clojure doc for var"
+                                                    :description "Find the Clojure doc of the current var"
+                                                    :command #(cljdoc! editor-state)}))))
