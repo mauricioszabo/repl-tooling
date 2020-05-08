@@ -84,7 +84,7 @@
 
 (def EditorFeatures {:autocomplete s/Any
                      :eval-and-render s/Any
-                     :eval s/Any
+                     :eval (s/=> s/Any s/Any s/Any)
                      :result-for-renderer js/Promise
                      :go-to-var-definition (s/=> s/Any {:var-name s/Str
                                                         :namespace s/Str
