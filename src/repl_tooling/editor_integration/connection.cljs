@@ -45,7 +45,8 @@
                                           (constantly [range code])))))
    :eval (fn [code eval-opts] (e-eval/eval-with-promise state opts code eval-opts))
    :result-for-renderer #(renderer/parse-result (:result %) (:repl %) state)
-   :go-to-var-definition #(definition/goto-var (assoc % :state state))})
+   :go-to-var-definition #(definition/goto-var (assoc % :state state))
+   :get-full-var-name #(cmds/fqn-for-var state)})
 
 (def ^:private default-opts
   {:on-start-eval identity
