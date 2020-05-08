@@ -83,12 +83,13 @@
 (def ReplKind (s/enum :clj :cljs :joker :bb :clr))
 
 (def EditorFeatures {:autocomplete s/Any
-                     :eval-and-render s/Any
+                     :eval-and-render (s/=> s/Any s/Any s/Any s/Any)
                      :eval (s/=> s/Any s/Any s/Any)
                      :result-for-renderer js/Promise
                      :go-to-var-definition (s/=> s/Any {:var-name s/Str
                                                         :namespace s/Str
-                                                        :repl s/Any})})
+                                                        :repl s/Any})
+                     :get-full-var-name (s/=> js/Promise)})
 
 (def EditorState (s/atom {:editor/callbacks Callbacks
                                :editor/features EditorFeatures
