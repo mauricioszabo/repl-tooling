@@ -8,7 +8,8 @@
             [repl-tooling.editor-integration.evaluation :as e-eval]
             [repl-tooling.editor-integration.embedded-clojurescript :as embedded]
             [repl-tooling.editor-integration.definition :as definition]
-            [repl-tooling.editor-integration.doc :as doc]))
+            [repl-tooling.editor-integration.doc :as doc]
+            [repl-tooling.editor-integration.commands :as cmds]))
 
 (defn disconnect!
   "Disconnect all REPLs. Indempotent."
@@ -97,3 +98,10 @@
                          :old-command #(embedded/connect! state opts false)})
 
      :always (merge orchard-cmds))))
+
+(defn fqn-for-var [editor-state]
+  (p/let [{:keys [contents range filename]} (cmds/run-callback! editor-state :editor-data)
+          [_ var] (helpers/current-var contents (first range))]
+    (cmds/run-feature! editor-state :eval
+                       (str "`" var)
+                       {:ignore true :auto-detect true :aux true})))
