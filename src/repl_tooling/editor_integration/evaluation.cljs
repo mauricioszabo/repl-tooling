@@ -37,8 +37,8 @@
               :message msg})
     nil))
 
-(s/defn repl-for :- (s/maybe eval/Evaluator)
-  [opts state filename :- s/Str, aux? :- (s/enum true false :always)]
+(s/defn repl-for :- s/Any
+  [opts state filename :- s/Str, aux? :- (s/enum true false :always nil)]
   (let [cljs? (need-cljs? ((:get-config opts)) filename)
         repl (cond
                (and cljs? (not= aux? :always)) (:cljs/repl @state)
