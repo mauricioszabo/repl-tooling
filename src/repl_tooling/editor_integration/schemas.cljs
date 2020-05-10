@@ -92,12 +92,12 @@
                      :get-full-var-name (s/=> js/Promise)})
 
 (def EditorState (s/atom {:editor/callbacks Callbacks
-                               :editor/features EditorFeatures
-                               (s/optional-key :clj/aux) s/Any
-                               (s/optional-key :clj/repl) s/Any
-                               (s/optional-key :cljs/repl) s/Any
-                               (s/optional-key :repl/info) {:host s/Str
-                                                            :port s/Int
-                                                            :kind ReplKind
-                                                            :kind-name s/Str}
-                               :editor/commands Commands}))
+                          :editor/features EditorFeatures
+                          (s/optional-key :clj/aux) s/Any
+                          (s/optional-key :clj/repl) s/Any
+                          (s/optional-key :cljs/repl) s/Any
+                          (s/optional-key :repl/info) {:host s/Str
+                                                       :port s/Int
+                                                       :kind ReplKind
+                                                       :kind-name s/Str}
+                          :editor/commands Commands}))
