@@ -22,7 +22,8 @@
             [repl-tooling.integration.rendered-actions]
             [repl-tooling.editor-integration.renderer.interactive-test]
             [repl-tooling.editor-integration.doc-test]
-            [repl-tooling.nrepl.nrepl-test]))
+            [repl-tooling.nrepl.nrepl-test]
+            [repl-tooling.editor-integration.configs-test]))
 
 (cards/defcard-rg rendered-result
   (fn [result]
