@@ -63,6 +63,6 @@
          (click-clipboard 0)
          (check (async/<! copy) =expect=> #"#object.*java\.lang\.Object"))
 
-       (conn/disconnect!)
+       (editor/disconnect!)
        (async/close! copy)
        (done)))))
