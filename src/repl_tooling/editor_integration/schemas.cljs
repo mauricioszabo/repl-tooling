@@ -47,7 +47,28 @@
    (s/optional-key :column) s/Int
    (s/optional-key :contents) s/Str})
 
-(def Callbacks {:on-start-eval (s/=> s/Any EvalData)
+(def Command {:name s/Str
+              (s/optional-key :description) s/Str
+              (s/optional-key :old-command) (s/=> s/Any)
+              :command (s/=> s/Any)})
+
+(def Commands {:evaluate-top-block Command
+               :evaluate-block Command
+               :evaluate-selection Command
+               :run-tests-in-ns Command
+               :run-test-for-var Command
+               :source-for-var Command
+               :disconnect Command
+               :doc-for-var Command
+               :load-file Command
+               :go-to-var-definition Command
+               (s/optional-key :break-evaluation) Command
+               (s/optional-key :connect-embedded) Command
+               s/Keyword Command})
+
+(def Callbacks {:config-file-path (s/maybe s/Str)
+                :register-commands (s/=> s/Any Commands)
+                :on-start-eval (s/=> s/Any EvalData)
                 :open-editor (s/=> s/Any GotoEditorData)
                 :on-eval (s/=> s/Any EvalResult)
                 :editor-data (s/=> EditorData)
@@ -67,25 +88,12 @@
                                                         :result ReplResult})
                 :on-disconnect (s/=> s/Any)})
 
-(def Commands {:evaluate-top-block s/Any
-               :evaluate-block s/Any
-               :evaluate-selection s/Any
-               :run-tests-in-ns s/Any
-               :run-test-for-var s/Any
-               :source-for-var s/Any
-               :disconnect s/Any
-               :doc-for-var s/Any
-               :load-file s/Any
-               :go-to-var-definition s/Any
-               (s/optional-key :break-evaluation) s/Any
-               (s/optional-key :connect-embedded) s/Any})
-
-(def ReplKind (s/enum :clj :cljs :joker :bb :clr))
+(def ReplKind (s/enum :clj :cljs :joker :bb :clr :clje))
 
 (def EditorFeatures {:autocomplete s/Any
                      :eval-and-render (s/=> s/Any s/Any s/Any s/Any)
                      :eval (s/=> s/Any s/Any s/Any)
-                     :result-for-renderer js/Promise
+                     :result-for-renderer (s/=> js/Promise)
                      :go-to-var-definition (s/=> s/Any {:var-name s/Str
                                                         :namespace s/Str
                                                         :repl s/Any})

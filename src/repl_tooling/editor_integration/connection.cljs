@@ -14,7 +14,8 @@
             [repl-tooling.commands-to-repl.all-cmds :as cmds]
             [schema.core :as s]
             [paprika.schemas :as schema :include-macros true]
-            [repl-tooling.editor-integration.definition :as definition]))
+            [repl-tooling.editor-integration.definition :as definition]
+            [repl-tooling.editor-integration.configs :as configs]))
 
 ; FIXME: This only here because of tests
 (defn disconnect!
@@ -50,8 +51,11 @@
 
 (def ^:private default-opts
   {:on-start-eval identity
+   :config-file-path nil
+   :register-commands identity
    :open-editor identity
    :get-rendered-results (constantly [])
+   :on-copy identity
    :on-eval identity
    :on-result identity
    :on-stdout identity
@@ -64,7 +68,8 @@
 (defn- swap-state! [state options kind]
   (p/let [cmds (cmds/all state options kind)
           feats (features-for state options kind)]
-    (swap! state assoc :editor/commands cmds :editor/features feats)))
+    (swap! state assoc :editor/features feats)
+    (configs/prepare-commands state cmds)))
 
 (defn connect-evaluator!
   ""
@@ -123,9 +128,10 @@
       (.error js/console error)))
   nil)
 
-(defn- callback-fn [state callbacks output]
-  (let [{:keys [on-stdout on-stderr on-result on-disconnect on-patch]} callbacks]
-    (when (nil? output)
+(defn- callback-fn [state output]
+  (let [{:keys [on-stdout on-stderr on-result on-disconnect on-patch]}
+        (:editor/callbacks @state)]
+    (when (and (nil? output) on-disconnect)
       (cmds/handle-disconnect! state)
       (on-disconnect))
     (when-let [out (:out output)] (and on-stdout (on-stdout out)))
@@ -205,7 +211,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
   (p/catch
    (p/let [options (-> default-opts (merge opts) prepare-patch)
            state (r/atom {:editor/callbacks options})
-           callback (partial callback-fn state options)
+           callback (partial callback-fn state)
            [kind primary] (repls/connect-repl! :clj-eval host port callback)
            _ (eval/eval primary "1234")
            _ (case kind
