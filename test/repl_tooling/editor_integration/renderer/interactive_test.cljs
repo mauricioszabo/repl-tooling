@@ -6,7 +6,7 @@
             [check.core :refer-macros [check]]
             [check.async :refer-macros [async-test]]
             [repl-tooling.eval-helpers :refer-macros [wait-for-change]]
-            [repl-tooling.integration.ui-macros :as m :include-macros true]
+            [repl-tooling.integration.ui-macros :as m]
             [repl-tooling.eval-helpers :as e]
             [clojure.core.async :as async]
             [devcards.core :as cards]))
