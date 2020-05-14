@@ -28,7 +28,7 @@
 (defn- features-for [state {:keys [editor-data] :as opts} _repl-kind]
   {:autocomplete #(p/let [data (editor-data)]
                     (autocomplete/command state opts data))
-   ; FIXME: Deprecate this
+   ; TODO: Deprecate this
    :eval-and-render (fn eval-and-render
                       ([code range] (eval-and-render code range nil))
                       ([code range pass]
