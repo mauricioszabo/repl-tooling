@@ -184,7 +184,7 @@
 
      (testing "evaluates and presents classes"
        (ui/assert-out "java.lang.Object ..."
-                      "Object"))
+                      "(ns user) Object"))
 
      (testing "evaluates inner browseable structures"
        (ui/assert-out #"#foobar.baz/lolnein \.\.\."
