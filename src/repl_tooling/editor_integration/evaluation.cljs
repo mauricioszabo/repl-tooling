@@ -4,7 +4,19 @@
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.schemas :as schemas]
+            [repl-tooling.editor-integration.commands :as cmds]
             [schema.core :as s]))
+
+(defn get-code [editor-state kind]
+  (p/let [data (cmds/run-callback! editor-state :editor-data)]
+    (when-let [{:keys [contents range]} data]
+      (when-let [[range text] (case kind
+                                :top-block (helpers/top-block-for contents (first range))
+                                :block (helpers/block-for contents (first range))
+                                :var (helpers/current-var contents (first range))
+                                :selection (helpers/text-in-range contents range)
+                                :ns (helpers/ns-range-for contents (first range)))]
+        {:text text :range range}))))
 
 (defn need-cljs? [config filename]
   (or

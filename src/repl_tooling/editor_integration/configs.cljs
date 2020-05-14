@@ -38,16 +38,23 @@
                                            :go-to-var-definition
                                            (assoc (first args)
                                                   :repl curr-repl))
-                        (apply cmds/run-feature! state cmd args))))}))
+                        (apply cmds/run-feature! state cmd args))))
+     'get-top-block #(cmds/run-feature! state :get-code :top-block)
+     'get-block #(cmds/run-feature! state :get-code :block)
+     'get-var #(cmds/run-feature! state :get-code :var)
+     'get-selection #(cmds/run-feature! state :get-code :selection)
+     'get-namespace #(cmds/run-feature! state :get-code :ns)
+     'eval-and-render #(cmds/run-feature! state :evaluate-and-render %)
+     'eval (partial cmds/run-feature! state :eval)}))
 
 (defn- prepare-nses [repl editor-state]
   (assoc sci-ns/namespaces
          'editor (editor-ns nil editor-state)))
 
 ; FIXME: add REPL here
-(defn evaluate-code [code state]
-  (sci/eval-string code {:env state
-                         :namespaces (prepare-nses nil state)
+(defn evaluate-code [code repl-state editor-state]
+  (sci/eval-string code {:env repl-state
+                         :namespaces (prepare-nses nil editor-state)
                          :bindings {'promise #(.resolve js/Promise %)
                                     'then #(.then ^js %1 %2)
                                     'catch #(.catch ^js %1 %2)
@@ -57,7 +64,7 @@
   (when (existsSync config-file)
     (p/let [config (read-config-file config-file)
             repl-state (atom {})
-            _ (evaluate-code config repl-state)
+            _ (evaluate-code config repl-state editor-state)
             vars (->> (sci/eval-string "(->> *ns* ns-publics keys)" {:env repl-state})
                       (map #(vector %1 (sci/eval-string (str %1) {:env repl-state}))))]
       (->> vars

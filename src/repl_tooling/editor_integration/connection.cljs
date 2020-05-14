@@ -13,7 +13,6 @@
             [repl-tooling.repl-client.nrepl :as nrepl]
             [repl-tooling.commands-to-repl.all-cmds :as cmds]
             [schema.core :as s]
-            [paprika.schemas :as schema :include-macros true]
             [repl-tooling.editor-integration.definition :as definition]
             [repl-tooling.editor-integration.configs :as configs]))
 
@@ -26,16 +25,10 @@
   (repls/disconnect! :cljs-aux)
   (repls/disconnect! :cljs-eval))
 
-(s/defn result-for-renderer
-  [res :- schemas/EvalResult,
-   state
-   {:keys [filename]} :- {:filename s/Str, s/Any s/Any}
-   {:keys [get-config]}])
-
-
 (defn- features-for [state {:keys [editor-data] :as opts} _repl-kind]
   {:autocomplete #(p/let [data (editor-data)]
                     (autocomplete/command state opts data))
+   ; FIXME: Deprecate this
    :eval-and-render (fn eval-and-render
                       ([code range] (eval-and-render code range nil))
                       ([code range pass]
@@ -44,10 +37,17 @@
                                           data
                                           (assoc opts :pass pass)
                                           (constantly [range code])))))
+   :evaluate-and-render (fn [{:keys [text range pass]}]
+                          (p/let [data (editor-data)]
+                            (cmds/eval-range state
+                                             data
+                                             (assoc opts :pass pass)
+                                             (constantly [range text]))))
    :eval (fn [code eval-opts] (e-eval/eval-with-promise state opts code eval-opts))
    :result-for-renderer #(renderer/parse-result (:result %) (:repl %) state)
    :go-to-var-definition #(definition/goto-var (assoc % :state state))
-   :get-full-var-name #(cmds/fqn-for-var state)})
+   :get-full-var-name #(cmds/fqn-for-var state)
+   :get-code #(e-eval/get-code state %)})
 
 (def ^:private default-opts
   {:on-start-eval identity
@@ -169,7 +169,7 @@
 ; Config Options:
 ; {:project-paths [...]
 ;  :eval-mode (enum :clj :cljs :prefer-clj :prefer-cljs)}
-(schema/defn-s connect!
+(s/defn connect!
   "Connects to a clojure-like REPL that supports the socket REPL protocol.
 Expects host, port, and some callbacks:
 * on-start-eval -> a function that'll be called when an evaluation starts

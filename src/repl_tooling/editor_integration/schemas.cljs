@@ -90,14 +90,19 @@
 
 (def ReplKind (s/enum :clj :cljs :joker :bb :clr :clje))
 
+(def PossibleRanges (s/enum :top-block :block :var :selection :ns))
 (def EditorFeatures {:autocomplete s/Any
                      :eval-and-render (s/=> s/Any s/Any s/Any s/Any)
+                     :evaluate-and-render (s/=> s/Any {:text s/Str
+                                                       :range Range
+                                                       (s/optional-key :pass) s/Any})
                      :eval (s/=> s/Any s/Any s/Any)
                      :result-for-renderer (s/=> js/Promise)
                      :go-to-var-definition (s/=> s/Any {:var-name s/Str
                                                         :namespace s/Str
                                                         :repl s/Any})
-                     :get-full-var-name (s/=> js/Promise)})
+                     :get-full-var-name (s/=> js/Promise)
+                     :get-code (s/=> js/Promise PossibleRanges)})
 
 (def EditorState (s/atom {:editor/callbacks Callbacks
                           :editor/features EditorFeatures

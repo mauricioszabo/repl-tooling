@@ -21,17 +21,17 @@
 (cards/deftest config-eval
   (async-test "evaluating code"
     (testing "evaluates simple code"
-      (check (configs/evaluate-code "(+ 1 2)" (atom {})) => 3))
+      (check (configs/evaluate-code "(+ 1 2)" (atom {}) (atom {})) => 3))
 
     (testing "resolves promises with let"
       (-> "(let [a (promise 1) b (promise 2)] (+ a b))"
-          (configs/evaluate-code (atom {}))
+          (configs/evaluate-code (atom {}) (atom {}))
           await!
           (check => 3)))
 
     (testing "resolves mixed promises / non-promises"
       (-> "(let [a (promise 1) b 2] (+ a b))"
-          (configs/evaluate-code (atom {}))
+          (configs/evaluate-code (atom {}) (atom {}))
           await!
           (check => 3)))))
 
@@ -59,11 +59,10 @@
         (check (:q @custom-commands) => nil)
         (check @custom-commands => {:p {:command fn?}}))
 
-      #_
       (testing "getting blocks"
         (editor/type "(range 3)")
-        (change-config-file "(defn e-block [] (let [{:keys [text range]} (editor/top-block)]
-          (eval-and-render text range)))")
+        (change-config-file "(defn e-block [] (let [data (editor/get-top-block)]
+          (editor/eval-and-render data)))")
         (await! reg)
-        ((-> @custom-commands :e-block :command) {:code "(+ 1 2)"})
-        (check (editor/change-result) =resolves=> "( 0 1 2 )")))))
+        ((-> @custom-commands :e-block :command))
+        (check (await! (editor/change-result)) => "(\n0\n \n1\n \n2\n)")))))
