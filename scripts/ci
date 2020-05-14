@@ -29,7 +29,9 @@ mkdir ~/video
 nohup ffmpeg -video_size 1024x768 -f x11grab -i :99.0 ~/video/out.mpg &
 
 echo "Running tests"
-node integration_test.js
+# node integration_test.js
+echo -e "(do (require '[repl-tooling.integration]) \
+  (System/exit (repl-tooling.integration/run-tests!)))" | nc localhost 2233
 ret=$?
 
 echo -e "(System/exit 0)\n" | nc localhost 2233
