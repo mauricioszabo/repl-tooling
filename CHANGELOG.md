@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.4.4
+- Performance improvement while parsing Clojure code
+- Interactive renderer support
+- Runnable config
+
 ## 0.4.1
 - Fixed https://github.com/mauricioszabo/atom-chlorine/issues/150
 - Alpha support for nREPL
