@@ -63,7 +63,7 @@
    :on-stderr identity
    :editor-data identity
    :notify identity
-   :get-config identity ;FIXME
+   :get-config (constantly {:project-paths [], :eval-mode :prefer-clj})
    :prompt (fn [ & _] (js/Promise. (fn [])))})
 
 (defn- swap-state! [state options kind]
