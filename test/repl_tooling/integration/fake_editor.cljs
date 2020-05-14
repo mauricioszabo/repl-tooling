@@ -26,7 +26,7 @@
                         :commands {}
                         :stdout nil
                         :stderr nil
-                        :range [[0 0]]
+                        :range [[0 0] [0 0]]
                         :eval-result (r/atom nil)}))
 
 (defn- res [result]
