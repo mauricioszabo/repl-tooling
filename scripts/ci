@@ -5,8 +5,11 @@
 # wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
 # sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
 sudo apt-get update
-sudo apt install libglib2.0-0 libnss3 libgtk3.0 libxss1 libasound2 ffmpeg #adoptopenjdk-11-openj9
+sudo apt install libglib2.0-0 libnss3 libgtk3.0 libxss1 libasound2 ffmpeg wget unzip
 npm install
+
+cd /tmp && wget https://chromedriver.storage.googleapis.com/76.0.3809.126/chromedriver_linux64.zip
+cd /usr/bin && sudo unzip /tmp/https://chromedriver.storage.googleapis.com/76.0.3809.126/chromedriver_linux64.zip
 
 npx shadow-cljs watch integration fixture &
 for n in {1..25}; do
