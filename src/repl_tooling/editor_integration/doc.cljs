@@ -73,7 +73,7 @@
   (let [id (gensym "doc-for-var")
         [_ var] (helpers/current-var contents (first range))
         [_ ns] (helpers/ns-range-for contents (first range))
-        repl (e-eval/repl-for opts state filename true)
+        repl (e-eval/repl-for state filename true)
         eval-data {:id id
                    :editor-data editor-data
                    :range range}]

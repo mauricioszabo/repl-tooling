@@ -47,7 +47,8 @@
    :result-for-renderer #(renderer/parse-result (:result %) (:repl %) state)
    :go-to-var-definition #(definition/goto-var (assoc % :state state))
    :get-full-var-name #(cmds/fqn-for-var state)
-   :get-code #(e-eval/get-code state %)})
+   :get-code #(e-eval/get-code state %)
+   :repl-for #(e-eval/repl-for state %1 %2)})
 
 (def ^:private default-opts
   {:on-start-eval identity

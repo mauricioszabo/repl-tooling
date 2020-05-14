@@ -28,8 +28,12 @@
             (list 'then (list 'promise elem) (list 'fn [var] body))
             rest))))))
 
+(defn- find-repl [state]
+  (p/let [data (cmds/run-callback! state :editor-data)]
+    (cmds/run-feature! state :repl-for (:filename data) true)))
+
 (defn- editor-ns [repl state]
-  (let [repl (delay (or repl))]
+  (let [repl (delay (or repl (find-repl state)))]
     {'run-callback (partial cmds/run-callback! state)
      'run-feature (fn [cmd & args]
                     (p/let [curr-repl @repl]
