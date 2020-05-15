@@ -45,7 +45,8 @@
                                [range (helpers/text-in-range contents range)]))))
 
 (defn all [state {:keys [editor-data] :as opts} repl-kind]
-  (p/let [orchard-cmds (orchard/cmds state)]
+  (p/let [orchard-cmds (orchard/cmds state)
+          config-file (-> @state :editor/callbacks :config-file-path)]
     (cond->
      {:evaluate-top-block {:name "Evaluate Top Block"
                            :description "Evaluates top block block on current editor's selection"
@@ -86,6 +87,13 @@
                              :description "Goes to definition of the current variable"
                              :command #(p/let [data (editor-data)]
                                          (definition/goto-current-var data state))}}
+
+     config-file
+     (assoc :open-config {:name "Open Config File"
+                          :description "Opens the current config file"
+                          :command #(cmds/run-callback! state :open-editor
+                                                       {:file-name config-file}
+                                                       :line 0)})
 
      (= :clj repl-kind)
      (assoc
