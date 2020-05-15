@@ -55,26 +55,44 @@
   (assoc sci-ns/namespaces
          'editor (editor-ns nil editor-state)))
 
-; FIXME: add REPL here
-(defn evaluate-code [code repl-state editor-state]
-  (sci/eval-string code {:env repl-state
+(defn evaluate-code [code sci-state editor-state]
+  (sci/eval-string code {:env sci-state
                          :namespaces (prepare-nses nil editor-state)
                          :bindings {'promise #(.resolve js/Promise %)
                                     'then #(.then ^js %1 %2)
                                     'catch #(.catch ^js %1 %2)
                                     'let promised-let}}))
 
+(defn- catch-errors [fun editor-state]
+  (try
+    (fun)
+    (catch :default e
+      (cmds/run-callback! editor-state :on-eval
+                          {:id (gensym "custom-eval")
+                           :editor-data {:contents "[INTERNAL-FN]"
+                                         :range [[0 0] [0 0]]
+                                         :filename (-> @editor-state
+                                                       :editor/callbacks
+                                                       :config-file-path)}
+                           :range [[0 0] [0 0]]
+                           :repl nil
+                           :result {:error e
+                                    :as-text (pr-str e)
+                                    :parsed? true}}))))
+
 (defn- fns-for [editor-state config-file]
   (when (existsSync config-file)
     (p/let [config (read-config-file config-file)
-            repl-state (atom {})
-            _ (evaluate-code config repl-state editor-state)
-            vars (->> (sci/eval-string "(->> *ns* ns-publics keys)" {:env repl-state})
-                      (map #(vector %1 (sci/eval-string (str %1) {:env repl-state}))))]
+            sci-state (atom {})
+            _ (evaluate-code config sci-state editor-state)
+            vars (->> (sci/eval-string "(->> *ns* ns-publics keys)" {:env sci-state})
+                      (map #(vector % (sci/eval-string (str %) {:env sci-state}))))]
       (->> vars
            (filter (comp fn? second))
            (reduce (fn [acc [k fun]]
-                     (assoc acc (-> k str keyword) {:name (name-for k) :command fun}))
+                     (assoc acc (-> k str keyword) {:name (name-for k)
+                                                    :command #(catch-errors
+                                                               fun editor-state)}))
                    {})))))
 
 (declare prepare-commands)

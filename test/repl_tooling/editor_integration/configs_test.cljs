@@ -43,10 +43,10 @@
                                  (editor/disconnect!))}
 
       (change-config-file "(defn- qt [txt] (str \"'\" txt))
-                         (defn q [args] (update args :code qt))")
+                         (defn q [] (update {:code \"(+ 1 2)\"} :code qt))")
       (editor/connect! {:config-file-path config-file
                         :register-commands (fn [cmds]
-                                             (async/put! reg :cmds)
+                                             (async/put! reg (-> cmds keys set))
                                              (reset! custom-commands cmds))})
       (testing "when connected, new commands are registered"
         (await! reg)
@@ -63,6 +63,13 @@
         (editor/type "(range 3)")
         (change-config-file "(defn e-block [] (let [data (editor/get-top-block)]
           (editor/eval-and-render data)))")
-        (await! reg)
+        (await! (editor/wait-for #(contains? (async/poll! reg) :e-block)))
         ((-> @custom-commands :e-block :command))
-        (check (await! (editor/change-result)) => "(\n0\n \n1\n \n2\n)")))))
+        (check (await! (editor/change-result)) => "(\n0\n \n1\n \n2\n)"))
+
+      (testing "checking for errors"
+        (editor/type "(range 3)")
+        (change-config-file "(defn error [] (throw (ex-info \"Some-error\" {})))")
+        (await! (editor/wait-for #(contains? (async/poll! reg) :error)))
+        ((-> @custom-commands :error :command))
+        (check (await! (editor/change-result)) => #"Some-error")))))
