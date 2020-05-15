@@ -66,7 +66,8 @@
         (click-test! n)
         (swap! total-fails + (collect-tests! 0)))
 
-      (println "Total failures:" @total-fails))
+      (println "Total failures:" @total-fails)
+      @total-fails)
     (finally
       (api/close-window @cards)
       (api/quit @cards))))
