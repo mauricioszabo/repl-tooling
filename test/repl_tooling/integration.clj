@@ -58,18 +58,25 @@
 (defn run-tests! []
   (prepare-selenium!)
   (click-root!)
-  (try
-    (let [tests (-> @cards (api/query-all {:css "a"}) count dec)
-          total-fails (atom 0)]
-      (doseq [n (range tests)]
-        (click-root!)
-        (click-test! n)
-        (swap! total-fails + (collect-tests! 0)))
+  (let [tries (atom 0)]
+    (try
+      (let [tests (-> @cards (api/query-all {:css "a"}) count dec)
+            total-fails (atom 0)]
+        (doseq [n (range tests)]
+          (click-root!)
+          (click-test! n)
+          (swap! total-fails + (collect-tests! 0)))
 
-      (println "Total failures:" @total-fails)
-      @total-fails)
-    (finally
-      (api/close-window @cards)
-      (api/quit @cards))))
+        (println "Total failures:" @total-fails)
+        @total-fails)
+      (catch Throwable t
+        (prn :ERROR t)
+        (println "Try number " (inc @tries) "- retrying...\n\n")
+        (swap! tries inc)
+        (when (< @tries 3)
+          (run-tests!)))
+      (finally
+        (api/close-window @cards)
+        (api/quit @cards)))))
 
 #_(run-tests!)
