@@ -62,6 +62,7 @@
                :doc-for-var Command
                :load-file Command
                :go-to-var-definition Command
+               :open-config Command
                (s/optional-key :break-evaluation) Command
                (s/optional-key :connect-embedded) Command
                s/Keyword Command})
