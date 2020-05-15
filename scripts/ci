@@ -13,6 +13,7 @@ sudo unzip chromedriver_linux64.zip
 sudo mv chromedriver /usr/bin
 sudo rm chromedriver_linux64.zip
 
+export DISPLAY=:99
 npx shadow-cljs watch integration fixture &
 for n in {1..25}; do
   ls target/fixture.js target/integration/main.js &>/dev/null && break
@@ -28,7 +29,6 @@ ls target/fixture.js target/integration/main.js || exit 1
 echo "Fixture app compiled, running the fixture app"
 node target/fixture.js &
 
-export DISPLAY=:99
 Xvfb -screen 0 1024x768x24+32 :99 &
 mkdir ~/video
 nohup ffmpeg -video_size 1024x768 -f x11grab -i :99.0 ~/video/out.mpg &
