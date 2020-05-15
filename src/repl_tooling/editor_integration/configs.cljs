@@ -1,5 +1,6 @@
 (ns repl-tooling.editor-integration.configs
   (:require [sci.core :as sci]
+            [clojure.set :as set]
             [promesa.core :as p]
             [paprika.collection :as coll]
             [clojure.string :as str]
@@ -52,16 +53,27 @@
      'eval (partial cmds/run-feature! state :eval)}))
 
 (defn- prepare-nses [repl editor-state]
-  (assoc sci-ns/namespaces
-         'editor (editor-ns nil editor-state)))
+  (-> sci-ns/namespaces
+      (set/rename-keys '{clojure.string str
+                         clojure.set set
+                         clojure.walk walk
+                         clojure.template template
+                         clojure.repl repl
+                         clojure.edn edn})
+      (assoc 'editor (editor-ns nil editor-state))))
 
-(defn evaluate-code [code sci-state editor-state]
+(def promised-bindings {'promise #(.resolve js/Promise %)
+                        'then #(.then ^js %1 %2)
+                        'catch #(.catch ^js %1 %2)
+                        'let promised-let})
+
+(defn evaluate-code [{:keys [code bindings sci-state editor-state repl]
+                      :or {bindings promised-bindings
+                           sci-state (atom {})}}]
   (sci/eval-string code {:env sci-state
-                         :namespaces (prepare-nses nil editor-state)
-                         :bindings {'promise #(.resolve js/Promise %)
-                                    'then #(.then ^js %1 %2)
-                                    'catch #(.catch ^js %1 %2)
-                                    'let promised-let}}))
+                         :preset {:termination-safe true}
+                         :namespaces (prepare-nses repl editor-state)
+                         :bindings bindings}))
 
 (defn- catch-errors [fun editor-state]
   (try
@@ -84,7 +96,10 @@
   (when (existsSync config-file)
     (p/let [config (read-config-file config-file)
             sci-state (atom {})
-            _ (evaluate-code config sci-state editor-state)
+            _ (evaluate-code {:code config
+                              :bindings promised-bindings
+                              :sci-state sci-state
+                              :editor-state editor-state})
             vars (->> (sci/eval-string "(->> *ns* ns-publics keys)" {:env sci-state})
                       (map #(vector % (sci/eval-string (str %) {:env sci-state}))))]
       (->> vars

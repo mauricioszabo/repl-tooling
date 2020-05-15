@@ -9,6 +9,7 @@
             [cljs.tools.reader :as reader]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
             [sci.core :as sci]
+            [repl-tooling.editor-integration.configs :as configs]
             [repl-tooling.editor-integration.commands :as cmds]))
 
 (defn- edn? [obj]
@@ -81,16 +82,12 @@
 
 (defn- render-interactive [{:keys [state html fns] :as edn} repl editor-state]
   (let [state (r/atom state)
+        code (pr-str html)
         html (fn [state]
                (try
-                 (-> html
-                     pr-str
-                     (sci/eval-string  {:bindings (bindings-for state fns repl)
-                                        :preset {:termination-safe true}
-                                        :namespaces {'walk walk-ns
-                                                     'editor (editor-ns repl
-                                                                        editor-state)}})
-                     treat-error)
+                 (treat-error (configs/evaluate-code {:code code
+                                                      :bindings (bindings-for state fns repl)
+                                                      :editor-state editor-state}))
                 (catch :default e
                   [:div.error "Can't render this code - " (pr-str e)])))]
     [html state]))

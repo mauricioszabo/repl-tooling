@@ -21,17 +21,17 @@
 (cards/deftest config-eval
   (async-test "evaluating code"
     (testing "evaluates simple code"
-      (check (configs/evaluate-code "(+ 1 2)" (atom {}) (atom {})) => 3))
+      (check (configs/evaluate-code {:code "(+ 1 2)" :editor-state (atom {})}) => 3))
 
     (testing "resolves promises with let"
-      (-> "(let [a (promise 1) b (promise 2)] (+ a b))"
-          (configs/evaluate-code (atom {}) (atom {}))
+      (-> (configs/evaluate-code {:code "(let [a (promise 1) b (promise 2)] (+ a b))"
+                                  :editor-state (atom {})})
           await!
           (check => 3)))
 
     (testing "resolves mixed promises / non-promises"
-      (-> "(let [a (promise 1) b 2] (+ a b))"
-          (configs/evaluate-code (atom {}) (atom {}))
+      (-> (configs/evaluate-code {:code "(let [a (promise 1) b 2] (+ a b))"
+                                  :editor-state (atom {})})
           await!
           (check => 3)))))
 
