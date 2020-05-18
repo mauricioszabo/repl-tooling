@@ -1,6 +1,5 @@
 (ns repl-tooling.integration
-  (:require [etaoin.keys :as keys]
-            [etaoin.api :as api]
+  (:require [etaoin.api :as api]
             [clojure.string :as str]))
 
 (def cards (atom nil))
