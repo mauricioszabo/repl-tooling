@@ -13,8 +13,8 @@
             [repl-tooling.repl-client.nrepl :as nrepl]
             [repl-tooling.commands-to-repl.all-cmds :as cmds]
             [schema.core :as s]
-            [paprika.schemas :as schema :include-macros true]
-            [repl-tooling.editor-integration.definition :as definition]))
+            [repl-tooling.editor-integration.definition :as definition]
+            [repl-tooling.editor-integration.configs :as configs]))
 
 ; FIXME: This only here because of tests
 (defn disconnect!
@@ -25,16 +25,10 @@
   (repls/disconnect! :cljs-aux)
   (repls/disconnect! :cljs-eval))
 
-(s/defn result-for-renderer
-  [res :- schemas/EvalResult,
-   state
-   {:keys [filename]} :- {:filename s/Str, s/Any s/Any}
-   {:keys [get-config]}])
-
-
 (defn- features-for [state {:keys [editor-data] :as opts} _repl-kind]
   {:autocomplete #(p/let [data (editor-data)]
                     (autocomplete/command state opts data))
+   ; TODO: Deprecate this
    :eval-and-render (fn eval-and-render
                       ([code range] (eval-and-render code range nil))
                       ([code range pass]
@@ -43,28 +37,40 @@
                                           data
                                           (assoc opts :pass pass)
                                           (constantly [range code])))))
+   :evaluate-and-render (fn [{:keys [text range pass]}]
+                          (p/let [data (editor-data)]
+                            (cmds/eval-range state
+                                             data
+                                             (assoc opts :pass pass)
+                                             (constantly [range text]))))
    :eval (fn [code eval-opts] (e-eval/eval-with-promise state opts code eval-opts))
    :result-for-renderer #(renderer/parse-result (:result %) (:repl %) state)
    :go-to-var-definition #(definition/goto-var (assoc % :state state))
-   :get-full-var-name #(cmds/fqn-for-var state)})
+   :get-full-var-name #(cmds/fqn-for-var state)
+   :get-code #(e-eval/get-code state %)
+   :repl-for #(e-eval/repl-for state %1 %2)})
 
 (def ^:private default-opts
   {:on-start-eval identity
+   :config-file-path nil
+   :register-commands identity
    :open-editor identity
    :get-rendered-results (constantly [])
+   :on-copy identity
    :on-eval identity
    :on-result identity
    :on-stdout identity
    :on-stderr identity
    :editor-data identity
    :notify identity
-   :get-config identity ;FIXME
+   :get-config (constantly {:project-paths [], :eval-mode :prefer-clj})
    :prompt (fn [ & _] (js/Promise. (fn [])))})
 
 (defn- swap-state! [state options kind]
   (p/let [cmds (cmds/all state options kind)
           feats (features-for state options kind)]
-    (swap! state assoc :editor/commands cmds :editor/features feats)))
+    (swap! state assoc :editor/features feats)
+    (configs/prepare-commands state cmds)))
 
 (defn connect-evaluator!
   ""
@@ -123,9 +129,10 @@
       (.error js/console error)))
   nil)
 
-(defn- callback-fn [state callbacks output]
-  (let [{:keys [on-stdout on-stderr on-result on-disconnect on-patch]} callbacks]
-    (when (nil? output)
+(defn- callback-fn [state output]
+  (let [{:keys [on-stdout on-stderr on-result on-disconnect on-patch]}
+        (:editor/callbacks @state)]
+    (when (and (nil? output) on-disconnect)
       (cmds/handle-disconnect! state)
       (on-disconnect))
     (when-let [out (:out output)] (and on-stdout (on-stdout out)))
@@ -163,7 +170,7 @@
 ; Config Options:
 ; {:project-paths [...]
 ;  :eval-mode (enum :clj :cljs :prefer-clj :prefer-cljs)}
-(schema/defn-s connect!
+(s/defn connect!
   "Connects to a clojure-like REPL that supports the socket REPL protocol.
 Expects host, port, and some callbacks:
 * on-start-eval -> a function that'll be called when an evaluation starts
@@ -205,7 +212,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
   (p/catch
    (p/let [options (-> default-opts (merge opts) prepare-patch)
            state (r/atom {:editor/callbacks options})
-           callback (partial callback-fn state options)
+           callback (partial callback-fn state)
            [kind primary] (repls/connect-repl! :clj-eval host port callback)
            _ (eval/eval primary "1234")
            _ (case kind

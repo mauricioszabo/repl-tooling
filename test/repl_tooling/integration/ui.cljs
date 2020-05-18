@@ -20,9 +20,10 @@
             [repl-tooling.editor-integration.autocomplete-test]
             [repl-tooling.repl-client.connection-test]
             [repl-tooling.integration.rendered-actions]
-            [repl-tooling.editor-integration.interactive-test]
+            [repl-tooling.editor-integration.renderer.interactive-test]
             [repl-tooling.editor-integration.doc-test]
-            [repl-tooling.nrepl.nrepl-test]))
+            [repl-tooling.nrepl.nrepl-test]
+            [repl-tooling.editor-integration.configs-test]))
 
 (cards/defcard-rg rendered-result
   (fn [result]
@@ -183,7 +184,7 @@
 
      (testing "evaluates and presents classes"
        (ui/assert-out "java.lang.Object ..."
-                      "Object"))
+                      "(ns user) Object"))
 
      (testing "evaluates inner browseable structures"
        (ui/assert-out #"#foobar.baz/lolnein \.\.\."

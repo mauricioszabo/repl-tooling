@@ -5,7 +5,7 @@
             [repl-tooling.editor-integration.renderer.protocols :as proto]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.features.definition :as definition]
-            [repl-tooling.editor-integration.interactive :as int]
+            [repl-tooling.editor-integration.renderer.interactive :as int]
             ["fs" :refer [existsSync readFileSync]]
             ["source-map" :refer [SourceMapConsumer]]))
 

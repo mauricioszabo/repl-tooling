@@ -16,5 +16,5 @@
   (let [{:keys [contents range editor filename]} editor-data
         [_ var] (helpers/current-var contents (first range))
         [_ namespace] (helpers/ns-range-for contents (first range))
-        repl (e-eval/repl-for (:editor/callbacks @state) state filename true)]
+        repl (e-eval/repl-for state filename true)]
     (goto-var {:var-name var :namespace namespace :repl repl :state state})))
