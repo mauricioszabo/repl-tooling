@@ -63,13 +63,13 @@
         (editor/type "(range 3)")
         (change-config-file "(defn e-block [] (let [data (editor/get-top-block)]
           (editor/eval-and-render data)))")
-        (await! (editor/wait-for #(contains? (async/poll! reg) :e-block)))
+        (await! reg)
         ((-> @custom-commands :e-block :command))
         (check (await! (editor/change-result)) => "(\n0\n \n1\n \n2\n)"))
 
       (testing "checking for errors"
-        (editor/type "(range 3)")
+        (editor/type "(range 4)")
         (change-config-file "(defn error [] (throw (ex-info \"Some-error\" {})))")
-        (await! (editor/wait-for #(contains? (async/poll! reg) :error)))
+        (await! reg)
         ((-> @custom-commands :error :command))
         (check (await! (editor/change-result)) => #"Some-error")))))
