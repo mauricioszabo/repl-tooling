@@ -13,7 +13,8 @@
     (let [res (apply callback args)]
       (when (.-DEBUG js/goog)
         (let [schema (-> schemas/EditorState :schema key cmd :output-schema)]
-          (s/validate schema res))))))
+          (s/validate schema res)))
+      res)))
 
 (def CallbackCmd (apply s/enum (keys schemas/Callbacks)))
 (s/defn run-callback!
