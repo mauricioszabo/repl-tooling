@@ -1,9 +1,11 @@
 # CHANGELOG
 
-## 0.4.4
+## 0.5.0
 - Performance improvement while parsing Clojure code
-- Interactive renderer support
 - Runnable config
+
+## 0.4.4
+- Interactive renderer support
 
 ## 0.4.1
 - Fixed https://github.com/mauricioszabo/atom-chlorine/issues/150
