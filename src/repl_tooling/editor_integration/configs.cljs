@@ -48,7 +48,8 @@
      'get-block #(cmds/run-feature! state :get-code :block)
      'get-var #(cmds/run-feature! state :get-code :var)
      'get-selection #(cmds/run-feature! state :get-code :selection)
-     'get-namespace #(cmds/run-feature! state :get-code :ns)
+     'get-namespace #(p/let [res (cmds/run-feature! state :get-code :ns)]
+                       (update res :text str))
      'eval-and-render #(cmds/run-feature! state :evaluate-and-render %)
      'eval-interactive #(cmds/run-feature! state :evaluate-and-render
                                            (update % :pass assoc
