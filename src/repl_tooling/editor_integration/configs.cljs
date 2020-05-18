@@ -139,7 +139,6 @@
     (let [dir (dirname config-file)
           watch-pid (watch dir
                            (fn [evt filename]
-                             (prn :WATCH)
                              (when (= (join dir filename) config-file)
                                (reg-commands editor-state cmds-from-tooling config-file))))
           old-disconnect (-> @editor-state :editor/callbacks :on-disconnect)]
