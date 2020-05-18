@@ -50,6 +50,10 @@
      'get-selection #(cmds/run-feature! state :get-code :selection)
      'get-namespace #(cmds/run-feature! state :get-code :ns)
      'eval-and-render #(cmds/run-feature! state :evaluate-and-render %)
+     'eval-interactive #(cmds/run-feature! state :evaluate-and-render
+                                           (update % :pass assoc
+                                                   :interactive true
+                                                   :aux true))
      'eval (partial cmds/run-feature! state :eval)}))
 
 (defn- prepare-nses [repl editor-state]
@@ -62,10 +66,28 @@
                          clojure.edn edn})
       (assoc 'editor (editor-ns nil editor-state))))
 
-(def promised-bindings {'promise #(.resolve js/Promise %)
-                        'then #(.then ^js %1 %2)
-                        'catch #(.catch ^js %1 %2)
-                        'let promised-let})
+(def ^:private promised-bindings {'promise #(.resolve js/Promise %)
+                                  'then #(.then ^js %1 %2)
+                                  'catch #(.catch ^js %1 %2)
+                                  'let promised-let})
+
+(defn default-bindings [editor-state]
+  (assoc promised-bindings
+         'println (fn [& args]
+                    (cmds/run-callback! editor-state :on-stdout
+                                        (str (str/join " " args) "\n")))
+         'print (fn [& args]
+                   (cmds/run-callback! editor-state :on-stdout
+                                       (str/join " " args)))
+         'prn (fn [& args]
+                (->> args (map pr-str)
+                     (str/join " ")
+                     (#(str % "\n"))
+                     (cmds/run-callback! editor-state :on-stdout)))
+         'pr (fn [& args]
+                (->> args (map pr-str)
+                     (str/join " ")
+                     (cmds/run-callback! editor-state :on-stdout)))))
 
 (defn evaluate-code [{:keys [code bindings sci-state editor-state repl]
                       :or {bindings promised-bindings
@@ -96,39 +118,43 @@
   (when (existsSync config-file)
     (p/let [config (read-config-file config-file)
             sci-state (atom {})
+            bindings (default-bindings editor-state)
             _ (evaluate-code {:code config
-                              :bindings promised-bindings
+                              :bindings bindings
                               :sci-state sci-state
                               :editor-state editor-state})
             vars (->> (sci/eval-string "(->> *ns* ns-publics keys)" {:env sci-state})
                       (map #(vector % (sci/eval-string (str %) {:env sci-state}))))]
       (->> vars
-           (filter (comp fn? second))
+           (filter (fn [[k v]] (and (fn? v) (not (contains? bindings k)))))
            (reduce (fn [acc [k fun]]
                      (assoc acc (-> k str keyword) {:name (name-for k)
                                                     :command #(catch-errors
                                                                fun editor-state)}))
                    {})))))
 
-(declare prepare-commands)
+(declare reg-commands)
 (defn- watch-config [editor-state cmds-from-tooling config-file]
   (when config-file
     (let [dir (dirname config-file)
           watch-pid (watch dir
                            (fn [evt filename]
+                             (prn :WATCH)
                              (when (= (join dir filename) config-file)
-                               (prepare-commands editor-state cmds-from-tooling))))
+                               (reg-commands editor-state cmds-from-tooling config-file))))
           old-disconnect (-> @editor-state :editor/callbacks :on-disconnect)]
       (swap! editor-state assoc-in
              [:editor/callbacks :on-disconnect] (fn []
-                                                   (.close ^js watch-pid)
-                                                   (old-disconnect))))))
+                                                   (old-disconnect)
+                                                   (.close ^js watch-pid))))))
 
-(defn prepare-commands [editor-state cmds-from-tooling]
-  (p/let [config-file (-> @editor-state :editor/callbacks :config-file-path)
-          cmds-from-config (fns-for editor-state config-file)
+(defn- reg-commands [editor-state cmds-from-tooling config-file]
+  (p/let [cmds-from-config (fns-for editor-state config-file)
           commands (merge cmds-from-tooling cmds-from-config)]
-
-    (watch-config editor-state cmds-from-tooling config-file)
     (swap! editor-state assoc :editor/commands commands)
     (cmds/run-callback! editor-state :register-commands commands)))
+
+(defn prepare-commands [editor-state cmds-from-tooling]
+  (p/let [config-file (-> @editor-state :editor/callbacks :config-file-path)]
+    (watch-config editor-state cmds-from-tooling config-file)
+    (reg-commands editor-state cmds-from-tooling config-file)))
