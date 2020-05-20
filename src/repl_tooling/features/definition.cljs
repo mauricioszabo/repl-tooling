@@ -45,16 +45,18 @@
   (p/catch
    (p/let [pos (classpath-meta->positions clj-aux meta)]
      (wrap-contents clj-aux (:result pos)))
-   (fn [_] nil)))
+   (constantly nil)))
 
 (defn- from-clr [clj-repl meta]
-  (p/let [from-repl (eval/eval clj-repl
-                               (str "(clojure.core/let [m '" meta "]"
-                                    "  (clojure.core/some->> m"
-                                    "    :file"
-                                    "    (clojure.lang.RT/FindFile)"
-                                    "    str))"))]
-    {:file-name (:result from-repl) :line (-> meta :line dec)}))
+  (p/catch
+   (p/let [from-repl (eval/eval clj-repl
+                                (str "(clojure.core/let [m '" meta "]"
+                                     "  (clojure.core/some->> m"
+                                     "    :file"
+                                     "    (clojure.lang.RT/FindFile)"
+                                     "    str))"))]
+     {:file-name (:result from-repl) :line (-> meta :line dec)})
+   (constantly nil)))
 
 (defn resolve-possible-path [repl meta]
   ; FIXME: use REPL detection here
@@ -80,6 +82,6 @@
                             [:file :line :column])
           result (resolve-possible-path clj-aux meta)]
 
-    (cond-> result
+    (cond-> (dissoc result :file)
             (:file-name result) (update :file-name norm-result)
             (:column result) (update :column dec))))

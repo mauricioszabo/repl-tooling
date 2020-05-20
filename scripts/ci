@@ -5,9 +5,15 @@
 # wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
 # sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
 sudo apt-get update
-sudo apt install libglib2.0-0 libnss3 libgtk3.0 libxss1 libasound2 ffmpeg #adoptopenjdk-11-openj9
+sudo apt install libglib2.0-0 libnss3 libgtk3.0 libxss1 libasound2 ffmpeg wget unzip
 npm install
 
+sudo wget https://chromedriver.storage.googleapis.com/76.0.3809.126/chromedriver_linux64.zip
+sudo unzip chromedriver_linux64.zip
+sudo mv chromedriver /usr/bin
+sudo rm chromedriver_linux64.zip
+
+export DISPLAY=:99
 npx shadow-cljs watch integration fixture &
 for n in {1..25}; do
   ls target/fixture.js target/integration/main.js &>/dev/null && break
@@ -23,13 +29,14 @@ ls target/fixture.js target/integration/main.js || exit 1
 echo "Fixture app compiled, running the fixture app"
 node target/fixture.js &
 
-export DISPLAY=:99
 Xvfb -screen 0 1024x768x24+32 :99 &
 mkdir ~/video
 nohup ffmpeg -video_size 1024x768 -f x11grab -i :99.0 ~/video/out.mpg &
 
 echo "Running tests"
-node integration_test.js
+# node integration_test.js
+echo -e "(do (require '[repl-tooling.integration]) \
+  (System/exit (repl-tooling.integration/run-tests!)))" | nc localhost 2233
 ret=$?
 
 echo -e "(System/exit 0)\n" | nc localhost 2233

@@ -1,18 +1,15 @@
-(ns repl-tooling.editor-integration.interactive
-  (:require [clojure.walk :as walk]
-            [repl-tooling.eval :as eval]
-            [reagent.core :as r]
-            [repl-tooling.editor-helpers :as helpers]
+(ns repl-tooling.editor-integration.renderer.interactive
+  (:require [reagent.core :as r]
+            [reagent.dom :as rdom]
             [clojure.string :as str]
             [repl-tooling.eval :as eval]
-            [cljs.tools.reader :as reader]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
-
             [pinkgorilla.ui.default-setup]
             [pinkgorilla.ui.json]
             [pinkgorilla.ui.highchart]
             [pinkgorilla.ui.pinkie :as pinkie]
             [sci.core :as sci]))
+            [repl-tooling.editor-integration.configs :as configs]))
 
 (defn- edn? [obj]
   (or (number? obj)
@@ -59,28 +56,20 @@
                                    (prepare-fn f-body state repl)]))
        (into {'?state @state})))
 
-(def ^:private walk-ns {'postwalk walk/postwalk
-                        'prewalk walk/prewalk
-                        'keywordize-keys walk/keywordize-keys
-                        'walk walk/walk
-                        'postwalk-replace walk/postwalk-replace
-                        'prewalk-replace walk/prewalk-replace
-                        'stringify-keys walk/stringify-keys})
-
 (defn- treat-error [hiccup]
   (let [d (. js/document createElement "div")]
-    (reagent.dom/render hiccup d)
+    (rdom/render hiccup d)
     hiccup))
 
-(defn- render-interactive [{:keys [state html fns] :as edn} repl]
+(defn- render-interactive [{:keys [state html fns] :as edn} repl editor-state]
   (let [state (r/atom state)
+        code (pr-str html)
         html (fn [state]
                (try
-                 (-> html
-                     pr-str
-                     (sci/eval-string  {:bindings (bindings-for state fns repl)
-                                        :preset {:termination-safe true}
-                                        :namespaces {'walk walk-ns}})
+                 (-> {:code code
+                      :bindings (bindings-for state fns repl)
+                      :editor-state editor-state}
+                     configs/evaluate-code
                      pinkie/tag-inject
                      treat-error)
                  (catch :default e
@@ -91,4 +80,4 @@
 (defrecord Interactive [edn repl editor-state]
   proto/Renderable
   (as-html [_ ratom _]
-    (render-interactive edn repl)))
+    (render-interactive edn repl editor-state)))

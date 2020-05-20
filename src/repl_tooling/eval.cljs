@@ -30,11 +30,13 @@ If no argument is passed to opts, {:ignore true} is assumed"
   ([evaluator command] (eval evaluator command {:ignore true}))
   ([evaluator command opts]
    (let [p (p/deferred)]
-     (evaluate evaluator command opts (fn [res]
-                                        (let [parsed (helpers/parse-result res)]
-                                          (if (contains? res :result)
-                                            (p/resolve! p parsed)
-                                            (p/reject! p parsed)))))
+     (try
+       (evaluate evaluator command opts (fn [res]
+                                          (let [parsed (helpers/parse-result res)]
+                                            (if (contains? res :result)
+                                              (p/resolve! p parsed)
+                                              (p/reject! p parsed)))))
+       (catch :default e (p/reject! p {:error e})))
      p)))
 
 (defn- without-ellision-list [lst]

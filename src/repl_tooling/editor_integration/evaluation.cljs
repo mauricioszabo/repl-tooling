@@ -4,7 +4,19 @@
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.schemas :as schemas]
+            [repl-tooling.editor-integration.commands :as cmds]
             [schema.core :as s]))
+
+(defn get-code [editor-state kind]
+  (p/let [data (cmds/run-callback! editor-state :editor-data)]
+    (when-let [{:keys [contents range]} data]
+      (when-let [[range text] (case kind
+                                :top-block (helpers/top-block-for contents (first range))
+                                :block (helpers/block-for contents (first range))
+                                :var (helpers/current-var contents (first range))
+                                :selection [range (helpers/text-in-range contents range)]
+                                :ns (helpers/ns-range-for contents (first range)))]
+        {:text text :range range}))))
 
 (defn need-cljs? [config filename]
   (or
@@ -37,14 +49,15 @@
               :message msg})
     nil))
 
-(defn repl-for [opts state filename aux?]
-  (let [cljs? (need-cljs? ((:get-config opts)) filename)
+(s/defn repl-for :- s/Any
+  [state filename :- s/Str, aux? :- (s/enum true false :always nil)]
+  (let [cljs? (need-cljs? (cmds/run-callback! state :get-config) filename)
         repl (cond
-               cljs? (:cljs/repl @state)
+               (and cljs? (not= aux? :always)) (:cljs/repl @state)
                aux? (:clj/aux @state)
                :else (:clj/repl @state))]
     (if (nil? repl)
-      (treat-error (:notify opts) cljs? (:clj/repl @state))
+      (treat-error #(cmds/run-callback! state :notify %) cljs? (:clj/repl @state))
       repl)))
 
 (s/defn eval-cmd [state
@@ -58,7 +71,7 @@
           {:keys [on-start-eval on-eval]} opts
           [[row col]] range
           ;; TODO: Remove UNREPL and always evaluate on primary
-          repl (repl-for opts state filename (-> opts :pass :aux))
+          repl (repl-for state filename (-> opts :pass :aux))
           id (gensym)
           eval-data {:id id
                      :editor-data editor-data
@@ -107,7 +120,7 @@ REPL available"
           auto-eval-opts (when (:auto-detect eval-opts)
                            (auto-opts editor-data))
           eval-opts (merge auto-eval-opts eval-opts)]
-    (if-let [repl (repl-for opts state (:filename eval-opts) (:aux eval-opts))]
+    (if-let [repl (repl-for state (:filename eval-opts) (:aux eval-opts))]
       (eval/eval repl code eval-opts)
       (js/Promise. (fn [_ fail] (fail nil))))))
 

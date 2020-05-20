@@ -150,7 +150,7 @@
       (clj-reader/read-char reader)
       :whitespace)))
 
-(defn top-levels
+(defn top-levels*
   "Gets all top-level ranges for the current code"
   [code]
   (let [reader (clj-reader/indexing-push-back-reader code)]
@@ -164,6 +164,15 @@
             (recur (conj sofar [[[(dec row) (dec col)]
                                  [(dec end-row) (- end-col 2)]]
                                 as-str]))))))))
+
+(let [memo (atom [])]
+  (defn top-levels [code]
+    (if-let [res (->> @memo (filter #(-> % first (= code))) first)]
+      (second res)
+      (let [res (top-levels* code)]
+        (swap! memo conj [code res])
+        (when (-> @memo count (> 10)) (swap! memo subvec 1))
+        res))))
 
 (defn ns-range-for
   "Gets the current NS range (and ns name) for the current code, considering
