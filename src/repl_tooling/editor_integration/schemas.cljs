@@ -79,7 +79,7 @@
                 :get-config (s/=> Config)
                 :prompt (s/=> s/Any {:title s/Str
                                      :message s/Str
-                                     :arguments [{:key s/Symbol :value s/Str}]})
+                                     :arguments [{:key s/Keyword :value s/Str}]})
                 :on-copy (s/=> s/Any s/Str)
                 :on-stdout (s/=> s/Any s/Str)
                 :on-stderr (s/=> s/Any s/Str)
