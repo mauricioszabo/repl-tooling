@@ -5,10 +5,8 @@
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
             [pinkgorilla.ui.pinkie :as pinkie]
-            [pinkgorilla.ui.jsrender :as jsrender]
             [sci.core :as sci]
             [repl-tooling.editor-integration.configs :as configs]))
-            ; ["nomnoml" :as n]))
 
 (defn- edn? [obj]
   (or (number? obj)
@@ -80,80 +78,3 @@
   proto/Renderable
   (as-html [_ ratom _]
     (render-interactive edn repl editor-state)))
-
-; (defn render-counter [_]
-;   (let [f (fn [dom _]
-;             (prn :WAT?)
-;             (let [d (. js/document createElement "div")]
-;               (aset d "innerText" " WAT Hello")
-;               (.appendChild dom d)))]
-;     [jsrender/render-js {:f f :data []}]))
-;
-; (pinkie/register-tag :p/counter render-counter)
-; (pinkie/register-tag :p/strike (fn [ & args]
-;                                  (prn :ARGS args)
-;                                  [:div " LOL"]))
-; (println "{:html [:div (flatten `(defn render-counter [_]\n  (let [f (fn [dom _]\n            (prn :WAT?)\n            (let [d (. js/document createElement \"div\")]\n              (aset d \"innerText\" \" WAT Hello\")\n              (.appendChild dom d)))]\n    [jsrender/render-js {:f f :data []}])))]}")
-; (->> `(defn render-counter [_]
-;         (let [f (fn [dom _]
-;                   (prn :WAT?)
-;                   (let [d (. js/document createElement "div")]
-;                     (aset d "innerText" " WAT Hello")
-;                     (.appendChild dom d)))]
-;           [jsrender/render-js {:f f :data []}]))
-;      flatten
-;      (filter symbol?)
-;      (remove #(#{"repl-tooling.editor-integration.renderer.interactive"
-;                  "clojure.core"
-;                  "cljs.core"}
-;                 (namespace %)))
-;      (remove #(str/starts-with? (str %) "."))
-;      (group-by namespace)
-;      (mapcat (fn [[ns names]] (map #(vector ns (name %)) names)))
-;      vec)
-; (defn- parse-nomno [data-struct]
-;   (if (empty? data-struct)
-;     "[*]"
-;     (reduce (fn [acc [k v]]
-;               (str acc "[" k "]->[" v "]\n"))
-;             ""
-;             data-struct)))
-;
-; (defn render-diagram [dom nomno]
-;   (let [div (. js/document createElement "div")
-;         svg (n/renderSvg (cond-> nomno (not (string? nomno)) parse-nomno))]
-;     (aset div "innerHTML" svg)
-;     (.appendChild dom div)))
-;
-; (defn render-diagram [dom nomno]
-;    (let [div (. js/document createElement "div")
-;          svg (n/renderSvg (cond-> nomno (not (string? nomno)) parse-nomno))]
-;      (aset div "innerHTML" svg)
-;      (.appendChild dom div)))
-
-; (pinkie/register-tag :p/diag #(vector jsrender/render-js {:f render-diagram :data %}))
-
-; (parse-nomno
-;  [[:foo 10]
-;   [:bar 20]])
-;
-; #_
-; {:html [:p/diag [[:foo 10]
-;                  [:bar 20]]]}
-; #_
-; {:html [:p/diag "[REPLs]->[Clojure]
-; [REPLs]->[ClojureScript]"]}
-;
-
-; (def src "[nomnoml] is -> [awesome]")
-; (defn render []
-;   (n/renderSvg src))
-;
-; (.log js/console
-;       (render))
-
-; console.log(nomnoml.renderSvg(src));
-
-; (jsrender/jsrender)
-; (jsrender/render-js)
-; (BTW, too late here, almost going to sleep - that's why)
