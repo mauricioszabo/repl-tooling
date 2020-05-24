@@ -63,22 +63,28 @@
 
 (defn- norm-reagent-fn [fun]
   (fn [ & args]
-    (let [state (r/atom [:div.repl-tooling.icon.loading])]
-      (apply fun (js->clj args))
-      [:<> @state])))
+    (let [empty (js/Object.)
+          state (r/atom empty)
+          render (fn [ state & args]
+                   (if (= empty @state)
+                     (do
+                       (p/let [res (apply fun args)]
+                         (reset! state res))
+                       [:div.repl-tooling.icon.loading])
+                     @state))]
+      (apply vector render state args))))
 
 (defn- norm-pinkie-fn [fun]
   (fn [ & args]
     [jsrender/render-js
      {:f (fn [dom args]
            (let [div (.createElement js/document "div")]
-             (p/let [elem (apply fun (js->clj args))] (.replaceChild dom elem div))
-             (.. div -classList (add "repl-tooling" "icon" "loading"))
-             (.appendChild dom div)))
+             (let [elem (apply fun (js->clj args))] (.appendChild dom elem))
+             (.. div -classList (add "repl-tooling" "icon" "loading"))))
+             ; (.appendChild dom div)))
       :data args}]))
 
 (defn- render-ns [editor-state]
-  (def es editor-state)
   {'js-require #(-> @editor-state
                     :editor/callbacks
                     :config-file-path
@@ -88,15 +94,15 @@
    'create-tag #(.createElement js/document %)
    'set-text #(aset %1 "innerText" %2)
    'set-html #(aset %1 "innerHTML" %2)
-   ; 'register-reagent #(if (and (keyword? %1) (namespace %1) (fn? %2))
-   ;                      (pinkie/register-tag %1 (norm-reagent-fn %2))
-   ;                      (cmds/run-callback!
-   ;                       editor-state
-   ;                       :notify
-   ;                       {:type :error
-   ;                        :title "Invalid params"
-   ;                        :text (str "First argument needs to be a namespaced keyword, "
-   ;                                   "and second argument needs to be a reagent fn")}))
+   'register-reagent #(if (and (keyword? %1) (namespace %1) (fn? %2))
+                        (pinkie/register-tag %1 (norm-reagent-fn %2))
+                        (cmds/run-callback!
+                         editor-state
+                         :notify
+                         {:type :error
+                          :title "Invalid params"
+                          :text (str "First argument needs to be a namespaced keyword, "
+                                     "and second argument needs to be a reagent fn")}))
    'register-tag #(if (and (keyword? %1) (namespace %1) (fn? %2))
                     (pinkie/register-tag %1 (norm-pinkie-fn %2))
                     (cmds/run-callback!
@@ -117,6 +123,7 @@
                          clojure.repl repl
                          clojure.edn edn})
       (assoc 'r {'atom r/atom
+                 'render rdom/render
                  'adapt-react-class r/adapt-react-class
                  'as-element r/as-element
                  'create-class r/create-class
@@ -147,6 +154,7 @@
                      (str/join " ")
                      (#(str % "\n"))
                      (cmds/run-callback! editor-state :on-stdout)))
+         'log (fn [& args] (apply js/console.log args))
          'pr (fn [& args]
                 (->> args (map pr-str)
                      (str/join " ")
