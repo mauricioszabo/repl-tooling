@@ -217,6 +217,7 @@
     (cmds/run-callback! editor-state :register-commands commands)))
 
 (defn prepare-commands [editor-state cmds-from-tooling]
+  (swap! editor-state assoc :editor/commands cmds-from-tooling)
   (p/let [config-file (-> @editor-state :editor/callbacks :config-file-path)]
     (watch-config editor-state cmds-from-tooling config-file)
     (reg-commands editor-state cmds-from-tooling config-file)))
