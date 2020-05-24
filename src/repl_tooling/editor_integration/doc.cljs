@@ -34,11 +34,9 @@
 
 (defn- emit-result [document-part spec-part {:keys [opts eval-data repl]}]
   (let [docs (cond-> document-part spec-part (str "\n\nSpec:\n" spec-part))
-        {:keys [on-eval on-result]} opts
+        {:keys [on-eval]} opts
         res {:result (pr-str docs) :literal true :as-text (pr-str docs)}]
-
-    (and on-eval (on-eval (assoc eval-data :result res :repl repl)))
-    (and on-result (on-result res))))
+    (on-eval (assoc eval-data :result (helpers/parse-result res) :repl repl))))
 
 (defn- try-spec [document-part options]
   (let [spec-ed (p/let [_ (eval/eval (:repl options)
@@ -50,13 +48,12 @@
         (catch #(emit-result document-part nil options)))))
 
 (defn- treat-error [error {:keys [opts eval-data repl]}]
-  (let [{:keys [on-eval on-result]} opts]
-    (and on-eval (on-eval (assoc eval-data
-                                 :result {:error error
-                                          :parsed? true
-                                          :as-text (pr-str error)}
-                                 :repl repl)))
-    (and on-result (on-result {:error error :parsed? true :as-text (pr-str error)}))))
+  (let [{:keys [on-eval]} opts]
+    (on-eval (assoc eval-data
+                    :result {:error error
+                             :parsed? true
+                             :as-text (pr-str error)}
+                    :repl repl))))
 
 (defn- run-documentation-code [{:keys [var editor-data repl] :as options}]
   (let [on-start (-> options :opts :on-start-eval)]
@@ -67,7 +64,9 @@
               (if document-part
                 (try-spec (:result document-part) (assoc options :var (:result var)))
                 (treat-error "\"Unknown error\"" options)))
-           #(treat-error (:error %) options)))
+           #(do
+              (prn :ERROR %)
+              (treat-error (:error %) options))))
 
 (defn doc-for-var [{:keys [contents range filename] :as editor-data} opts state]
   (let [id (gensym "doc-for-var")
