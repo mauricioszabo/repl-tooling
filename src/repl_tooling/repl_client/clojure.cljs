@@ -178,7 +178,7 @@
     (let [id (or (:id opts) (gensym))
           state (-> evaluator :session deref :state deref)
           conn (:conn state)
-          code (source/wrap-command id command ":default" false)]
+          code (source/wrap-command id command :default false)]
 
       (if (:error code)
         (let [output (:on-output state)]
