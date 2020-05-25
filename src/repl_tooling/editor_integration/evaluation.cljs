@@ -67,7 +67,8 @@
                   editor-data :- schemas/EditorData
                   opts]
   (when code
-    (let [filename (:filename editor-data)
+    (let [prom (p/deferred)
+          filename (:filename editor-data)
           {:keys [on-start-eval on-eval]} opts
           [[row col]] range
           ;; TODO: Remove UNREPL and always evaluate on primary
@@ -88,9 +89,13 @@
                         ;; FIXME: this is kinda bad, we're re-using opts...
                         :pass (:pass opts)}
                        #(when (and on-eval @state)
-                          (on-eval (assoc eval-data
-                                          :repl repl
-                                          :result (helpers/parse-result %)))))))))
+                          (let [parsed (helpers/parse-result %)]
+                            (on-eval (assoc eval-data
+                                            :repl repl
+                                            :result parsed))
+                            (p/resolve! prom (select-keys parsed [:result :error]))))))
+      (when-not repl (p/resolve! prom nil))
+      prom)))
 
 (defn- auto-opts [editor-data]
   (p/let [{:keys [filename range contents]} (editor-data)
