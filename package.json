@@ -6,6 +6,8 @@
   "devDependencies": {
     "electron": "^6.0.2",
     "shadow-cljs": "^2.8.109",
-    "showdown": "^1.9.0"
+    "showdown": "^1.9.0",
+    "react": "16.13.0",
+    "react-dom": "16.13.0"
   }
 }
