@@ -50,7 +50,7 @@
     nil))
 
 (s/defn repl-for :- s/Any
-  [state filename :- s/Str, aux? :- (s/enum true false :always nil)]
+  [state filename :- (s/maybe s/Str), aux? :- (s/enum true false :always nil)]
   (let [cljs? (need-cljs? (cmds/run-callback! state :get-config) filename)
         repl (cond
                (and cljs? (not= aux? :always)) (:cljs/repl @state)
