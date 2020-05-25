@@ -3,6 +3,8 @@
 ## 0.5.0
 - Performance improvement while parsing Clojure code
 - Runnable config
+- Fix on `get-selection` for configs in ClojureScript
+- `editor/eval-and-render` now resolves as promises
 
 ## 0.4.4
 - Interactive renderer support
