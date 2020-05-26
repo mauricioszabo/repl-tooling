@@ -6,6 +6,10 @@
             [clojure.string :as str]
             [repl-tooling.editor-integration.commands :as cmds]
             [sci.impl.namespaces :as sci-ns]
+            [pinkgorilla.ui.pinkie :as pinkie]
+            [pinkgorilla.ui.jsrender :as jsrender]
+            [reagent.core :as r]
+            [reagent.dom :as rdom]
             ["path" :refer [dirname join]]
             ["fs" :refer [watch readFile existsSync]]))
 
@@ -57,6 +61,59 @@
                                                    :aux true))
      'eval (partial cmds/run-feature! state :eval)}))
 
+(defn- norm-reagent-fn [fun]
+  (fn [ & args]
+    (let [empty (js/Object.)
+          state (r/atom empty)
+          render (fn [ state & args]
+                   (if (= empty @state)
+                     (do
+                       (p/let [res (apply fun args)]
+                         (reset! state res))
+                       [:div.repl-tooling.icon.loading])
+                     @state))]
+      (apply vector render state args))))
+
+(defn- norm-pinkie-fn [fun]
+  (fn [ & args]
+    [jsrender/render-js
+     {:f (fn [dom args]
+           (let [div (.createElement js/document "div")]
+             (let [elem (apply fun (js->clj args))] (.appendChild dom elem))
+             (.. div -classList (add "repl-tooling" "icon" "loading"))))
+             ; (.appendChild dom div)))
+      :data args}]))
+
+(defn- render-ns [editor-state]
+  {'js-require #(-> @editor-state
+                    :editor/callbacks
+                    :config-file-path
+                    dirname
+                    (join %)
+                    js/require)
+   'create-tag #(.createElement js/document %)
+   'set-text #(aset %1 "innerText" %2)
+   'set-html #(aset %1 "innerHTML" %2)
+   'register-reagent #(if (and (keyword? %1) (namespace %1) (fn? %2))
+                        (pinkie/register-tag %1 (norm-reagent-fn %2))
+                        (cmds/run-callback!
+                         editor-state
+                         :notify
+                         {:type :error
+                          :title "Invalid params"
+                          :text (str "First argument needs to be a namespaced keyword, "
+                                     "and second argument needs to be a reagent fn")}))
+   'register-tag #(if (and (keyword? %1) (namespace %1) (fn? %2))
+                    (pinkie/register-tag %1 (norm-pinkie-fn %2))
+                    (cmds/run-callback!
+                     editor-state
+                     :notify
+                     {:type :error
+                      :title "Invalid params"
+                      :text (str "First argument needs to be a namespaced keyword, "
+                                 "and second argument needs to be a function that "
+                                 "returns a HTML tag")}))})
+
 (defn- prepare-nses [repl editor-state]
   (-> sci-ns/namespaces
       (set/rename-keys '{clojure.string str
@@ -65,7 +122,19 @@
                          clojure.template template
                          clojure.repl repl
                          clojure.edn edn})
-      (assoc 'editor (editor-ns nil editor-state))))
+      (assoc 'r {'atom r/atom
+                 'render rdom/render
+                 'adapt-react-class r/adapt-react-class
+                 'as-element r/as-element
+                 'create-class r/create-class
+                 'create-element r/create-element
+                 'current-component r/current-component
+                 'cursor r/cursor
+                 'is-client r/is-client
+                 'reactify-component r/reactify-component
+                 'wrap r/wrap})
+      (assoc 'render (render-ns editor-state))
+      (assoc 'editor (editor-ns repl editor-state))))
 
 (def ^:private promised-bindings {'promise #(.resolve js/Promise %)
                                   'then #(.then ^js %1 %2)
@@ -85,6 +154,7 @@
                      (str/join " ")
                      (#(str % "\n"))
                      (cmds/run-callback! editor-state :on-stdout)))
+         'log (fn [& args] (apply js/console.log args))
          'pr (fn [& args]
                 (->> args (map pr-str)
                      (str/join " ")
@@ -155,6 +225,7 @@
     (cmds/run-callback! editor-state :register-commands commands)))
 
 (defn prepare-commands [editor-state cmds-from-tooling]
+  (swap! editor-state assoc :editor/commands cmds-from-tooling)
   (p/let [config-file (-> @editor-state :editor/callbacks :config-file-path)]
     (watch-config editor-state cmds-from-tooling config-file)
     (reg-commands editor-state cmds-from-tooling config-file)))

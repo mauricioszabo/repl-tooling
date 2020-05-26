@@ -4,6 +4,8 @@
             [clojure.string :as str]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
+            [pinkgorilla.ui.pinkie :as pinkie]
+            [sci.core :as sci]
             [repl-tooling.editor-integration.configs :as configs]))
 
 (defn- edn? [obj]
@@ -61,11 +63,15 @@
         code (pr-str html)
         html (fn [state]
                (try
-                 (treat-error (configs/evaluate-code {:code code
-                                                      :bindings (bindings-for state fns repl)
-                                                      :editor-state editor-state}))
-                (catch :default e
-                  [:div.error "Can't render this code - " (pr-str e)])))]
+                 (-> {:code code
+                      :bindings (bindings-for state fns repl)
+                      :editor-state editor-state}
+                     configs/evaluate-code
+                     pinkie/tag-inject
+                     treat-error)
+                 (catch :default e
+                   (.log js/console e)
+                   [:div.error "Can't render this code - " (pr-str e)])))]
     [html state]))
 
 (defrecord Interactive [edn repl editor-state]
