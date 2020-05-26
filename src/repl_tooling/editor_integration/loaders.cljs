@@ -10,6 +10,8 @@
         (catch (fn [error]
                  (notify {:type :error :title "Error loading file" :message filename})
                  (on-eval {:id (gensym "load-file")
+                           :repl nil ; FIXME: get the right REPL
+                           :range [[0 0] [0 0]]
                            :editor-data editor-data
                            :result error}))))))
 
