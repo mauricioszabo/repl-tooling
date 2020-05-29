@@ -29,7 +29,7 @@
   (let [kind-p (p/deferred)
         control (connection/treat-buffer! buffer #(detect-output-kind % kind-p) identity)]
     (p/let [_ (.write conn "\n") ; Flush nREPL data detection
-            _ (delay 2)
+            _ (connection/next-line control)
             _ (.write conn (str "#?("
                                 ":bb :using-bb-repl "
                                 ":joker :using-joker-repl "
@@ -38,7 +38,7 @@
                                 ":cljr :using-cljr-repl "
                                 ":clj :using-clj-repl "
                                 ")\n"))
-            _ (p/delay 2)
+            _ (connection/next-line control)
             _ (.write conn ":using-unknown-repl\n")
             kind kind-p]
       (swap! control assoc :on-line identity)

@@ -2,12 +2,18 @@
   (:require [clojure.string :as str]
             [clojure.reader :as edn]
             [rewrite-clj.parser :as parser]
+            [promesa.core :as p]
             ["net" :as net]))
 
 (defn- emit-line! [control on-line on-fragment buffer frags last-line]
   (js/clearTimeout (:timeout-id @control))
-  (let [[fst snd] (str/split last-line #"\r?\n" 2)]
-    (on-line (apply str (concat (:emitted-frags @control) frags [fst])))
+  (let [[fst snd] (str/split last-line #"\r?\n" 2)
+        line (apply str (concat (:emitted-frags @control) frags [fst]))]
+    (on-line line)
+    (when-let [p (:next-line-prom @control)]
+      (p/resolve! p line)
+      (swap! control dissoc :next-line-prom))
+
     (swap! control assoc :emitted-frags [])
     (on-fragment (apply str (concat frags [fst "\n"])))
     (swap! buffer #(if (empty? snd)
@@ -49,6 +55,11 @@
                        :on-fragment on-fragment})]
     (add-watch buffer :on-add #(treat-new-state control buffer %4))
     control))
+
+(defn next-line [control]
+  (let [p (p/deferred)]
+    (swap! control assoc :next-line-prom p)
+    p))
 
 (defn- calculate-match [output control]
   (when-let [re (-> @control :ignore-output first)]
