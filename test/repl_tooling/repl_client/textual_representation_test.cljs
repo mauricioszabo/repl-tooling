@@ -1,10 +1,10 @@
 (ns repl-tooling.repl-client.textual-representation-test
-  (:require [clojure.test :refer [async testing is] :include-macros true]
+  (:require [clojure.test :refer [async testing is]]
             [check.core :refer-macros [check]]
-            [clojure.core.async :as async :include-macros true]
-            [devcards.core :as cards :include-macros true]
-            [repl-tooling.eval-helpers :refer-macros [eval-on-repl eval-and-parse
-                                                      async-with-clj-repl]]
+            [clojure.core.async :as async]
+            [devcards.core :as cards]
+            [repl-tooling.eval-helpers :refer [eval-on-repl eval-and-parse
+                                               async-with-clj-repl]]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
             [repl-tooling.editor-integration.renderer :as render]
             [repl-tooling.repl-client.clojure :as clj]))
