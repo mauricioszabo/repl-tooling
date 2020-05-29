@@ -183,15 +183,20 @@ that the cursor is in row and col (0-based)"
                             (or (and (= erow row) (<= col ecol))
                                 (< erow row)))
         is-ns? #(and (list? %) (some-> % first (= 'ns)))
-        read #(try (simple-read %) (catch :default _ nil))]
+        read (memoize #(try (simple-read %) (catch :default _ nil)))
+        find-ns-for (fn [top-blocks] (->> top-blocks
+                                          (map #(update % 1 read))
+                                          (filter #(-> % peek is-ns?))
+                                          (map #(update % 1 second))
+                                          first))]
+    (or (->> levels
+             (take-while before-selection?)
+             reverse
+             find-ns-for)
+        (->> levels
+             (drop-while before-selection?)
+             find-ns-for))))
 
-    (->> levels
-         (take-while before-selection?)
-         reverse
-         (map #(update % 1 read))
-         (filter #(-> % peek is-ns?))
-         (map #(update % 1 second))
-         first)))
 
 (defn in-range? [{:keys [row col end-row end-col]} {r :row c :col}]
   (and (>= r row)

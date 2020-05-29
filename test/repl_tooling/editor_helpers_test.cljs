@@ -133,6 +133,9 @@
     (check (helpers/ns-range-for ns-code [1 2]) => [[[0 0] [0 10]] 'foobar])
     (check (helpers/ns-range-for ns-code [1 2]) => [[[0 0] [0 10]] 'foobar]))
 
+  (testing "finds next NS if cursor is before it"
+    (check (helpers/ns-range-for (str "\n" ns-code) [0 0]) => [[[1 0] [1 10]] 'foobar]))
+
   (testing "getting second NS in form"
     (check (helpers/ns-range-for ns-code [3 4]) => [[[2 0] [2 10]] 'barbaz]))
 
