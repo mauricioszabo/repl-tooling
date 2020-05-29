@@ -78,10 +78,16 @@
   (fn [ & args]
     [jsrender/render-js
      {:f (fn [dom args]
-           (let [div (.createElement js/document "div")]
-             (let [elem (apply fun (js->clj args))] (.appendChild dom elem))
-             (.. div -classList (add "repl-tooling" "icon" "loading"))))
-             ; (.appendChild dom div)))
+           (let [div (.createElement js/document "div")
+                 upd (fn [elem]
+                       (try (.removeChild dom div) (catch :default _))
+                       (.appendChild dom elem))
+                 elem (apply fun (js->clj args))]
+             (.. div -classList (add "repl-tooling" "icon" "loading"))
+             (.appendChild dom div)
+             (if (instance? js/Promise elem)
+               (.then elem upd)
+               (upd elem))))
       :data args}]))
 
 (defn- render-ns [editor-state]
@@ -139,7 +145,7 @@
 (def ^:private promised-bindings {'promise #(.resolve js/Promise %)
                                   'then #(.then ^js %1 %2)
                                   'catch #(.catch ^js %1 %2)
-                                  'let promised-let})
+                                  'p/let promised-let})
 
 (defn default-bindings [editor-state]
   (assoc promised-bindings
