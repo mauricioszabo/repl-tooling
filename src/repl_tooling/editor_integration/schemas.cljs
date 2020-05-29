@@ -27,7 +27,7 @@
 (def Range [(s/one Pos 'start) (s/one Pos 'end)])
 
 (def EditorData {:contents s/Str
-                 :filename s/Str
+                 :filename (s/maybe s/Str)
                  :range Range
                  s/Any s/Any})
 
@@ -89,7 +89,7 @@
                                                         :result ReplResult})
                 :on-disconnect (s/=> s/Any)})
 
-(def ReplKind (s/enum :clj :cljs :joker :bb :clr :clje))
+(def ReplKind (s/enum :clj :cljs :joker :bb :cljr :clje))
 
 (def PossibleRanges (s/enum :top-block :block :var :selection :ns))
 (def EditorFeatures {:autocomplete s/Any
