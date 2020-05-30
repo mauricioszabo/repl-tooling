@@ -70,7 +70,7 @@
                                    (e-eval/source-for-var! state data))}
       :disconnect {:name "Disconnect REPLs"
                    :description "Disconnect all current connected REPLs"
-                   :command #(handle-disconnect! state)}
+                   :command disconnect!}
       :doc-for-var {:name "Documentation for current var"
                     :description "Shows documentation for the current var under cursor"
                     :command #(p/let [data (editor-data)]

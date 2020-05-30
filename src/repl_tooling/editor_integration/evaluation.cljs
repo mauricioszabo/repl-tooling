@@ -50,7 +50,7 @@
     nil))
 
 (s/defn repl-for :- s/Any
-  [state filename :- (s/maybe s/Str), aux? :- (s/enum true false :always nil)]
+  [state filename :- (s/maybe s/Str), aux? :- schemas/AuxOptions]
   (let [cljs? (need-cljs? (cmds/run-callback! state :get-config) filename)
         repl (cond
                (and cljs? (not= aux? :always)) (:cljs/repl @state)
@@ -120,7 +120,7 @@ and row/col.
 Will return a 'promise' that is resolved to the eval result, or failed if the
 eval result is an error. It will also return a fail, with nil, if there's no
 REPL available"
-  [state opts code eval-opts]
+  [state code eval-opts]
   (p/let [editor-data (-> @state :editor/callbacks :editor-data)
           auto-eval-opts (when (:auto-detect eval-opts)
                            (auto-opts editor-data))
@@ -143,36 +143,34 @@ REPL available"
        "."))
 
 (defn run-tests-in-ns! [state]
-  (let [notify (-> @state :editor/callbacks :notify)
-        evaluate (-> @state :editor/features :eval)]
-    (p/let [res (evaluate "(clojure.test/run-tests)"
-                          {:auto-detect true})]
-      (notify {:type :info
-               :title "(clojure.test/run-tests)"
-               :message (format-test-result (:result res))}))))
+  (p/let [res (cmds/run-feature! state :eval
+                                 {:auto-detect true :text "(clojure.test/run-tests)"})]
+    (cmds/run-callback! state :notify {:type :info
+                                       :title "(clojure.test/run-tests)"
+                                       :message (format-test-result (:result res))})))
 
 (defn run-test-at-cursor! [state {:keys [range contents]}]
-  (let [notify (-> @state :editor/callbacks :notify)
-        evaluate (-> @state :editor/features :eval)
-        [_ current-var] (helpers/current-var contents (first range))]
+  (let [[_ current-var] (helpers/current-var contents (first range))]
     (p/do!
-     (evaluate (str "(clojure.test/test-vars [#'" current-var "])")
-               {:auto-detect true}
-      (notify {:type :info
-               :title (str "Ran test: " current-var)
-               :message "See REPL for any failures"})))))
+     (cmds/run-feature! state :eval
+                        {:auto-detect true
+                         :text (str "(clojure.test/test-vars [#'" current-var "])")})
+     (cmds/run-callback! state :notify {:type :info
+                                        :title (str "Ran test: " current-var)
+                                        :message "See REPL for any failures"}))))
 
 (defn source-for-var! [state {:keys [filename range contents]}]
-  (let [notify (-> @state :editor/callbacks :notify)
-        get-config (-> @state :editor/callbacks :get-config)
-        evaluate (-> @state :editor/features :eval)
-        [_ current-var] (helpers/current-var contents (first range))
-        opts {:auto-detect true}]
+  (let [[_ current-var] (helpers/current-var contents (first range))
+        evaluate #(cmds/run-feature! state :eval {:text % :auto-detect true})]
 
-    (if (need-cljs? (get-config) filename)
-      (notify {:type :error :title "Source for Var not supported for ClojureScript"})
-      (-> (evaluate "(require 'clojure.repl)" opts)
-          (p/then #(evaluate (str "(clojure.repl/source " current-var ")") opts))
-          (p/catch #(notify {:type :error :title (str "Source for Var "
-                                                      "not supported for "
-                                                      (-> @state :repl/info :kind-name))}))))))
+    (if (need-cljs? (cmds/run-callback! state :get-config) filename)
+      (cmds/run-callback! state :notify
+                          {:type :error
+                           :title "Source for Var not supported for ClojureScript"})
+      (-> (evaluate "(require 'clojure.repl)")
+          (p/then #(evaluate (str "(clojure.repl/source " current-var ")")))
+          (p/catch #(cmds/run-callback!
+                     state :notify {:type :error
+                                    :title (str "Source for Var "
+                                                "not supported for "
+                                                (-> @state :repl/info :kind-name))}))))))

@@ -43,7 +43,13 @@
                                              data
                                              (assoc opts :pass pass)
                                              (constantly [range text]))))
-   :eval (fn [code eval-opts] (e-eval/eval-with-promise state opts code eval-opts))
+   :eval (fn [options]
+           (let [code (:text options)
+                 [[row col]] (:range opts)
+                 eval-opts (cond-> (dissoc options :text)
+                                   row (assoc :row row)
+                                   col (assoc :col col))]
+             (e-eval/eval-with-promise state code eval-opts)))
    :result-for-renderer #(renderer/parse-result (:result %) (:repl %) state)
    :go-to-var-definition #(definition/goto-var (assoc % :state state))
    :get-full-var-name #(cmds/fqn-for-var state)

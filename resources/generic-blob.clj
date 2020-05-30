@@ -27,5 +27,7 @@
     ['tooling$eval-res '__ID__ {:result (clojure.core/pr-str res)
                                 :as-text (clojure.core/pr-str res)}])
   (catch __EX_TYPE__ e
-    ['tooling$eval-res '__ID__ {:error (clojure.core/pr-str e)
-                                :as-text (clojure.core/pr-str e)}]))
+    (clojure.core/let [ex #?(:cljr (clojure.string/replace (clojure.core/pr-str e) #":message \n" "")
+                             :default (clojure.core/pr-str e))]
+      ['tooling$eval-res '__ID__ {:error ex
+                                  :as-text ex}])))

@@ -27,7 +27,7 @@
 (def Range [(s/one Pos 'start) (s/one Pos 'end)])
 
 (def EditorData {:contents s/Str
-                 :filename s/Str
+                 :filename (s/maybe s/Str)
                  :range Range
                  s/Any s/Any})
 
@@ -89,15 +89,27 @@
                                                         :result ReplResult})
                 :on-disconnect (s/=> s/Any)})
 
-(def ReplKind (s/enum :clj :cljs :joker :bb :clr :clje))
+(def ReplKind (s/enum :clj :cljs :joker :bb :cljr :clje))
 
 (def PossibleRanges (s/enum :top-block :block :var :selection :ns))
+(def AuxOptions (s/enum true false :always nil))
+(def EvalOpts {(s/optional-key :id) s/Any
+               (s/optional-key :namespace) s/Str
+               (s/optional-key :range) Range
+               (s/optional-key :column) s/Int
+               (s/optional-key :pass) {s/Any s/Any}
+               (s/optional-key :aux) AuxOptions})
+
+(def PromisedEvalOpts (assoc EvalOpts
+                             :text s/Str
+                             (s/optional-key :auto-detect) s/Bool))
+
 (def EditorFeatures {:autocomplete s/Any
                      :eval-and-render (s/=> s/Any s/Any s/Any s/Any)
                      :evaluate-and-render (s/=> s/Any {:text s/Str
                                                        :range Range
                                                        (s/optional-key :pass) s/Any})
-                     :eval (s/=> s/Any s/Any s/Any)
+                     :eval (s/=> s/Any PromisedEvalOpts)
                      :result-for-renderer (s/=> js/Promise)
                      :go-to-var-definition (s/=> s/Any {:var-name s/Str
                                                         :namespace s/Str
