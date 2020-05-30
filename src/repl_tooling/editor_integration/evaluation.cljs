@@ -143,24 +143,21 @@ REPL available"
        "."))
 
 (defn run-tests-in-ns! [state]
-  (let [notify (-> @state :editor/callbacks :notify)
-        evaluate (-> @state :editor/features :eval)]
-    (p/let [res (evaluate "(clojure.test/run-tests)"
-                          {:auto-detect true})]
-      (notify {:type :info
-               :title "(clojure.test/run-tests)"
-               :message (format-test-result (:result res))}))))
+  (p/let [res (cmds/run-feature! state :eval
+                                 {:auto-detect true :text "(clojure.test/run-tests)"})]
+    (cmds/run-callback! state :notify {:type :info
+                                       :title "(clojure.test/run-tests)"
+                                       :message (format-test-result (:result res))})))
 
 (defn run-test-at-cursor! [state {:keys [range contents]}]
-  (let [notify (-> @state :editor/callbacks :notify)
-        evaluate (-> @state :editor/features :eval)
-        [_ current-var] (helpers/current-var contents (first range))]
+  (let [[_ current-var] (helpers/current-var contents (first range))]
     (p/do!
-     (evaluate (str "(clojure.test/test-vars [#'" current-var "])")
-               {:auto-detect true}
-      (notify {:type :info
-               :title (str "Ran test: " current-var)
-               :message "See REPL for any failures"})))))
+     (cmds/run-feature! state :eval
+                        {:auto-detect true
+                         :text (str "(clojure.test/test-vars [#'" current-var "])")})
+     (cmds/run-callback! state :notify {:type :info
+                                        :title (str "Ran test: " current-var)
+                                        :message "See REPL for any failures"}))))
 
 (defn source-for-var! [state {:keys [filename range contents]}]
   (let [[_ current-var] (helpers/current-var contents (first range))
