@@ -5,6 +5,8 @@
 - Runnable config
 - Fix on `get-selection` for configs in ClojureScript
 - `editor/eval-and-render` now resolves as promises
+- Forward-finding namespaces if a NS form was not found before the cursor (fixes https://github.com/mauricioszabo/atom-chlorine/issues/193)
+- Waiting for REPL results before forwarding new commands to the REPL (probably fixes https://github.com/mauricioszabo/atom-chlorine/issues/192)
 
 ## 0.4.4
 - Interactive renderer support
