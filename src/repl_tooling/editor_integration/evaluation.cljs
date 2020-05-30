@@ -50,7 +50,7 @@
     nil))
 
 (s/defn repl-for :- s/Any
-  [state filename :- (s/maybe s/Str), aux? :- (s/enum true false :always nil)]
+  [state filename :- (s/maybe s/Str), aux? :- schemas/AuxOptions]
   (let [cljs? (need-cljs? (cmds/run-callback! state :get-config) filename)
         repl (cond
                (and cljs? (not= aux? :always)) (:cljs/repl @state)
@@ -120,7 +120,7 @@ and row/col.
 Will return a 'promise' that is resolved to the eval result, or failed if the
 eval result is an error. It will also return a fail, with nil, if there's no
 REPL available"
-  [state opts code eval-opts]
+  [state code eval-opts]
   (p/let [editor-data (-> @state :editor/callbacks :editor-data)
           auto-eval-opts (when (:auto-detect eval-opts)
                            (auto-opts editor-data))
