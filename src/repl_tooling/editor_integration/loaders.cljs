@@ -5,7 +5,7 @@
 
 (defn- eval-code [code {:keys [editor-data notify evaluate on-eval]}]
   (let [filename (:filename editor-data)]
-    (.. (evaluate code {:auto-opts true :aux true})
+    (.. (evaluate {:text code :auto-opts true :aux true})
         (then #(notify {:type :info :title "Loaded file" :message filename}))
         (catch (fn [error]
                  (notify {:type :error :title "Error loading file" :message filename})

@@ -17,13 +17,14 @@
 (defn- info! [repl editor-state]
   (p/let [{:keys [on-start-eval on-eval editor-data get-config]}
           (:editor/callbacks @editor-state)
-          evaluate (-> @editor-state :editor/features :eval)
-
           {:keys [contents range filename] :as ed} (editor-data)
           start (first range)
           id (gensym "info")
           [range var] (helpers/current-var contents start)
-          full-var-name (evaluate (str "`" var) {:ignore true :auto-detect true :aux true})
+          full-var-name (cmds/run-feature! editor-state :eval
+                                           {:text (str "`" var)
+                                            :ignore true
+                                            :auto-detect true :aux true})
           splitted (-> full-var-name :result str (str/split #"/" 2))
           [ns-name name] (cond->> splitted
                                   (= 1 (count splitted)) (cons "user"))
