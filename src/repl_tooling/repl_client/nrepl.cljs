@@ -16,7 +16,7 @@
                           (:filename opts) (assoc :file (:filename opts))
                           (:col opts) (assoc :column (:col opts))
                           (:row opts) (assoc :line (:row opts)))]
-      (swap! pending assoc (str id) {:callback callback})
+      (swap! pending assoc (str id) (assoc opts :callback callback))
       (.write conn (bencode/encode full-op) "binary")
       id))
 
@@ -25,24 +25,23 @@
 
 (defn- treat-output! [pending on-output msg]
   (when-let [value (get msg "value")]
-    (when-let [{:keys [callback]} (get @pending (get msg "id"))]
-      ; (callback {:result "\"[1 2 3 4]\"" :as-text ""})
+    (when-let [{:keys [callback ignore]} (get @pending (get msg "id"))]
       (callback {:result value :as-text value})
-      (swap! pending dissoc)))
+      (swap! pending dissoc (get msg "id"))))
 
   (when-let [value (get msg "ex")]
     (when-let [{:keys [callback]} (get @pending (get msg "id"))]
       (let [value (->> value (tagged-literal 'repl-tooling/literal-render) pr-str)]
         (callback {:error value :as-text value})
-        (swap! pending dissoc))))
+        (swap! pending dissoc (get msg "id")))))
 
   (when (some #{"interrupted"} (get msg "status"))
     (let [{:keys [callback]} (get @pending (get msg "id"))]
       (when callback (callback {:error "Interrupted!" :as-text "Interrupted!"}))))
 
-  (when-let [out (get msg "out")]
+  (when-let [out (-> msg (get "out") not-empty)]
     (on-output {:out out}))
-  (when-let [out (get msg "err")]
+  (when-let [out (-> msg (get "err") not-empty)]
     (on-output {:err out})))
 
 (defn- treat-socket-output! [{:keys [decode! buffer val treat on-output]}]
