@@ -5,11 +5,11 @@
             [clojure.string :as str]
             [repl-tooling.editor-integration.evaluation :as e-eval]
             [repl-tooling.editor-integration.commands :as cmds]
+            [repl-tooling.repl-client.source :as source]
             [promesa.core :as p]))
 
 (defn- have-ns? [repl namespace]
-  (-> (eval/eval repl (str "(try (clojure.core/require '[" namespace "]) true"
-                           "(catch java.lang.Throwable _ false))"))
+  (-> (eval/eval repl (source/have-ns-command namespace))
       (p/then :result)
       (p/catch (constantly false))))
 

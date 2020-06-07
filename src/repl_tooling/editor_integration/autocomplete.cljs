@@ -6,11 +6,11 @@
             [repl-tooling.editor-integration.evaluation :as evaluation]
             [repl-tooling.features.autocomplete.simple :as simple]
             [repl-tooling.features.autocomplete.compliment :as compliment]
-            [repl-tooling.features.autocomplete.suitable :as suit]))
+            [repl-tooling.features.autocomplete.suitable :as suit]
+            [repl-tooling.repl-client.source :as source]))
 
 (defn- have-ns? [repl namespace]
-  (-> (eval/eval repl (str "(try (clojure.core/require '[" namespace "]) true"
-                           "(catch java.lang.Throwable _ false))"))
+  (-> (eval/eval repl (source/have-ns-command namespace))
       (p/then :result)
       (p/catch (constantly false))))
 
