@@ -38,3 +38,10 @@
           (parse-command strip-newlines?)
           (update :result str "\n"))
       cmd)))
+
+(defn have-ns-command [ns-name]
+  (str "(try (#?(:joker joker.core/require :default clojure.core/require) '" ns-name ") "
+       "true "
+       "(catch #?(:bb java.lang.Throwable :clj java.lang.Throwable "
+       ":joker Error :cljs :default :cljr System.Exception :clje _) _ "
+       "false))"))

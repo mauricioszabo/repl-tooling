@@ -5,11 +5,12 @@
             [clojure.string :as str]
             [repl-tooling.editor-integration.evaluation :as e-eval]
             [repl-tooling.editor-integration.commands :as cmds]
+            [repl-tooling.repl-client.source :as source]
             [promesa.core :as p]))
 
 (defn- have-ns? [repl namespace]
-  (-> (eval/eval repl (str "(require '[" namespace "])"))
-      (p/then (constantly true))
+  (-> (eval/eval repl (source/have-ns-command namespace))
+      (p/then :result)
       (p/catch (constantly false))))
 
 (def ^:private info-msg (h/contents-for-fn "orchard-cmds.clj" "info"))

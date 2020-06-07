@@ -111,6 +111,6 @@
   (p/let [{:keys [contents range filename]} (cmds/run-callback! editor-state :editor-data)
           [range var] (helpers/current-var contents (first range))
           res (cmds/run-feature! editor-state :eval
-                                 (str "`" var)
-                                 {:ignore true :auto-detect true :aux true})]
+                                 {:text (str "`" var)
+                                  :ignore true :auto-detect true :aux true})]
     (assoc res :range range)))
