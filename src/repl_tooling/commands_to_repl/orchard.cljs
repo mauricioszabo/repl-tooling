@@ -8,8 +8,9 @@
             [promesa.core :as p]))
 
 (defn- have-ns? [repl namespace]
-  (-> (eval/eval repl (str "(require '[" namespace "])"))
-      (p/then (constantly true))
+  (-> (eval/eval repl (str "(try (clojure.core/require '[" namespace "]) true"
+                           "(catch java.lang.Throwable _ false))"))
+      (p/then :result)
       (p/catch (constantly false))))
 
 (def ^:private info-msg (h/contents-for-fn "orchard-cmds.clj" "info"))

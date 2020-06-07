@@ -8,12 +8,17 @@
             [repl-tooling.features.autocomplete.compliment :as compliment]
             [repl-tooling.features.autocomplete.suitable :as suit]))
 
+(defn- have-ns? [repl namespace]
+  (-> (eval/eval repl (str "(try (clojure.core/require '[" namespace "]) true"
+                           "(catch java.lang.Throwable _ false))"))
+      (p/then :result)
+      (p/catch (constantly false))))
+
 (defn- detect-clj-compliment [repl state]
   (if-let [kind (-> @state :repl/info :clj/autocomplete-kind)]
     kind
-    (p/let [res (.. (eval/eval repl "(clojure.core/require 'compliment.core)")
-                    (then (constantly :compliment))
-                    (catch (constantly :simple)))]
+    (p/let [res (have-ns? repl "compliment.core")
+            res (if res :compliment :simple)]
       (swap! state assoc-in [:repl/info :clj/autocomplete-kind] res)
       res)))
 
@@ -21,16 +26,12 @@
   (if repl
     (if-let [kind (-> @state :repl/info :cljs/autocomplete-kind)]
       kind
-      (p/let [suit (.. (eval/eval repl "(clojure.core/require 'suitable.js-completions)")
-                       (then (constantly :suit))
-                       (catch (constantly false)))
-              compliment (.. (eval/eval repl "(clojure.core/require 'compliment.sources.cljs)")
-                             (then (constantly :compl))
-                             (catch (constantly false)))
+      (p/let [suit (have-ns? repl "suitable.js-completions")
+              compliment (have-ns? repl "suitable.js-completions")
               res (cond-> #{}
                           suit (conj :suitable)
                           compliment (conj :compliment)
-                          (= suit compliment) (conj :simple))]
+                          (= false suit compliment) (conj :simple))]
         (swap! state assoc-in [:repl/info :cljs/autocomplete-kind] res)
         res))
     :simple))
