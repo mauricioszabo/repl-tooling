@@ -98,6 +98,7 @@
                (s/optional-key :range) Range
                (s/optional-key :column) s/Int
                (s/optional-key :pass) {s/Any s/Any}
+               (s/optional-key :ignore) s/Bool
                (s/optional-key :aux) AuxOptions})
 
 (def PromisedEvalOpts (assoc EvalOpts
