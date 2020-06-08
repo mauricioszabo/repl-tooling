@@ -29,7 +29,7 @@
   (let [[start] range
         [eval-range code] (function contents start)]
     (when eval-range
-      (let [_ namespace] (helpers/ns-range-for contents (first eval-range))
+      (let [[_ namespace] (helpers/ns-range-for contents (first eval-range))]
         (e-eval/eval-cmd state code namespace eval-range data opts)))))
 
 (defn- eval-block [state data opts]
