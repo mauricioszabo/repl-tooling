@@ -99,6 +99,7 @@
                                 'unrepl.java/class (fn [k] (WithTag. k "class"))
                                 'unrepl/browsable (fn [[a b]]
                                                     (->browseable a b))
+                                'unrepl/pattern re-pattern
                                 'repl-tooling/literal-render #(LiteralRender. %)
                                 'repl-tooling/interactive #(Interactive. %)
                                 'repl-tooling/patchable #(->Patchable (first %) (second %))
