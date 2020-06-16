@@ -143,11 +143,14 @@ REPL available"
        "."))
 
 (defn run-tests-in-ns! [state]
-  (p/let [res (cmds/run-feature! state :eval
-                                 {:auto-detect true :text "(clojure.test/run-tests)"})]
-    (cmds/run-callback! state :notify {:type :info
-                                       :title "(clojure.test/run-tests)"
-                                       :message (format-test-result (:result res))})))
+  (p/let [{:keys [result]} (cmds/run-feature! state :eval
+                                              {:auto-detect true :text "(clojure.test/run-tests)"})]
+    (cmds/run-callback! state :notify
+                        {:type (if (= 0 (:fail result) (:error result))
+                                 :info
+                                 :warning)
+                         :title "(clojure.test/run-tests)"
+                         :message (format-test-result result)})))
 
 (defn run-test-at-cursor! [state {:keys [range contents]}]
   (let [[_ current-var] (helpers/current-var contents (first range))]
