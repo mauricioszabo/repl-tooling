@@ -62,7 +62,7 @@
 (defrecord IncompleteObj [more-fn])
 
 (defrecord Error [type message add-data trace])
-(defn- parse-error [{:keys [via trace cause] :as error}]
+(defn parse-error [{:keys [via trace cause] :as error}]
   (let [info (or (some-> via reverse first) error)
         {:keys [type message]} info]
     (->Error type (or cause message) (dissoc info :type :message :at :trace) trace)))
