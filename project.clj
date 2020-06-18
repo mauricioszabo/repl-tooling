@@ -1,5 +1,6 @@
 (defproject repl-tooling "0.5.0"
   :dependencies [[org.clojure/core.async "0.4.490"]
+                 [com.cognitect/transit-cljs "0.8.264"]
                  [reagent "0.10.0"]
                  [funcool/promesa "4.0.2"]
                  [rewrite-cljs "0.4.4"]
