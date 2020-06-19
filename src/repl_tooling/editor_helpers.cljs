@@ -78,10 +78,11 @@
     :else
     (->Browseable object (:repl-tooling/... additional-data) nil)))
 
-(defn to-error-str [type message trace]
-  (->> {:type type :message message :trace trace}
-       (tagged-literal 'error)
-       pr-str))
+(defn error-result [type message trace]
+  (let [error (->> {:type type :message message :trace trace}
+                   (tagged-literal 'error)
+                   pr-str)]
+    {:error error :as-text error}))
 
 (defrecord Patchable [id value])
 

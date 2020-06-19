@@ -32,7 +32,6 @@
         build-id (:build-id @state)
         client-id (-> @state (get-in [:build->id build-id]) first)
         prom (p/deferred)]
-    (prn :CLIENT client-id)
     (if client-id
       (do
         (swap! state update :pending-evals assoc (:id opts) {:promise prom
@@ -142,7 +141,7 @@
                              [(str/replace msg #"Use of.* (.*/.*)$" "$1")
                               ""
                               file
-                              (+ line line)])))]
+                              (dec (+ row line))])))]
       (swap! state update :pending-evals dissoc call-id)
       (p/resolve! promise (helpers/error-result "Compile Warning"
                                                 (->> warnings (map :msg) (str/join "\n"))
@@ -161,7 +160,7 @@
     (on-out {key text})))
 
 (s/defn ^:private treat-ws-message! [state :- State, {:keys [op] :as msg}]
-  (prn :MSG msg)
+  ; (prn :MSG msg)
   (case op
     :welcome (send-hello! state)
     :clients (parse-clients! state msg)
@@ -174,46 +173,18 @@
     :eval-compile-error (get-error! state (assoc msg :from (:ex-client-id msg 1)))
     :obj-not-found (obj-not-found! state msg)
     :runtime-print (send-output! state msg)
-    (prn :UNKNWOWN op)))
+    (prn :unknown-op op)))
 
 (defn connect! [{:keys [id build-id host port token on-output]}]
-  (prn :CONNECTING id)
-  ; (repls/disconnect! id)
   (let [ws (Websocket. (str "ws://" host ":" port
                             "/api/remote-relay?server-token=" token))
         p (p/deferred)
         state (atom {:build-id build-id :evaluator p :ws ws
                      :on-output (or on-output identity) :pending-evals {}
                      :build->id {} :id->build {}})]
-    (def state state)
     (aset ws "end" (.-close ws))
     (swap! repls/connections assoc id {:conn ws :buffer (atom [])})
     (aset ws "onmessage" #(let [reader (t/reader :json)
                                 payload (->> ^js % .-data (t/read reader))]
                             (treat-ws-message! state payload)))
     p))
-
-#_
-(def ws (:ws @state))
-
-#_
-(send! ws {:op :request-supported-ops, :to #{51}})
-
-#_
-(.then (evaluate! ws state "cljs.user" "(throw (ex-info :foo {}))")
-       #(prn :RES %))
-
-#_
-(.then (evaluate! ws state "cljs.user" "(prn :wow a)")
-       #(prn :RES %))
-
-#_
-(.then (evaluate! ws state "cljs.user" "(+ 2 3)")
-       #(prn :RES %))
-
-#_
-(send! ws {:op :runtime-print-sub
-           :to 590})
-
-#_
-(.close ws)

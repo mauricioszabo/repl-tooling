@@ -6,7 +6,10 @@
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.features.shadow-cljs :as shadow-cljs]
-            [repl-tooling.integrations.repls :as repls]))
+            [repl-tooling.repl-client.shadow-ws :as shadow-ws]
+            [repl-tooling.integrations.repls :as repls]
+            ["fs" :refer [readFileSync existsSync]]
+            ["path" :refer [join]]))
 
 (def blob (cljs-blob-contents))
 
@@ -76,3 +79,37 @@ an evaluator that will pipe all commands to Shadow-CLJS' workers."
                                                                       :result txt})))))))]
 
     (shadow-cljs/upgrade-repl! clj-repl build-id)))
+
+(defn connect-shadow-ws!
+  [{:keys [identifier build-id on-stdout on-stderr on-patch directories]
+    :or {identifier :cljs-eval}}]
+  (let [host "localhost"
+        dir (->> directories
+                 (filter #(existsSync (join % ".shadow-cljs" "http.port")))
+                 first)
+        port (-> (join dir ".shadow-cljs" "http.port") readFileSync str js/parseInt)
+        token (-> (join dir ".shadow-cljs" "server.token") readFileSync str)
+        on-output (fn [res]
+                    (cond
+                      (:out res)
+                      (on-stdout (:out res))
+
+                      (:err res)
+                      (on-stderr (:err res))))]
+
+                      ; FIXME: Resolve promises in the future
+                      ; (:patch res)
+                      ; (let [txt-in-txt (-> res :patch :result :result)
+                      ;       txt (edn/read-string txt-in-txt)]
+                      ;   (on-patch (update (:patch res)
+                      ;                     :result merge
+                      ;                     (helpers/parse-result
+                      ;                      {:as-text txt
+                      ;                       :result txt}))))))]
+
+    (shadow-ws/connect! {:id identifier
+                         :build-id build-id
+                         :host host
+                         :port port
+                         :token token
+                         :on-output on-output})))

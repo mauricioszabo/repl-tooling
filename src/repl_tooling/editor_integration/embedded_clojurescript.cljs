@@ -1,6 +1,7 @@
 (ns repl-tooling.editor-integration.embedded-clojurescript
   (:require [repl-tooling.features.shadow-cljs :as shadow]
-            [repl-tooling.integrations.connection :as conn]))
+            [repl-tooling.integrations.connection :as conn]
+            [repl-tooling.editor-integration.commands :as cmds]))
 
 (def trs {:no-build-id "There's no build ID detected on shadow-cljs file"
           :no-shadow-file "File shadow-cljs.edn not found"
@@ -28,6 +29,7 @@
 (defn- connect-and-update-state! [state opts target upgrade-cmd]
   (let [{:keys [notify on-result on-stdout]} opts
         {:keys [host port]} (:repl/info @state)
+        config (cmds/run-callback! state :get-config)
         after-connect #(if-let [error (:error %)]
                          (treat-error error notify)
                          (do
@@ -46,10 +48,11 @@
                                            :on-result #(and on-result (on-result %))
                                            :on-stdout #(and on-stdout (on-stdout %))})
                after-connect)
-        (.then (conn/connect-shadow! (assoc opts
-                                            :host host
-                                            :port port
-                                            :build-id target))
+        (.then (conn/connect-shadow-ws! (assoc opts
+                                               :directories (:project-paths config)
+                                               :host host
+                                               :port port
+                                               :build-id target))
                after-connect))
       (notify! notify {:type :warn
                        :title "No option selected"
