@@ -18,8 +18,14 @@
 (def token (-> ".shadow-cljs/server.token" readFileSync str delay))
 
 (defn connect! []
-  (prn :WILL-CONNECT! (gensym))
-  (shadow-ws/connect! :shadow :fixture "localhost" @port @token))
+  (p/let [output (atom [])
+          repl (shadow-ws/connect! {:id :shadow
+                                    :build-id :fixture
+                                    :host "localhost"
+                                    :port @port
+                                    :token @token
+                                    :on-output #(swap! output conj %)})]
+    [repl output]))
 
 #_
 (p/let [repl (connect!)]
@@ -32,7 +38,7 @@
 
 (cards/deftest shadow-cljs-websocket
   (promised-test {:teardown (repls/disconnect! :shadow)}
-    (p/let [repl (connect!)]
+    (p/let [[repl outputs] (connect!)]
       (testing "connecting to Shadow"
         (p/delay 100)
 
@@ -53,4 +59,25 @@
         (testing "evaluating compile errors"
           (p/let [res (p/catch (eval/eval repl "(nil 10)")
                                (fn [error] error))]
-            (check res => {:error map? :as-text #"Can't call nil"})))))))
+            (check res => {:error map? :as-text #"Can't call nil"})))
+
+        (testing "evaluating print commands"
+          (p/let [res (eval/eval repl "(pr :SOME-TEXT)")]
+            (check res => {:result nil})
+            (check @outputs => [{:out ":SOME-TEXT"}])))))))
+
+(cards/deftest shadow-cljs-wrong-build
+  (promised-test {:teardown (repls/disconnect! :shadow-wrong-build)}
+    (p/let [repl (shadow-ws/connect! {:id :shadow-wrong-build
+                                      :build-id :wrong-id
+                                      :host "localhost"
+                                      :port @port
+                                      :token @token})]
+
+      (testing "connecting to Shadow"
+        (p/delay 100)
+
+        (testing "evaluating results"
+          (p/let [res (p/catch (eval/eval repl "(+ 1 2)")
+                               (fn [error] error))]
+            (check res => {:error map? :as-text #":wrong-id"})))))))

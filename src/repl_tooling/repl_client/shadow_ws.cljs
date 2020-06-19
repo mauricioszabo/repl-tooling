@@ -9,51 +9,76 @@
             ["ws" :as Websocket]))
 
 (def State (s/atom {:build-id s/Keyword
+                    :on-output (s/=> s/Any s/Any)
+                    :ws Websocket
                     :evaluator js/Promise
                     :id->build {s/Int s/Keyword}
                     :build->id {s/Keyword [s/Int]}
-                    :pending-evals [{:promise s/Any
-                                     :file s/Str
-                                     :row s/Int
-                                     :pass s/Any
-                                     (s/optional-key :success?) s/Bool}]}))
+                    :pending-evals {s/Any {:promise s/Any
+                                           :file s/Str
+                                           :row s/Int
+                                           :pass s/Any
+                                           (s/optional-key :success?) s/Bool}}}))
 
 (defn- send! [^js ws msg]
   (let [writer (t/writer :json)
         out (t/write writer msg)]
     (.send ws out)))
 
-(defn- evaluate! [ws state namespace code opts]
-  (let [client-id (-> @state (get-in [:build->id (:build-id @state)]) first)
+(defn- evaluate! [state namespace code opts]
+  (let [ws (:ws @state)
+        row (:row opts 0)
+        file (:filename opts "[EVAL]")
+        build-id (:build-id @state)
+        client-id (-> @state (get-in [:build->id build-id]) first)
         prom (p/deferred)]
-    (swap! state update :pending-evals conj {:promise prom
-                                             :file (:filename opts "[EVAL]")
-                                             :row (:row opts 0)
-                                             :pass (:pass opts 0)})
-    (send! ws {:op :cljs-eval
-               :to client-id
-               :input {:code code :ns (symbol namespace)}})
+    (prn :CLIENT client-id)
+    (if client-id
+      (do
+        (swap! state update :pending-evals assoc (:id opts) {:promise prom
+                                                             :file file
+                                                             :row row
+                                                             :pass (:pass opts)})
+        (send! ws {:op :cljs-eval
+                   :to client-id
+                   :call-id (:id opts)
+                   :input {:code code :ns (symbol namespace)}}))
+      (p/resolve! prom (merge (:pass opts)
+                              (helpers/error-result "No clients connected"
+                                                    (str "No clients connected to "
+                                                         "the runtime " build-id)
+                                                    [[file "" build-id row]]))))
     prom))
 
-(defrecord ShadowCLJS [ws state]
+(defrecord ShadowCLJS [state]
   eval/Evaluator
   (evaluate [this command opts callback]
-    (p/let [id (gensym "shadow-eval-")
+    (p/let [id (:id opts (gensym "shadow-eval-"))
             namespace (str (:namespace opts "cljs.user"))
-            prom (evaluate! ws state namespace (str command) opts)]
+            prom (evaluate! state namespace (str command) (assoc opts :id id))]
       (callback prom)
       id))
 
   (break [this repl]))
 
-(defn- send-hello! [ws state]
-  (send! ws {:op :hello :client-info {:editor :repl-tooling}})
-  (send! ws {:op :request-clients
-             :notify true
-             :query [:and
-                     [:eq :lang :cljs]
-                     [:eq :type :runtime]]})
-  (p/resolve! (:evaluator @state) (->ShadowCLJS ws state)))
+(defn- send-hello! [state]
+  (let [{:keys [ws evaluator]} @state]
+    (send! ws {:op :hello :client-info {:editor :repl-tooling}})
+    (send! ws {:op :request-clients
+               :notify true
+               :query [:and
+                       [:eq :lang :cljs]
+                       [:eq :type :runtime]]})
+    (p/resolve! evaluator (->ShadowCLJS state))))
+
+(defn- listen-to-events! [state]
+  (let [{:keys [ws build-id]} @state
+        builds (:build->id @state)]
+    (doseq [[_ ids] builds
+            id ids]
+      (send! ws {:op :runtime-print-unsub :to id}))
+    (when-let [id (-> builds build-id first)]
+      (send! ws {:op :runtime-print-sub :to id}))))
 
 (defn- parse-clients! [state {:keys [clients]}]
   (let [build-id (:build-id @state)
@@ -65,7 +90,8 @@
            :build->id shadow-ids
            :id->build (into {} (for [[build-id ids] shadow-ids
                                      id ids]
-                                 [id build-id])))))
+                                 [id build-id])))
+    (listen-to-events! state)))
 
 (defn- add-id [st client-id build-id]
   (-> st
@@ -83,82 +109,95 @@
 (defn- update-builds! [state {:keys [event-op client-id client-info]}]
   (swap! state #(if (= :client-connect event-op)
                   (add-id % client-id (:build-id client-info))
-                  (remove-id % client-id))))
+                  (remove-id % client-id)))
+  (listen-to-events! state))
 
-(defn- capture-result! [state {:keys [result]}]
-  (when-let [{:keys [promise success?]} (-> @state :pending-evals first)]
-    (swap! state update :pending-evals subvec 1)
-    (p/resolve! promise {(if success? :result :error) result :as-text result})))
+(defn- capture-result! [state {:keys [result call-id]}]
+  (when-let [{:keys [promise success? pass]} (-> @state :pending-evals (get call-id))]
+    (swap! state update :pending-evals dissoc call-id)
+    (p/resolve! promise (assoc pass
+                               (if success? :result :error) result
+                               :as-text result))))
 
-(defn- get-result! [state ws msg]
-  (swap! state update-in [:pending-evals 0] assoc :success? true)
-  (send! ws {:op :obj-request
-             :to (:from msg)
-             :request-op :edn
-             :oid (:ref-oid msg)}))
+(defn- get-result! [state msg]
+  (swap! state update-in [:pending-evals (:call-id msg)] assoc :success? true)
+  (send! (:ws @state) {:op :obj-request
+                       :call-id (:call-id msg)
+                       :to (:from msg)
+                       :request-op :edn
+                       :oid (:ref-oid msg)}))
 
-(defn- get-error! [state ws msg]
-  (swap! state update-in [:pending-evals 0] assoc :success? false)
-  (send! ws {:op :obj-request
-             :to (:from msg)
-             :request-op :edn
-             :oid (:ex-oid msg)}))
+(defn- get-error! [state msg]
+  (swap! state update-in [:pending-evals (:call-id msg)] assoc :success? false)
+  (send! (:ws @state) {:op :obj-request
+                       :call-id (:call-id msg)
+                       :to (:from msg)
+                       :request-op :edn
+                       :oid (:ex-oid msg)}))
 
-(defn- send-as-error! [state {:keys [warnings]}]
-  (when-let [{:keys [promise row file]} (-> @state :pending-evals first)]
+(defn- send-as-error! [state {:keys [warnings call-id]}]
+  (when-let [{:keys [promise row file]} (-> @state :pending-evals (get call-id))]
     (let [trace (->> warnings
                      (mapv (fn [{:keys [msg line]}]
                              [(str/replace msg #"Use of.* (.*/.*)$" "$1")
                               ""
                               file
-                              (+ line line)])))
-          error (helpers/to-error-str "Compile Warning"
-                                      (->> warnings (map :msg) (str/join "\n"))
-                                      trace)]
-      (swap! state update :pending-evals subvec 1)
-      (p/resolve! promise {:error error :as-text error}))))
+                              (+ line line)])))]
+      (swap! state update :pending-evals dissoc call-id)
+      (p/resolve! promise (helpers/error-result "Compile Warning"
+                                                (->> warnings (map :msg) (str/join "\n"))
+                                                trace)))))
 
-(defn- obj-not-found! [state ws]
-  (when-let [{:keys [promise row file]} (-> @state :pending-evals first)]
-    (let [error (helpers/to-error-str "404"
-                                      "Result not found"
-                                      [[file "" "" row]])]
-      (swap! state update :pending-evals subvec 1)
-      (p/resolve! promise {:error error :as-text error}))))
+(defn- obj-not-found! [state {:keys [call-id]}]
+  (when-let [{:keys [promise row file]} (-> @state :pending-evals (get call-id))]
+    (swap! state update :pending-evals dissoc call-id)
+    (p/resolve! promise (helpers/error-result "404"
+                                              "Result not found"
+                                              [[file "" "" row]]))))
 
-(s/defn ^:private treat-ws-message! [state :- State,
-                                     ws :- Websocket,
-                                     {:keys [op] :as msg}]
+(defn- send-output! [state {:keys [stream text]}]
+  (let [on-out (:on-output @state)
+        key (if (= :stdout stream) :out :err)]
+    (on-out {key text})))
+
+(s/defn ^:private treat-ws-message! [state :- State, {:keys [op] :as msg}]
   (prn :MSG msg)
   (case op
-    :welcome (send-hello! ws state)
+    :welcome (send-hello! state)
     :clients (parse-clients! state msg)
     :notify (update-builds! state msg)
-    :ping (send! ws {:op :pong})
-    :eval-result-ref (get-result! state ws msg)
-    :eval-runtime-error (get-error! state ws msg)
+    :ping (send! (:ws @state) {:op :pong})
+    :eval-result-ref (get-result! state msg)
+    :eval-runtime-error (get-error! state msg)
     :obj-result (capture-result! state msg)
     :eval-compile-warnings (send-as-error! state msg)
-    :eval-compile-error (get-error! state ws (assoc msg :from 1))
-    :obj-not-found (obj-not-found! state ws)
+    :eval-compile-error (get-error! state (assoc msg :from (:ex-client-id msg 1)))
+    :obj-not-found (obj-not-found! state msg)
+    :runtime-print (send-output! state msg)
     (prn :UNKNWOWN op)))
 
-(defn connect! [id build-id host port token]
+(defn connect! [{:keys [id build-id host port token on-output]}]
   (prn :CONNECTING id)
   ; (repls/disconnect! id)
   (let [ws (Websocket. (str "ws://" host ":" port
                             "/api/remote-relay?server-token=" token))
         p (p/deferred)
-        state (atom {:build-id build-id :evaluator p
-                     :build->id {} :id->build {} :pending-evals []})]
+        state (atom {:build-id build-id :evaluator p :ws ws
+                     :on-output (or on-output identity) :pending-evals {}
+                     :build->id {} :id->build {}})]
     (def state state)
-    (def ws ws)
     (aset ws "end" (.-close ws))
     (swap! repls/connections assoc id {:conn ws :buffer (atom [])})
     (aset ws "onmessage" #(let [reader (t/reader :json)
                                 payload (->> ^js % .-data (t/read reader))]
-                            (treat-ws-message! state ws payload)))
+                            (treat-ws-message! state payload)))
     p))
+
+#_
+(def ws (:ws @state))
+
+#_
+(send! ws {:op :request-supported-ops, :to #{51}})
 
 #_
 (.then (evaluate! ws state "cljs.user" "(throw (ex-info :foo {}))")
