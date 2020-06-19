@@ -17,6 +17,7 @@
             [repl-tooling.repl-client.evaluation-test]
             [repl-tooling.features.definition-test]
             [repl-tooling.features.autocomplete-test]
+            [repl-tooling.features.shadow-cljs-test]
             [repl-tooling.editor-integration.autocomplete-test]
             [repl-tooling.repl-client.connection-test]
             [repl-tooling.integration.rendered-actions]
