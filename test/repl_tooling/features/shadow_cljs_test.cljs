@@ -25,7 +25,10 @@
 (p/let [repl (connect!)]
   (def repl repl))
 #_
-(eval/eval repl :FOO "20")
+(eval/eval repl "(nil 10)")
+
+#_
+(repls/disconnect! :shadow)
 
 (cards/deftest shadow-cljs-websocket
   (promised-test {:teardown (repls/disconnect! :shadow)}
@@ -43,7 +46,11 @@
             (check res => {:error map? :as-text #"#error.*:foo"})))
 
         (testing "evaluating syntax errors"
-          (println "\n\n\n**********")
           (p/let [res (p/catch (eval/eval repl "(prn nonexistent-var)")
                                (fn [error] error))]
-            (check res => {:error map? :as-text #"nonexistent-var"})))))))
+            (check res => {:error map? :as-text #"nonexistent-var"})))
+
+        (testing "evaluating compile errors"
+          (p/let [res (p/catch (eval/eval repl "(nil 10)")
+                               (fn [error] error))]
+            (check res => {:error map? :as-text #"Can't call nil"})))))))

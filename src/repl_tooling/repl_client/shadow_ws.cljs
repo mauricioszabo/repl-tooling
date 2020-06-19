@@ -1,5 +1,6 @@
 (ns repl-tooling.repl-client.shadow-ws
   (:require [schema.core :as s]
+            [clojure.string :as str]
             [promesa.core :as p]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval :as eval]
@@ -12,6 +13,9 @@
                     :id->build {s/Int s/Keyword}
                     :build->id {s/Keyword [s/Int]}
                     :pending-evals [{:promise s/Any
+                                     :file s/Str
+                                     :row s/Int
+                                     :pass s/Any
                                      (s/optional-key :success?) s/Bool}]}))
 
 (defn- send! [^js ws msg]
@@ -19,13 +23,13 @@
         out (t/write writer msg)]
     (.send ws out)))
 
-(defn- evaluate! [ws state namespace code]
+(defn- evaluate! [ws state namespace code opts]
   (let [client-id (-> @state (get-in [:build->id (:build-id @state)]) first)
         prom (p/deferred)]
-    (swap! state update :pending-evals conj {:promise prom})
-    (prn :SENDING {:op :cljs-eval
-                   :to client-id
-                   :input {:code code :ns (symbol namespace)}})
+    (swap! state update :pending-evals conj {:promise prom
+                                             :file (:filename opts "[EVAL]")
+                                             :row (:row opts 0)
+                                             :pass (:pass opts 0)})
     (send! ws {:op :cljs-eval
                :to client-id
                :input {:code code :ns (symbol namespace)}})
@@ -36,7 +40,7 @@
   (evaluate [this command opts callback]
     (p/let [id (gensym "shadow-eval-")
             namespace (str (:namespace opts "cljs.user"))
-            prom (evaluate! ws state namespace (str command))]
+            prom (evaluate! ws state namespace (str command) opts)]
       (callback prom)
       id))
 
@@ -86,19 +90,41 @@
     (swap! state update :pending-evals subvec 1)
     (p/resolve! promise {(if success? :result :error) result :as-text result})))
 
-(defn get-result! [state ws msg]
+(defn- get-result! [state ws msg]
   (swap! state update-in [:pending-evals 0] assoc :success? true)
   (send! ws {:op :obj-request
              :to (:from msg)
              :request-op :edn
              :oid (:ref-oid msg)}))
 
-(defn get-error! [state ws msg]
+(defn- get-error! [state ws msg]
   (swap! state update-in [:pending-evals 0] assoc :success? false)
   (send! ws {:op :obj-request
              :to (:from msg)
              :request-op :edn
              :oid (:ex-oid msg)}))
+
+(defn- send-as-error! [state {:keys [warnings]}]
+  (when-let [{:keys [promise row file]} (-> @state :pending-evals first)]
+    (let [trace (->> warnings
+                     (mapv (fn [{:keys [msg line]}]
+                             [(str/replace msg #"Use of.* (.*/.*)$" "$1")
+                              ""
+                              file
+                              (+ line line)])))
+          error (helpers/to-error-str "Compile Warning"
+                                      (->> warnings (map :msg) (str/join "\n"))
+                                      trace)]
+      (swap! state update :pending-evals subvec 1)
+      (p/resolve! promise {:error error :as-text error}))))
+
+(defn- obj-not-found! [state ws]
+  (when-let [{:keys [promise row file]} (-> @state :pending-evals first)]
+    (let [error (helpers/to-error-str "404"
+                                      "Result not found"
+                                      [[file "" "" row]])]
+      (swap! state update :pending-evals subvec 1)
+      (p/resolve! promise {:error error :as-text error}))))
 
 (s/defn ^:private treat-ws-message! [state :- State,
                                      ws :- Websocket,
@@ -112,6 +138,9 @@
     :eval-result-ref (get-result! state ws msg)
     :eval-runtime-error (get-error! state ws msg)
     :obj-result (capture-result! state msg)
+    :eval-compile-warnings (send-as-error! state msg)
+    :eval-compile-error (get-error! state ws (assoc msg :from 1))
+    :obj-not-found (obj-not-found! state ws)
     (prn :UNKNWOWN op)))
 
 (defn connect! [id build-id host port token]

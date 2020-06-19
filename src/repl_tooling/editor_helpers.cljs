@@ -62,7 +62,7 @@
 (defrecord IncompleteObj [more-fn])
 
 (defrecord Error [type message add-data trace])
-(defn parse-error [{:keys [via trace cause] :as error}]
+(defn- parse-error [{:keys [via trace cause] :as error}]
   (let [info (or (some-> via reverse first) error)
         {:keys [type message]} info]
     (->Error type (or cause message) (dissoc info :type :message :at :trace) trace)))
@@ -77,6 +77,11 @@
 
     :else
     (->Browseable object (:repl-tooling/... additional-data) nil)))
+
+(defn to-error-str [type message trace]
+  (->> {:type type :message message :trace trace}
+       (tagged-literal 'error)
+       pr-str))
 
 (defrecord Patchable [id value])
 
