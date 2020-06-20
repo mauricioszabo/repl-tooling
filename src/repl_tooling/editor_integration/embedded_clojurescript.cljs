@@ -1,7 +1,8 @@
 (ns repl-tooling.editor-integration.embedded-clojurescript
   (:require [repl-tooling.features.shadow-cljs :as shadow]
             [repl-tooling.integrations.connection :as conn]
-            [repl-tooling.editor-integration.commands :as cmds]))
+            [repl-tooling.editor-integration.commands :as cmds]
+            [repl-tooling.editor-helpers :as helpers]))
 
 (def trs {:no-build-id "There's no build ID detected on shadow-cljs file"
           :no-shadow-file "File shadow-cljs.edn not found"
@@ -25,6 +26,53 @@
                      (assoc :cljs/repl repl)
                      (assoc-in [:repl/info :cljs/repl-env]
                                `(shadow.cljs.devtools.api/compiler-env ~target))))))
+
+(defn- warn-html [{:keys [line column msg file]}]
+  (let [full-path (str file ":" line ":" column)
+        norm-name (if (-> full-path count (> 60))
+                    [:abbr {:title file :style {:border "none"
+                                                :text-decoration "none"}}
+                     (->> full-path (take-last 60) (apply str "..."))]
+                    full-path)]
+
+    [:div.row
+     [:div.col
+      [:div.title.error "Warning: "]
+      [:div.pre msg]]
+     [:a {:href "#"
+          :on-click (list 'fn '[_]
+                          (list 'editor/run-callback
+                                :open-editor {:file-name file
+                                              :line (dec line)
+                                              :column (dec column)}))}
+      norm-name]
+     [:div.space]]))
+
+(defn- compile-error! [state compile-error]
+  (let [txt (if (-> compile-error :type (= :warnings)) "Warning" "Compile Error")
+        id (gensym "shadow-error-")
+        warnings (->> compile-error :warnings
+                      (map warn-html)
+                      (cons :<>)
+                      vec)
+                              ; [:a.]])))
+        interactive (pr-str (tagged-literal
+                             'repl-tooling/interactive
+                             {:html [:div.row warnings]}))]
+    (cmds/run-callback! state :on-start-eval {:id id
+                                              :editor-data {:filename "<compile>.cljs"
+                                                            :range [[0 0] [0 0]]
+                                                            :contents ""}
+                                              :range [[0 0] [0 0]]})
+    (cmds/run-callback! state :on-eval {:id id
+                                        :editor-data {:filename "<compile>.cljs"
+                                                      :range [[0 0] [0 0]]
+                                                      :contents ""}
+                                        :range [[0 0] [0 0]]
+                                        :repl nil
+                                        :result (helpers/parse-result
+                                                 {:result interactive
+                                                  :as-text interactive})})))
 
 (defn- connect-and-update-state! [state opts target upgrade-cmd]
   (let [{:keys [notify on-result on-stdout]} opts
@@ -52,7 +100,8 @@
                                                :directories (:project-paths config)
                                                :host host
                                                :port port
-                                               :build-id target))
+                                               :build-id target
+                                               :compile-error #(compile-error! state %)))
                after-connect))
       (notify! notify {:type :warn
                        :title "No option selected"

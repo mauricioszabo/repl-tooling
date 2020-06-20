@@ -81,7 +81,7 @@ an evaluator that will pipe all commands to Shadow-CLJS' workers."
     (shadow-cljs/upgrade-repl! clj-repl build-id)))
 
 (defn connect-shadow-ws!
-  [{:keys [identifier build-id on-stdout on-stderr on-patch directories]
+  [{:keys [identifier build-id on-stdout on-stderr on-patch directories compile-error]
     :or {identifier :cljs-eval}}]
   (let [host "localhost"
         dir (->> directories
@@ -95,7 +95,10 @@ an evaluator that will pipe all commands to Shadow-CLJS' workers."
                       (on-stdout (:out res))
 
                       (:err res)
-                      (on-stderr (:err res))))]
+                      (on-stderr (:err res))
+
+                      (:compile-err res)
+                      (compile-error (:compile-err res))))]
 
                       ; FIXME: Resolve promises in the future
                       ; (:patch res)

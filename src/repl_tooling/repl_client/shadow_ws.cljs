@@ -68,6 +68,10 @@
                :query [:and
                        [:eq :lang :cljs]
                        [:eq :type :runtime]]})
+    (send! ws
+           {:op :shadow.cljs.model/subscribe,
+            :to 1,
+            :shadow.cljs.model/topic :shadow.cljs.model/build-status-update})
     (p/resolve! evaluator (->ShadowCLJS state))))
 
 (defn- listen-to-events! [state]
@@ -159,8 +163,17 @@
         key (if (= :stdout stream) :out :err)]
     (on-out {key text})))
 
+(defn- compile-error! [state msg]
+  (let [build-id (:build-id @state)
+        on-out (:on-output @state)
+        build-status (:build-status msg)]
+    (when (= build-id (:build-id msg))
+      (if (-> build-status :status (= :failed))
+        (on-out {:err (:report build-status)})
+        (when-let [warnings (not-empty (:warnings build-status))]
+          (on-out {:compile-err {:type :warnings :warnings warnings}}))))))
+
 (s/defn ^:private treat-ws-message! [state :- State, {:keys [op] :as msg}]
-  ; (prn :MSG msg)
   (case op
     :welcome (send-hello! state)
     :clients (parse-clients! state msg)
@@ -173,6 +186,7 @@
     :eval-compile-error (get-error! state (assoc msg :from (:ex-client-id msg 1)))
     :obj-not-found (obj-not-found! state msg)
     :runtime-print (send-output! state msg)
+    :shadow.cljs.model/sub-msg (compile-error! state msg)
     (prn :unknown-op op)))
 
 (defn connect! [{:keys [id build-id host port token on-output]}]
@@ -182,9 +196,12 @@
         state (atom {:build-id build-id :evaluator p :ws ws
                      :on-output (or on-output identity) :pending-evals {}
                      :build->id {} :id->build {}})]
+    (def state state)
     (aset ws "end" (.-close ws))
     (swap! repls/connections assoc id {:conn ws :buffer (atom [])})
     (aset ws "onmessage" #(let [reader (t/reader :json)
                                 payload (->> ^js % .-data (t/read reader))]
                             (treat-ws-message! state payload)))
     p))
+
+; #_
