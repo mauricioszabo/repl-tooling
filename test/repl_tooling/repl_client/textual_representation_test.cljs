@@ -1,6 +1,6 @@
 (ns repl-tooling.repl-client.textual-representation-test
-  (:require [clojure.test :refer [async testing is]]
-            [check.core :refer-macros [check]]
+  (:require [clojure.test :refer [testing is]]
+            [check.core :refer [check]]
             [clojure.core.async :as async]
             [devcards.core :as cards]
             [repl-tooling.eval-helpers :refer [eval-on-repl eval-and-parse
