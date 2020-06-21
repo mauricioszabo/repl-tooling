@@ -11,6 +11,7 @@
 (def State (s/atom {:build-id s/Keyword
                     :on-output (s/=> s/Any s/Any)
                     :ws Websocket
+                    :should-disconnect? s/Bool
                     :evaluator js/Promise
                     :id->build {s/Int s/Keyword}
                     :build->id {s/Keyword [s/Int]}
@@ -189,19 +190,40 @@
     :shadow.cljs.model/sub-msg (compile-error! state msg)
     (prn :unknown-op op)))
 
-(defn connect! [{:keys [id build-id host port token on-output]}]
-  (let [ws (Websocket. (str "ws://" host ":" port
-                            "/api/remote-relay?server-token=" token))
-        p (p/deferred)
-        state (atom {:build-id build-id :evaluator p :ws ws
-                     :on-output (or on-output identity) :pending-evals {}
-                     :build->id {} :id->build {}})]
-    (def state state)
-    (aset ws "end" (.-close ws))
-    (swap! repls/connections assoc id {:conn ws :buffer (atom [])})
-    (aset ws "onmessage" #(let [reader (t/reader :json)
-                                payload (->> ^js % .-data (t/read reader))]
-                            (treat-ws-message! state payload)))
-    p))
+(defn- create-ws-conn! [id url state]
+  (try
+    (let [ws (Websocket. url)
+          update-state! (fn []
+                          (swap! state assoc :ws ws)
+                          (swap! repls/connections assoc id {:conn ws :buffer (atom [])}))]
+      (update-state!)
+      (doto ws
+            (aset "onmessage" #(let [reader (t/reader :json)
+                                     payload (->> ^js % .-data (t/read reader))]
+                                 (treat-ws-message! state payload)))
+            (aset "onclose" (fn [_]
+                              (let [{:keys [on-output should-disconnect?]} @state]
+                                (if should-disconnect?
+                                  (on-output nil)
+                                  (when-not (create-ws-conn! id url state)
+                                    (on-output nil))))))
+            (aset "end" (fn [_]
+                          (swap! state assoc :should-disconnect? true)
+                          (.close ws)))
+        ws))
+    (catch :default _
+      nil)))
 
-; #_
+(defn connect! [{:keys [id build-id host port token on-output]}]
+  (let [p (p/deferred)
+        state (atom {:build-id build-id :should-disconnect? false
+                     :evaluator p
+                     :on-output (or on-output identity) :pending-evals {}
+                     :build->id {} :id->build {}})
+        ws (create-ws-conn! id
+                            (str "ws://" host ":" port
+                                 "/api/remote-relay?server-token=" token)
+                            state)]
+    (if ws
+      p
+      (p/promise nil))))
