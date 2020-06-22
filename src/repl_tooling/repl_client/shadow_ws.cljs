@@ -164,13 +164,28 @@
         key (if (= :stdout stream) :out :err)]
     (on-out {key text})))
 
+(defn- parse-compile-error-report [report]
+  (let [prepare-stack (fn [[[_ file row col] [error]]]
+                        {:file file :line row :column col :msg error})]
+    (->> report
+         str/split-lines
+         (drop 1)
+         (map (fn [row] (or (re-find #"File: (.*):(\d+):(\d+)" row)
+                            (re-find #"^([^\s-].*)" row))))
+         (filter identity)
+         (partition 2 2)
+         (map prepare-stack))))
+
 (defn- compile-error! [state msg]
   (let [build-id (:build-id @state)
         on-out (:on-output @state)
         build-status (:build-status msg)]
     (when (= build-id (:build-id msg))
       (if (-> build-status :status (= :failed))
-        (on-out {:err (:report build-status)})
+        (on-out {:compile-err {:type :errors :warnings (-> msg
+                                                           :build-status
+                                                           :report
+                                                           parse-compile-error-report)}})
         (when-let [warnings (not-empty (:warnings build-status))]
           (on-out {:compile-err {:type :warnings :warnings warnings}}))))))
 
@@ -190,6 +205,7 @@
     :shadow.cljs.model/sub-msg (compile-error! state msg)
     (prn :unknown-op op)))
 
+#_(prn :AND)
 (defn- create-ws-conn! [id url state]
   (try
     (let [ws (Websocket. url)
@@ -209,9 +225,10 @@
                                     (on-output nil))))))
             (aset "end" (fn [_]
                           (swap! state assoc :should-disconnect? true)
-                          (.close ws)))
-        ws))
-    (catch :default _
+                          (.close ws))))
+      ws)
+    (catch :default e
+      (.log js/console e)
       nil)))
 
 (defn connect! [{:keys [id build-id host port token on-output]}]

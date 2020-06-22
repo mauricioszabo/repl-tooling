@@ -27,7 +27,7 @@
                      (assoc-in [:repl/info :cljs/repl-env]
                                `(shadow.cljs.devtools.api/compiler-env ~target))))))
 
-(defn- warn-html [{:keys [line column msg file]}]
+(defn- warn-html [title {:keys [line column msg file]}]
   (let [full-path (str file ":" line ":" column)
         norm-name (if (-> full-path count (> 60))
                     [:abbr {:title file :style {:border "none"
@@ -35,9 +35,9 @@
                      (->> full-path (take-last 60) (apply str "..."))]
                     full-path)]
 
-    [:div.row
+    [:<>
      [:div.col
-      [:div.title.error "Warning: "]
+      [:div.title.error title ": "]
       [:div.pre msg]]
      [:a {:href "#"
           :on-click (list 'fn '[_]
@@ -49,16 +49,17 @@
      [:div.space]]))
 
 (defn- compile-error! [state compile-error]
-  (let [txt (if (-> compile-error :type (= :warnings)) "Warning" "Compile Error")
+  (let [txt (if (-> compile-error :type (= :warnings)) "Warning" "Error")
         id (gensym "shadow-error-")
         warnings (->> compile-error :warnings
-                      (map warn-html)
+                      (map #(warn-html txt %))
                       (cons :<>)
                       vec)
-                              ; [:a.]])))
         interactive (pr-str (tagged-literal
                              'repl-tooling/interactive
-                             {:html [:div.row warnings]}))]
+                             {:html [:div.row
+                                     [:div.title "Errors while compiling"]
+                                     warnings]}))]
     (cmds/run-callback! state :on-start-eval {:id id
                                               :editor-data {:filename "<compile>.cljs"
                                                             :range [[0 0] [0 0]]
