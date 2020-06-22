@@ -8,6 +8,9 @@
           :no-shadow-file "File shadow-cljs.edn not found"
           :no-shadow "This project is not a shadow-cljs, can't connect to CLJS REPL"
           :workers-empty "No shadow-cljs workers running"
+          :access-denied (str "Shadow Socket-REPL was given an wrong token. "
+                              "Please, be sure you have the Shadow-CLJS compiler "
+                              "running and watching some build-id")
           :no-worker "No worker for build"})
 
 (defn- notify! [notify params]
@@ -15,10 +18,11 @@
   (. js/Promise resolve nil))
 
 (defn- treat-error [error notify]
-  (notify! notify {:type :error
-                   :title "Error connecting to ClojureScript"
-                   :message (trs error "Unknown Error")})
-  nil)
+  (let [message (cond-> error (keyword? error) (trs "Unknown Error"))]
+    (notify! notify {:type :error
+                     :title "Error connecting to ClojureScript"
+                     :message message})
+    nil))
 
 (defn- save-repl-info! [state target repl]
   (swap! state

@@ -189,6 +189,10 @@
         (when-let [warnings (not-empty (:warnings build-status))]
           (on-out {:compile-err {:type :warnings :warnings warnings}}))))))
 
+(defn- access-denied! [state]
+  (.end ^js (:ws @state))
+  (p/resolve! (:evaluator @state) {:error :access-denied}))
+
 (s/defn ^:private treat-ws-message! [state :- State, {:keys [op] :as msg}]
   (case op
     :welcome (send-hello! state)
@@ -203,9 +207,9 @@
     :obj-not-found (obj-not-found! state msg)
     :runtime-print (send-output! state msg)
     :shadow.cljs.model/sub-msg (compile-error! state msg)
+    :access-denied (access-denied! state)
     (prn :unknown-op op)))
 
-#_(prn :AND)
 (defn- create-ws-conn! [id url state]
   (try
     (let [ws (Websocket. url)
@@ -217,19 +221,22 @@
             (aset "onmessage" #(let [reader (t/reader :json)
                                      payload (->> ^js % .-data (t/read reader))]
                                  (treat-ws-message! state payload)))
+            (aset "onerror" (fn [e]
+                              (.end ws)
+                              (.log js/console e)
+                              (p/resolve! (:evaluator @state) {:error (.-message e)})))
             (aset "onclose" (fn [_]
                               (let [{:keys [on-output should-disconnect?]} @state]
                                 (if should-disconnect?
                                   (on-output nil)
-                                  (when-not (create-ws-conn! id url state)
+                                  (when (:error (create-ws-conn! id url state))
                                     (on-output nil))))))
             (aset "end" (fn [_]
                           (swap! state assoc :should-disconnect? true)
                           (.close ws))))
       ws)
     (catch :default e
-      (.log js/console e)
-      nil)))
+      {:error (.-message e)})))
 
 (defn connect! [{:keys [id build-id host port token on-output]}]
   (let [p (p/deferred)
@@ -241,6 +248,6 @@
                             (str "ws://" host ":" port
                                  "/api/remote-relay?server-token=" token)
                             state)]
-    (if ws
-      p
-      (p/promise nil))))
+    (if (:error ws)
+      (p/promise ws)
+      p)))
