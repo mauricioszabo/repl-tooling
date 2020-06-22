@@ -78,6 +78,15 @@
     :else
     (->Browseable object (:repl-tooling/... additional-data) nil)))
 
+(defn error-result
+  ([type message trace] (error-result type message trace nil))
+  ([type message trace add-data]
+   (let [error (->> add-data
+                    (merge {:type type :message message :trace trace})
+                    (tagged-literal 'error)
+                    pr-str)]
+     {:error error :as-text error})))
+
 (defrecord Patchable [id value])
 
 (defn as-obj [data]
@@ -99,6 +108,7 @@
                                 'unrepl.java/class (fn [k] (WithTag. k "class"))
                                 'unrepl/browsable (fn [[a b]]
                                                     (->browseable a b))
+                                'unrepl/pattern re-pattern
                                 'repl-tooling/literal-render #(LiteralRender. %)
                                 'repl-tooling/interactive #(Interactive. %)
                                 'repl-tooling/patchable #(->Patchable (first %) (second %))

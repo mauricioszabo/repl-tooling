@@ -4,6 +4,7 @@
  :nrepl {:port 3322}
 
  :dependencies [[check "0.1.0-SNAPSHOT"]
+                [com.cognitect/transit-cljs "0.8.264"]
                 [funcool/promesa "4.0.2"]
                 [paprika "0.1.3-SNAPSHOT"]
                 [borkdude/sci "0.0.13-alpha.17"]

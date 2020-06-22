@@ -5,6 +5,7 @@
             [paprika.collection :as coll]
             [clojure.string :as str]
             [repl-tooling.editor-integration.commands :as cmds]
+            [repl-tooling.editor-helpers :as helpers]
             [sci.impl.namespaces :as sci-ns]
             [pinkgorilla.ui.pinkie :as pinkie]
             [pinkgorilla.ui.jsrender :as jsrender]
@@ -224,8 +225,38 @@
                                                    (old-disconnect)
                                                    (.close ^js watch-pid))))))
 
+(defn- fns-or-check-errors [editor-state config-file]
+  (p/catch (fns-for editor-state config-file)
+           (fn [error]
+             (aset js/window "e" error)
+             (let [serialized (pr-str (tagged-literal 'error
+                                                      {:type (.-name error)
+                                                       :data (.-data error)
+                                                       :message (.-message error)
+                                                       :trace (-> error .-stack str/split-lines)}))
+                   data {:id (gensym "sci-error-")
+                         :result (helpers/parse-result {:error serialized
+                                                        :as-text serialized})}
+                   error-data (:data error)
+                   data (if (-> error-data :type (= :sci/error))
+                          (let [rowcol [(-> error-data :line dec)
+                                        (-> error-data :column dec)]]
+                            (assoc data
+                                   :range [rowcol rowcol]
+                                   :editor-data {:filename config-file
+                                                 :contents ""
+                                                 :range [rowcol rowcol]}))
+                          (assoc data
+                                 :range [[0 0] [0 0]]
+                                 :editor-data {:filename nil
+                                               :contents ""
+                                               :range [[0 0] [0 0]]}))]
+               (cmds/run-callback! editor-state :on-start-eval (dissoc data :result))
+               (cmds/run-callback! editor-state :on-eval (assoc data :repl nil)))
+             nil)))
+
 (defn- reg-commands [editor-state cmds-from-tooling config-file]
-  (p/let [cmds-from-config (fns-for editor-state config-file)
+  (p/let [cmds-from-config (fns-or-check-errors editor-state config-file)
           commands (merge cmds-from-tooling cmds-from-config)]
     (swap! editor-state assoc :editor/commands commands)
     (cmds/run-callback! editor-state :register-commands commands)))

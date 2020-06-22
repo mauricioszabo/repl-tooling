@@ -61,15 +61,17 @@ a variable `repl` that points to the evaluator"
                                     (async/close! ~'out-aux)
                                     (repl-tooling.integrations.repls/disconnect! ~conn-id)
                                     (repl-tooling.integrations.repls/disconnect! ~aux-id))}
-        (let [prom# (repl-tooling.integrations.connection/connect-shadow!
+        (let [prom# (repl-tooling.integrations.connection/connect-shadow-ws!
                      {:identifier ~conn-id :host "localhost" :port 2233
                       :build-id :fixture
                       :on-stdout #(some->> % (async/put! ~'out))
+                      :directories ["."]
                       :on-result #()})
               c# (async/promise-chan)
               _# (.then prom# #(async/put! c# %))
               ~'repl (async/<! c#)
               res1# (async/promise-chan)]
+          (async/<! (async/timeout 100))
           (.then (repl-tooling.eval/eval ~'repl ":done") #(async/put! res1# :ok))
           (async/<! res1#)
           ~(prepare-repl 'aux body aux-id 'out-aux true))))))

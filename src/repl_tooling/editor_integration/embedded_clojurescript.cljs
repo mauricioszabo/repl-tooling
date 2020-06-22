@@ -1,11 +1,16 @@
 (ns repl-tooling.editor-integration.embedded-clojurescript
   (:require [repl-tooling.features.shadow-cljs :as shadow]
-            [repl-tooling.integrations.connection :as conn]))
+            [repl-tooling.integrations.connection :as conn]
+            [repl-tooling.editor-integration.commands :as cmds]
+            [repl-tooling.editor-helpers :as helpers]))
 
 (def trs {:no-build-id "There's no build ID detected on shadow-cljs file"
           :no-shadow-file "File shadow-cljs.edn not found"
           :no-shadow "This project is not a shadow-cljs, can't connect to CLJS REPL"
           :workers-empty "No shadow-cljs workers running"
+          :access-denied (str "Shadow Socket-REPL was given an wrong token. "
+                              "Please, be sure you have the Shadow-CLJS compiler "
+                              "running and watching some build-id")
           :no-worker "No worker for build"})
 
 (defn- notify! [notify params]
@@ -13,10 +18,11 @@
   (. js/Promise resolve nil))
 
 (defn- treat-error [error notify]
-  (notify! notify {:type :error
-                   :title "Error connecting to ClojureScript"
-                   :message (trs error "Unknown Error")})
-  nil)
+  (let [message (cond-> error (keyword? error) (trs "Unknown Error"))]
+    (notify! notify {:type :error
+                     :title "Error connecting to ClojureScript"
+                     :message message})
+    nil))
 
 (defn- save-repl-info! [state target repl]
   (swap! state
@@ -25,9 +31,58 @@
                      (assoc-in [:repl/info :cljs/repl-env]
                                `(shadow.cljs.devtools.api/compiler-env ~target))))))
 
+(defn- warn-html [title {:keys [line column msg file]}]
+  (let [full-path (str file ":" line ":" column)
+        norm-name (if (-> full-path count (> 60))
+                    [:abbr {:title file :style {:border "none"
+                                                :text-decoration "none"}}
+                     (->> full-path (take-last 60) (apply str "..."))]
+                    full-path)]
+
+    [:<>
+     [:div.col
+      [:div.title.error title ": "]
+      [:div.pre msg]]
+     [:a {:href "#"
+          :on-click (list 'fn '[_]
+                          (list 'editor/run-callback
+                                :open-editor {:file-name file
+                                              :line (dec line)
+                                              :column (dec column)}))}
+      norm-name]
+     [:div.space]]))
+
+(defn- compile-error! [state compile-error]
+  (let [txt (if (-> compile-error :type (= :warnings)) "Warning" "Error")
+        id (gensym "shadow-error-")
+        warnings (->> compile-error :warnings
+                      (map #(warn-html txt %))
+                      (cons :<>)
+                      vec)
+        interactive (pr-str (tagged-literal
+                             'repl-tooling/interactive
+                             {:html [:div.row
+                                     [:div.title "Errors while compiling"]
+                                     warnings]}))]
+    (cmds/run-callback! state :on-start-eval {:id id
+                                              :editor-data {:filename "<compile>.cljs"
+                                                            :range [[0 0] [0 0]]
+                                                            :contents ""}
+                                              :range [[0 0] [0 0]]})
+    (cmds/run-callback! state :on-eval {:id id
+                                        :editor-data {:filename "<compile>.cljs"
+                                                      :range [[0 0] [0 0]]
+                                                      :contents ""}
+                                        :range [[0 0] [0 0]]
+                                        :repl nil
+                                        :result (helpers/parse-result
+                                                 {:result interactive
+                                                  :as-text interactive})})))
+
 (defn- connect-and-update-state! [state opts target upgrade-cmd]
   (let [{:keys [notify on-result on-stdout]} opts
         {:keys [host port]} (:repl/info @state)
+        config (cmds/run-callback! state :get-config)
         after-connect #(if-let [error (:error %)]
                          (treat-error error notify)
                          (do
@@ -46,10 +101,12 @@
                                            :on-result #(and on-result (on-result %))
                                            :on-stdout #(and on-stdout (on-stdout %))})
                after-connect)
-        (.then (conn/connect-shadow! (assoc opts
-                                            :host host
-                                            :port port
-                                            :build-id target))
+        (.then (conn/connect-shadow-ws! (assoc opts
+                                               :directories (:project-paths config)
+                                               :host host
+                                               :port port
+                                               :build-id target
+                                               :compile-error #(compile-error! state %)))
                after-connect))
       (notify! notify {:type :warn
                        :title "No option selected"

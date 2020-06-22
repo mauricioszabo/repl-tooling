@@ -198,8 +198,6 @@
        (ui/assert-out "false" "false")
        (ui/assert-out "nil" "nil"))
 
-     ; TODO: Node.JS target don't redirect the console
-     #_
      (testing "captures STDOUT"
        (type-and-eval "(println :FOOBAR)")
        (check (async/<! (change-stdout)) => #":FOOBAR"))
