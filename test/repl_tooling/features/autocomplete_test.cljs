@@ -76,14 +76,14 @@
              => [{:candidate ":cljs-autocomplete-keyword", :type :keyword}]))))
 
 (cards/deftest clojurescript-suitable-autocomplete
-  (h/async-with-repl "ClojureScript with Suitable"
+  (h/async-with-cljs-repl "ClojureScript with Suitable"
     (testing "will complete JS objects"
-      (check (await! (suit/for-cljs repl :fixture cljs-env 'cljs.user
+      (check (await! (suit/for-cljs repl aux :fixture cljs-env 'cljs.user
                                     "(.. js/BigInt -len)" "-len" 0 18))
              => [{:candidate "-length", :type "var"}]))
 
     (testing "will complete NS variables"
-      (check (await! (suit/for-cljs repl cljs-env cljs-env 'cljs.user
+      (check (await! (suit/for-cljs repl aux :fixture cljs-env 'cljs.user
                                     "(let [foo 10] fo)" "fo" 0 16))
              => (embeds [;{:candidate "foo", :type :local}
                          {:candidate "for", :type :macro, :ns "cljs.core"}

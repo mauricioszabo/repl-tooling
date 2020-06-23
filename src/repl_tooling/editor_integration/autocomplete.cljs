@@ -75,7 +75,7 @@
                     [0 0])
         shadow-env (second cmd)
         suits (when (:suitable kind)
-                (suit/for-cljs clj-repl shadow-env cmd ns-name (str block-text) prefix row col))
+                (suit/for-cljs cljs-repl clj-repl shadow-env cmd ns-name (str block-text) prefix row col))
         compls (when (:compliment kind)
                  (compliment/for-cljs clj-repl cmd ns-name (str block-text) prefix row col))
         simples (when (:simple kind)
