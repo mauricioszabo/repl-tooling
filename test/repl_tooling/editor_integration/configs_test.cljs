@@ -23,14 +23,14 @@
     (testing "evaluates simple code"
       (check (configs/evaluate-code {:code "(+ 1 2)" :editor-state (atom {})}) => 3))
 
-    (testing "resolves promises with let"
-      (-> (configs/evaluate-code {:code "(let [a (promise 1) b (promise 2)] (+ a b))"
+    (testing "resolves promises with p/let"
+      (-> (configs/evaluate-code {:code "(p/let [a (promise 1) b (promise 2)] (+ a b))"
                                   :editor-state (atom {})})
           await!
           (check => 3)))
 
     (testing "resolves mixed promises / non-promises"
-      (-> (configs/evaluate-code {:code "(let [a (promise 1) b 2] (+ a b))"
+      (-> (configs/evaluate-code {:code "(p/let [a (promise 1) b 2] (+ a b))"
                                   :editor-state (atom {})})
           await!
           (check => 3)))))
@@ -61,7 +61,7 @@
 
       (testing "getting blocks"
         (editor/type "(range 3)")
-        (change-config-file "(defn e-block [] (let [data (editor/get-top-block)]
+        (change-config-file "(defn e-block [] (p/let [data (editor/get-top-block)]
           (editor/eval-and-render data)))")
         (await! reg)
         ((-> @custom-commands :e-block :command))

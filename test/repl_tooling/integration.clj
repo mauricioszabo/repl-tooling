@@ -1,6 +1,8 @@
 (ns repl-tooling.integration
   (:require [etaoin.api :as api]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [clojure.java.shell :as shell]
+            [shadow.cljs.devtools.api :as shadow]))
 
 (def cards (atom nil))
 
@@ -40,7 +42,7 @@
             [total fail-or-pass failed?] results]
         (prn results)
         (when failed?
-          (println "\033[31m      TESTS FAILED ON" description "\033[0m")
+          (println "\033[31m      " fail-or-pass "TESTS FAILED ON" description "\033[0m")
           (swap! fails + fail-or-pass)
           (->> [xpath "../..//*[contains(@class, 'com-rigsomelight-devcards-test-line')]"]
                (api/query-all @cards)
@@ -77,5 +79,12 @@
       (finally
         (api/close-window @cards)
         (api/quit @cards)))))
+
+(defn run-tests-on-ci {:shadow/requires-server true} []
+  (shadow/watch :integration)
+  (shadow/watch :fixture)
+  (let [sh (future (shell/sh "node" "target/fixture.js"))
+        failures (run-tests!)]
+    (System/exit (if (zero? failures) 0 1))))
 
 #_(run-tests!)

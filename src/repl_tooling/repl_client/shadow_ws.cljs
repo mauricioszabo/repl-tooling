@@ -54,7 +54,7 @@
   eval/Evaluator
   (evaluate [this command opts callback]
     (p/let [id (:id opts (gensym "shadow-eval-"))
-            namespace (str (:namespace opts "cljs.user"))
+            namespace (-> opts :namespace str not-empty (or "cljs.user"))
             prom (evaluate! state namespace (str command) (assoc opts :id id))]
       (callback prom)
       id))
