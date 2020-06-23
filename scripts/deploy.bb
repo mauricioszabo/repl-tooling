@@ -26,12 +26,21 @@
       .getDecoder
       (.decode string)))
 
+(defn run-shell-cmd [ & args]
+  (let [{:keys [exit out err] :as result} (apply shell/sh args)]
+    (when-not (zero? exit)
+      (println "ERROR running command\nSTDOUT:")
+      (println out "\nSTDERR:")
+      (println err)
+      (throw (ex-info "Error while runing shell command" {:status exit})))
+    result))
+
 (defn- import-gpg! []
   (let [secret (System/getenv "GPG_SECRET_KEYS")
         ownertrust (System/getenv "GPG_OWNERTRUST")]
     (when-not (and secret ownertrust) (throw (ex-info "Can't find GPG keys!" {})))
-    (shell/sh "gpg" "--import" :in (decode-base64 secret))
-    (shell/sh "gpg" "--import-ownertrust" :in (decode-base64 ownertrust))))
+    (run-shell-cmd "gpg" "--import" :in (decode-base64 secret))
+    (run-shell-cmd "gpg" "--import-ownertrust" :in (decode-base64 ownertrust))))
 
 (defn deploy! []
   (let [tag (tag-name)]
@@ -50,18 +59,13 @@
         (println "Deploying a release version"))
       (do
         (println "Deploying a snapshot version")
-        (shell/sh "lein" "change" "version" "str" "\"-SNAPSHOT\"")))
+        (run-shell-cmd "lein" "change" "version" "str" "\"-SNAPSHOT\"")))
 
-    (shell/sh "lein" "change" ":deploy-repositories" "concat"
+    (run-shell-cmd "lein" "change" ":deploy-repositories" "concat"
               (pr-str [["releases" {:url "https://clojars.org/repo/"
                                     :username :env/clojars_login
                                     :password :env/clojars_password}]]))
-    (let [res (shell/sh "lein" "deploy" "releases")]
-      (if (-> res :exit zero?)
-        (println "Deploy was successful")
-        (do
-          (println "FAILED DEPLOY!")
-          (println (:out res))
-          (throw (ex-info "Deploy have failed!") {:exit (:exit res)}))))))
+    (run-shell-cmd "lein" "deploy" "releases")
+    (println "Deploy was successful")))
 
 (deploy!)
