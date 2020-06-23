@@ -29,9 +29,6 @@ workflows:
             tags:
               only:
                 - /^v.+/
-            branches:
-              only:
-                - master
 
       - publish:
           context: Clojure Libs
