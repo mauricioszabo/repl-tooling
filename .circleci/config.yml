@@ -24,7 +24,14 @@ workflows:
   version: 2
   default-workflow:
     jobs:
-      - test
+      - test:
+          filters:
+            tags:
+              only:
+                - /^v.+/
+            branches:
+              only:
+                - master
 
       - publish:
           context: Clojure Libs
