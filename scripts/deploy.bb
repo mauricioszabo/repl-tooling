@@ -56,6 +56,12 @@
               (pr-str [["releases" {:url "https://clojars.org/repo/"
                                     :username :env/clojars_login
                                     :password :env/clojars_password}]]))
-    (shell/sh "lein" "deploy" "releases")))
+    (let [res (shell/sh "lein" "deploy" "releases")]
+      (if (-> res :exit zero?)
+        (println "Deploy was successful")
+        (do
+          (println "FAILED DEPLOY!")
+          (println (:out res))
+          (throw (ex-info "Deploy have failed!") {:exit (:exit res)}))))))
 
 (deploy!)
