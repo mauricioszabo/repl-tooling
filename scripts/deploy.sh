@@ -1,12 +1,7 @@
 #!/bin/bash
 
-if [ ! -z "$TRAVIS_TAG" ]
-then
-    echo "deploying a new version"
-else
-    echo "deploying a snapshot version"
-    lein change version str "-SNAPSHOT"
-fi
-
-lein change :deploy-repositories concat '[["releases" {:url "https://clojars.org/repo/" :username :env/clojars_login :password :env/clojars_password}]]'
-lein deploy releases
+apt-get install wget unzip
+wget https://github.com/borkdude/babashka/releases/download/v0.1.2/babashka-0.1.2-linux-static-amd64.zip
+unzip babashka-0.1.2-linux-static-amd64.zip
+mv bb /usr/bin
+./scripts/deploy.bb

@@ -1,4 +1,4 @@
-(ns pinkgorilla.ui.pinkie
+(ns repl-tooling.ui.pinkie
   (:require
    [clojure.string :as str]
    [reagent.core :as r :refer [atom]]

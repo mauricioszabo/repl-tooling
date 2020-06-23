@@ -4,7 +4,7 @@
             [clojure.string :as str]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
-            [pinkgorilla.ui.pinkie :as pinkie]
+            [repl-tooling.ui.pinkie :as pinkie]
             [sci.core :as sci]
             [repl-tooling.editor-integration.configs :as configs]))
 

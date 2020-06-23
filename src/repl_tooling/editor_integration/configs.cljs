@@ -7,7 +7,7 @@
             [repl-tooling.editor-integration.commands :as cmds]
             [repl-tooling.editor-helpers :as helpers]
             [sci.impl.namespaces :as sci-ns]
-            [pinkgorilla.ui.pinkie :as pinkie]
+            [repl-tooling.ui.pinkie :as pinkie]
             [pinkgorilla.ui.jsrender :as jsrender]
             [reagent.core :as r]
             [reagent.dom :as rdom]

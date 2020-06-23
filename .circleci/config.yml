@@ -27,6 +27,7 @@ workflows:
       - test
 
       - publish:
+          context: Clojure Libs
           requires:
             - test
           filters:
