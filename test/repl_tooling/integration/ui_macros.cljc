@@ -1,4 +1,5 @@
 (ns repl-tooling.integration.ui-macros
+  #?(:cljs (:require-macros [repl-tooling.integration.ui-macros]))
   (:require [clojure.core.async :as async]
             [clojure.string :as str]
             [reagent.core :as r]
