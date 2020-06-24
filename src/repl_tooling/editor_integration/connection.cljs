@@ -37,15 +37,16 @@
                                           data
                                           (assoc opts :pass pass)
                                           (constantly [range code])))))
-   :evaluate-and-render (fn [{:keys [text range pass]}]
-                          (p/let [data (editor-data)]
+   :evaluate-and-render (fn [options]
+                          (p/let [data (editor-data)
+                                  {:keys [text range]} options]
                             (cmds/eval-range state
                                              data
-                                             (assoc opts :pass pass)
+                                             (dissoc options :text :range)
                                              (constantly [range text]))))
    :eval (fn [options]
            (let [code (:text options)
-                 [[row col]] (:range opts)
+                 [[row col]] (:range options)
                  eval-opts (cond-> (dissoc options :text)
                                    row (assoc :row row)
                                    col (assoc :col col))]

@@ -60,16 +60,16 @@
       (treat-error #(cmds/run-callback! state :notify %) cljs? (:clj/repl @state))
       repl)))
 
-(s/defn eval-cmd [state
+(s/defn eval-cmd [state :- schemas/EditorState
                   code :- s/Str
                   namespace
                   range :- schemas/Range
                   editor-data :- schemas/EditorData
-                  opts]
+                  opts :- schemas/EvalOpts]
   (when code
     (let [prom (p/deferred)
           filename (:filename editor-data)
-          {:keys [on-start-eval on-eval]} opts
+          {:keys [on-start-eval on-eval]} (:editor/callbacks @state)
           [[row col]] range
           ;; TODO: Remove UNREPL and always evaluate on primary
           repl (repl-for state filename (-> opts :pass :aux))
@@ -81,13 +81,12 @@
         (and on-start-eval (on-start-eval eval-data))
         (eval/evaluate repl
                        code
-                       {:filename filename
-                        :id id
-                        :row (inc row)
-                        :col (inc col)
-                        :namespace namespace
-                        ;; FIXME: this is kinda bad, we're re-using opts...
-                        :pass (:pass opts)}
+                       (assoc opts
+                              :filename filename
+                              :id id
+                              :row (inc row)
+                              :col (inc col)
+                              :namespace namespace)
                        #(when (and on-eval @state)
                           (let [parsed (helpers/parse-result %)]
                             (on-eval (assoc eval-data

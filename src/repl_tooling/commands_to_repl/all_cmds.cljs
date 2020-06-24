@@ -32,18 +32,18 @@
       (let [[_ namespace] (helpers/ns-range-for contents (first eval-range))]
         (e-eval/eval-cmd state code namespace eval-range data opts)))))
 
-(defn- eval-block [state data opts]
+(defn- eval-block [state data]
   (p/let [d data]
-    (eval-range state d opts helpers/block-for)))
+    (eval-range state d {} helpers/block-for)))
 
-(defn- eval-top-block [state data opts]
+(defn- eval-top-block [state data]
   (p/let [d data]
-    (eval-range state d opts helpers/top-block-for)))
+    (eval-range state d {} helpers/top-block-for)))
 
-(defn- eval-selection [state data opts]
+(defn- eval-selection [state data]
   (p/let [{:keys [range] :as d} data]
-    (eval-range state d opts (fn [contents _]
-                               [range (helpers/text-in-range contents range)]))))
+    (eval-range state d {} (fn [contents _]
+                             [range (helpers/text-in-range contents range)]))))
 
 (defn all [state {:keys [editor-data] :as opts} repl-kind]
   (p/let [orchard-cmds (orchard/cmds state)
@@ -51,13 +51,13 @@
     (cond->
      {:evaluate-top-block {:name "Evaluate Top Block"
                            :description "Evaluates top block block on current editor's selection"
-                           :command #(eval-top-block state (editor-data) opts)}
+                           :command #(eval-top-block state (editor-data))}
       :evaluate-block {:name "Evaluate Block"
                        :description "Evaluates current block on editor's selection"
-                       :command #(eval-block state (editor-data) opts)}
+                       :command #(eval-block state (editor-data))}
       :evaluate-selection {:name "Evaluate Selection"
                            :description "Evaluates current editor's selection"
-                           :command #(eval-selection state (editor-data) opts)}
+                           :command #(eval-selection state (editor-data))}
       :run-tests-in-ns {:name "Run tests in NS"
                         :description "Run all tests on the current namespace"
                         :command #(e-eval/run-tests-in-ns! state)}
