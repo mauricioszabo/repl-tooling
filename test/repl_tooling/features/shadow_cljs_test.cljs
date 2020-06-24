@@ -3,7 +3,6 @@
             [check.core :refer [check]]
             [check.async :refer [await! async-test]]
             [devcards.core :as cards]
-            ; [clojure.test :refer [async ]]
             [repl-tooling.eval-helpers :as h]
             [repl-tooling.repl-client.shadow-ws :as shadow-ws]
             [repl-tooling.integrations.repls :as repls]
@@ -26,15 +25,6 @@
                                     :token @token
                                     :on-output #(swap! output conj %)})]
     [repl output]))
-
-#_
-(p/let [repl (connect!)]
-  (def repl repl))
-#_
-(eval/eval repl "(nil 10)")
-
-#_
-(repls/disconnect! :shadow)
 
 (cards/deftest shadow-cljs-websocket
   (promised-test {:teardown (repls/disconnect! :shadow)}
@@ -64,7 +54,16 @@
         (testing "evaluating print commands"
           (p/let [res (eval/eval repl "(pr :SOME-TEXT)")]
             (check res => {:result nil})
-            (check @outputs => [{:out ":SOME-TEXT"}])))))))
+            (check @outputs => [{:out ":SOME-TEXT"}])))
+
+        (testing "evaluating custom shadow-cljs commands"
+          (p/let [res (eval/eval repl
+                                 (pr-str {:op :request-supported-ops, :to #{1}})
+                                 {:shadow-command true})]
+            (check res => {:result {:op :supported-ops
+                                    :ops set?
+                                    :from 1
+                                    :call-id any?}})))))))
 
 (cards/deftest shadow-cljs-wrong-build
   (promised-test {:teardown (repls/disconnect! :shadow-wrong-build)}

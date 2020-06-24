@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [promesa.core :as p]
             [repl-tooling.editor-helpers :as helpers]
+            [clojure.reader :as edn]
             [repl-tooling.eval :as eval]
             [repl-tooling.integrations.repls :as repls]
             [cognitect.transit :as t]
@@ -50,12 +51,26 @@
                                                     [[file "" build-id row]]))))
     prom))
 
+(defn- send-custom-command! [state message id opts]
+  (let [prom (p/deferred)
+        row (:row opts 0)
+        file (:filename opts "[EVAL]")
+        message (assoc (edn/read-string message) :call-id id)]
+    (swap! state update :pending-evals assoc (:call-id message) {:promise prom
+                                                                 :file file
+                                                                 :row row
+                                                                 :pass (:pass opts)})
+    (send! (:ws @state) message)
+    prom))
+
 (defrecord ShadowCLJS [state]
   eval/Evaluator
   (evaluate [this command opts callback]
     (p/let [id (:id opts (gensym "shadow-eval-"))
             namespace (-> opts :namespace str not-empty (or "cljs.user"))
-            prom (evaluate! state namespace (str command) (assoc opts :id id))]
+            prom (if (:shadow-command opts)
+                   (send-custom-command! state command id opts)
+                   (evaluate! state namespace (str command) (assoc opts :id id)))]
       (callback prom)
       id))
 
@@ -116,12 +131,17 @@
                   (remove-id % client-id)))
   (listen-to-events! state))
 
-(defn- capture-result! [state {:keys [result call-id]}]
-  (when-let [{:keys [promise success? pass]} (-> @state :pending-evals (get call-id))]
+
+(defn- resolve-pending! [state {:keys [call-id]} result]
+  (let [{:keys [promise]} (-> @state :pending-evals (get call-id))]
     (swap! state update :pending-evals dissoc call-id)
-    (p/resolve! promise (assoc pass
-                               (if success? :result :error) result
-                               :as-text result))))
+    (p/resolve! promise result)))
+
+(defn- capture-result! [state {:keys [result call-id] :as msg}]
+  (when-let [{:keys [success? pass]} (-> @state :pending-evals (get call-id))]
+    (resolve-pending! state msg (assoc pass
+                                       (if success? :result :error) result
+                                       :as-text result))))
 
 (defn- get-result! [state msg]
   (swap! state update-in [:pending-evals (:call-id msg)] assoc :success? true)
@@ -139,25 +159,24 @@
                        :request-op :edn
                        :oid (:ex-oid msg)}))
 
-(defn- send-as-error! [state {:keys [warnings call-id]}]
-  (when-let [{:keys [promise row file]} (-> @state :pending-evals (get call-id))]
+(defn- send-as-error! [state {:keys [warnings call-id] :as msg}]
+  (when-let [{:keys [row file]} (-> @state :pending-evals (get call-id))]
     (let [trace (->> warnings
                      (mapv (fn [{:keys [msg line]}]
                              [(str/replace msg #"Use of.* (.*/.*)$" "$1")
                               ""
                               file
                               (dec (+ row line))])))]
-      (swap! state update :pending-evals dissoc call-id)
-      (p/resolve! promise (helpers/error-result "Compile Warning"
-                                                (->> warnings (map :msg) (str/join "\n"))
-                                                trace)))))
+      (resolve-pending! state msg
+                        (helpers/error-result "Compile Warning"
+                                              (->> warnings (map :msg) (str/join "\n"))
+                                              trace)))))
 
-(defn- obj-not-found! [state {:keys [call-id]}]
-  (when-let [{:keys [promise row file]} (-> @state :pending-evals (get call-id))]
-    (swap! state update :pending-evals dissoc call-id)
-    (p/resolve! promise (helpers/error-result "404"
-                                              "Result not found"
-                                              [[file "" "" row]]))))
+(defn- obj-not-found! [state {:keys [call-id] :as msg}]
+  (when-let [{:keys [row file]} (-> @state :pending-evals (get call-id))]
+    (resolve-pending! state msg (helpers/error-result "404"
+                                                      "Result not found"
+                                                      [[file "" "" row]]))))
 
 (defn- send-output! [state {:keys [stream text]}]
   (let [on-out (:on-output @state)
@@ -193,22 +212,30 @@
   (.end ^js (:ws @state))
   (p/resolve! (:evaluator @state) {:error :access-denied}))
 
-(s/defn ^:private treat-ws-message! [state :- State, {:keys [op] :as msg}]
-  (case op
-    :welcome (send-hello! state)
-    :clients (parse-clients! state msg)
-    :notify (update-builds! state msg)
-    :ping (send! (:ws @state) {:op :pong})
-    :eval-result-ref (get-result! state msg)
-    :eval-runtime-error (get-error! state msg)
-    :obj-result (capture-result! state msg)
-    :eval-compile-warnings (send-as-error! state msg)
-    :eval-compile-error (get-error! state (assoc msg :from (:ex-client-id msg 1)))
-    :obj-not-found (obj-not-found! state msg)
-    :runtime-print (send-output! state msg)
-    :shadow.cljs.model/sub-msg (compile-error! state msg)
-    :access-denied (access-denied! state)
-    (prn :unknown-op op)))
+(defn- send-result! [state {:keys [pass]} msg]
+  (let [res (pr-str msg)
+        result (assoc pass :result res :as-text res)]
+    (resolve-pending! state msg result)))
+
+(s/defn ^:private treat-ws-message! [state :- State, {:keys [op call-id] :as msg}]
+  (if-let [pending (-> @state :pending-evals (get call-id))]
+    (case op
+      :obj-result (capture-result! state msg)
+      :eval-runtime-error (get-error! state msg)
+      :eval-compile-error (get-error! state (assoc msg :from (:ex-client-id msg 1)))
+      :eval-compile-warnings (send-as-error! state msg)
+      :eval-result-ref (get-result! state msg)
+      :obj-not-found (obj-not-found! state msg)
+      (send-result! state pending msg))
+    (case op
+      :welcome (send-hello! state)
+      :clients (parse-clients! state msg)
+      :notify (update-builds! state msg)
+      :ping (send! (:ws @state) {:op :pong})
+      :runtime-print (send-output! state msg)
+      :shadow.cljs.model/sub-msg (compile-error! state msg)
+      :access-denied (access-denied! state)
+      (prn :unknown-op op))))
 
 (defn- create-ws-conn! [id url state]
   (try
