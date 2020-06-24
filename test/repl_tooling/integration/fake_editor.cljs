@@ -3,7 +3,7 @@
   (:require [clojure.string :as str]
             [promesa.core :as p]
             [reagent.core :as r]
-            [clojure.core.async :as async :include-macros true]
+            [clojure.core.async :as async]
             [repl-tooling.editor-integration.renderer :as render]
             [repl-tooling.editor-integration.connection :as conn]
             [repl-tooling.commands-to-repl.all-cmds :as cmds]))

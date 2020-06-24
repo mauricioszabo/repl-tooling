@@ -1,8 +1,8 @@
 (ns repl-tooling.editor-integration.connection-test
-  (:require [clojure.test :refer [testing] :include-macros true]
-            [check.core :refer-macros [check]]
-            [check.async :as a :include-macros true]
-            [clojure.core.async :as async :include-macros true]
+  (:require [clojure.test :refer [testing]]
+            [check.core :refer [check]]
+            [check.async :as a]
+            [clojure.core.async :as async]
             [repl-tooling.editor-integration.connection :as connection]
             [repl-tooling.editor-helpers :as editor-helpers]
             [repl-tooling.eval :as eval]))

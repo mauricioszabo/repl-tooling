@@ -1,9 +1,9 @@
 (ns repl-tooling.repl-client.connection-test
-  (:require [clojure.test :refer-macros [testing async is]]
-            [devcards.core :as cards :include-macros true]
-            [check.core :refer-macros [check]]
-            [check.async :include-macros true :refer [async-test]]
-            [clojure.core.async :as async :include-macros true]
+  (:require [clojure.test :refer [testing async is]]
+            [devcards.core :as cards]
+            [check.core :refer [check]]
+            [check.async :refer [async-test]]
+            [clojure.core.async :as async]
             [repl-tooling.repl-client.connection :as c]
             [reagent.core :as r]))
 

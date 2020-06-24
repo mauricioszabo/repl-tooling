@@ -1,6 +1,6 @@
 (ns repl-tooling.commands-to-repl.orchard
-  (:require-macros [repl-tooling.repl-client.clj-helper :as h])
   (:require [repl-tooling.eval :as eval]
+            [repl-tooling.repl-client.clj-helper :as h]
             [repl-tooling.editor-helpers :as helpers]
             [clojure.string :as str]
             [repl-tooling.editor-integration.evaluation :as e-eval]

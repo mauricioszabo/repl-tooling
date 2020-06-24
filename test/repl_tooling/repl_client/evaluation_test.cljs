@@ -1,8 +1,8 @@
 (ns repl-tooling.repl-client.evaluation-test
-  (:require [clojure.test :refer-macros [testing async is]]
-            [devcards.core :as cards :include-macros true]
-            [check.core :refer-macros [check]]
-            [clojure.core.async :as async :include-macros true]
+  (:require [clojure.test :refer [testing async is]]
+            [devcards.core :as cards]
+            [check.core :refer [check]]
+            [clojure.core.async :as async]
             [repl-tooling.eval :as eval]
             [repl-tooling.repl-client.clojure :as clj]
             [repl-tooling.eval-helpers :refer [eval-on-repl

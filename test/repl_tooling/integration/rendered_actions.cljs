@@ -1,13 +1,12 @@
 (ns repl-tooling.integration.rendered-actions
-  (:require [clojure.core.async :as async :include-macros true]
+  (:require [clojure.core.async :as async]
             [repl-tooling.editor-integration.connection :as conn]
             [repl-tooling.integration.fake-editor :as editor :refer [editor type-and-eval
                                                                      change-stdout]]
-            [repl-tooling.integration.ui-macros :as ui :include-macros true
-             :refer-macros [type-and-result]]
-            [clojure.test :refer [async testing is] :include-macros true]
-            [check.core :refer-macros [check]]
-            [devcards.core :as cards :include-macros true]))
+            [repl-tooling.integration.ui-macros :as ui]
+            [clojure.test :refer [async testing is]]
+            [check.core :refer [check]]
+            [devcards.core :as cards]))
 
 (cards/defcard-rg fake-editor
   editor
@@ -33,7 +32,7 @@
        (async/<! (editor/wait-for #(-> @editor/state :repls :eval)))
 
        (testing "copies tagged literals to clipboard"
-         (type-and-result "(tagged-literal 'foo [1 2])")
+         (ui/type-and-result "(tagged-literal 'foo [1 2])")
          (click-clipboard 0)
          (check (async/<! copy) =expect=> "#foo [1 2]"))
 
@@ -54,12 +53,12 @@
          (check (async/<! copy) =expect=> "2"))
 
        (testing "copies incomplete string"
-         (type-and-result "(str (range 80))")
+         (ui/type-and-result "(str (range 80))")
          (click-clipboard 0)
          (check (async/<! copy) =expect=> #"28 29"))
 
        (testing "copies objects"
-         (type-and-result "(Object.)")
+         (ui/type-and-result "(Object.)")
          (click-clipboard 0)
          (check (async/<! copy) =expect=> #"#object.*java\.lang\.Object"))
 

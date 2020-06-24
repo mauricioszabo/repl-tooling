@@ -2,7 +2,7 @@
   (:require [repl-tooling.features.shadow-cljs :as shadow]
             [check.core :refer [check]]
             [check.async :refer [await! async-test]]
-            [devcards.core :as cards :include-macros true]
+            [devcards.core :as cards]
             ; [clojure.test :refer [async ]]
             [repl-tooling.eval-helpers :as h]
             [repl-tooling.repl-client.shadow-ws :as shadow-ws]
