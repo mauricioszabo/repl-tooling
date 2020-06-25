@@ -1,6 +1,6 @@
 (ns repl-tooling.editor-integration.doc
-  (:require-macros [repl-tooling.repl-client.clj-helper :refer [contents-for-fn]])
   (:require [repl-tooling.editor-helpers :as helpers]
+            [repl-tooling.repl-client.clj-helper :refer [contents-for-fn]]
             [promesa.core :as p]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.evaluation :as e-eval]))

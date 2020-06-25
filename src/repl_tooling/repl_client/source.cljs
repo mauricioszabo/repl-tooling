@@ -1,6 +1,6 @@
 (ns repl-tooling.repl-client.source
-  (:require-macros [repl-tooling.repl-client.clj-helper :refer [generic-eval-wrapper]])
   (:require [clojure.string :as str]
+            [repl-tooling.repl-client.clj-helper :refer [generic-eval-wrapper]]
             [rewrite-clj.parser :as parser]
             [rewrite-clj.node :as node]))
 

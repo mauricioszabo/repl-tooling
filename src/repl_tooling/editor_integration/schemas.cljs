@@ -99,7 +99,8 @@
                (s/optional-key :column) s/Int
                (s/optional-key :pass) {s/Any s/Any}
                (s/optional-key :ignore) s/Bool
-               (s/optional-key :aux) AuxOptions})
+               (s/optional-key :aux) AuxOptions
+               s/Keyword s/Any})
 
 (def PromisedEvalOpts (assoc EvalOpts
                              :text s/Str
@@ -107,9 +108,7 @@
 
 (def EditorFeatures {:autocomplete s/Any
                      :eval-and-render (s/=> s/Any s/Any s/Any s/Any)
-                     :evaluate-and-render (s/=> s/Any {:text s/Str
-                                                       :range Range
-                                                       (s/optional-key :pass) s/Any})
+                     :evaluate-and-render (s/=> s/Any PromisedEvalOpts)
                      :eval (s/=> s/Any PromisedEvalOpts)
                      :result-for-renderer (s/=> js/Promise)
                      :go-to-var-definition (s/=> s/Any {:var-name s/Str

@@ -1,6 +1,6 @@
 (ns repl-tooling.integrations.connection
-  (:require-macros [repl-tooling.repl-client.clj-helper :refer [cljs-blob-contents]])
-  (:require [promesa.core :as p :include-macros true]
+  (:require [promesa.core :as p]
+            [repl-tooling.repl-client.clj-helper :refer [cljs-blob-contents]]
             [cljs.reader :as edn]
             [repl-tooling.repl-client.clojure :as clj-repl]
             [repl-tooling.eval :as eval]

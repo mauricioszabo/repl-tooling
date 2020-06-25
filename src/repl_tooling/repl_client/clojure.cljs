@@ -1,6 +1,6 @@
 (ns repl-tooling.repl-client.clojure
-  (:require-macros [repl-tooling.repl-client.clj-helper :refer [blob-contents]])
   (:require [repl-tooling.editor-helpers :as helpers]
+            [repl-tooling.repl-client.clj-helper :refer [blob-contents]]
             [repl-tooling.eval :as eval]
             [cljs.reader :as reader]
             [clojure.string :as str]

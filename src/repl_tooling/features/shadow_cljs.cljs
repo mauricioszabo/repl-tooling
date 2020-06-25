@@ -1,6 +1,6 @@
 (ns repl-tooling.features.shadow-cljs
-  (:require-macros [repl-tooling.repl-client.clj-helper :as h])
   (:require [cljs.reader :as edn]
+            [repl-tooling.repl-client.clj-helper :as h]
             [clojure.string :as str]
             ["path" :as path]
             ["fs" :refer [existsSync readFileSync]]

@@ -1,12 +1,12 @@
 (ns repl-tooling.features.definition-test
-  (:require [clojure.test :refer-macros [testing async is]]
-            [devcards.core :as cards :include-macros true]
-            [check.core :refer-macros [check]]
-            [check.async :refer-macros [await!]]
-            [clojure.core.async :as async :include-macros true]
+  (:require [clojure.test :refer [testing async is]]
+            [devcards.core :as cards]
+            [check.core :refer [check]]
+            [check.async :refer [await!]]
+            [clojure.core.async :as async]
             [repl-tooling.integrations.repls :as repls]
             [repl-tooling.features.definition :as def]
-            [repl-tooling.eval-helpers :include-macros true
+            [repl-tooling.eval-helpers
              :refer [eval-on-repl async-with-repl async-with-cljs-repl]]))
 
 (set! cards/test-timeout 80000)

@@ -1,11 +1,11 @@
 (ns repl-tooling.repl-client.parsing-test
-  (:require [clojure.test :refer [async testing is] :include-macros true]
-            [check.core :refer-macros [check]]
-            [clojure.core.async :as async :include-macros true]
-            [devcards.core :as cards :include-macros true]
+  (:require [clojure.test :refer [async testing is]]
+            [check.core :refer [check]]
+            [clojure.core.async :as async]
+            [devcards.core :as cards]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]
-            [repl-tooling.eval-helpers :refer-macros [eval-on-repl eval-and-parse
+            [repl-tooling.eval-helpers :refer [eval-on-repl eval-and-parse
                                                       async-with-clj-repl]]
             [repl-tooling.repl-client.clojure :as clj]))
 

@@ -2,12 +2,12 @@
   (:require [reagent.core :as r]
             [clojure.walk :as walk]
             [repl-tooling.editor-integration.connection :as conn]
-            [repl-tooling.integration.ui-macros :as ui :include-macros true]
+            [repl-tooling.integration.ui-macros :as ui]
             [repl-tooling.editor-integration.renderer :as render]
-            [clojure.test :refer [async testing is] :include-macros true]
-            [check.core :refer-macros [check]]
-            [clojure.core.async :as async :include-macros true]
-            [devcards.core :as cards :include-macros true]))
+            [clojure.test :refer [async testing is]]
+            [check.core :refer [check]]
+            [clojure.core.async :as async]
+            [devcards.core :as cards]))
 
 (defonce state (r/atom {:host "localhost"
                         :port 2233

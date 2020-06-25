@@ -1,13 +1,13 @@
 (ns repl-tooling.editor-integration.autocomplete-test
   (:require [reagent.core :as r]
-            [clojure.test :refer [async testing is] :include-macros true]
-            [clojure.core.async :as async :include-macros true]
+            [clojure.test :refer [async testing is]]
+            [clojure.core.async :as async]
             [check.core :refer [check]]
             [check.async :refer [async-test]]
             [matcher-combinators.matchers :refer [embeds]]
-            [devcards.core :as cards :include-macros true]
+            [devcards.core :as cards]
             [repl-tooling.repl-client.clojure :as clj]
-            [repl-tooling.eval-helpers :include-macros true :as h]
+            [repl-tooling.eval-helpers :as h]
             [repl-tooling.editor-integration.connection :as conn]))
 
 (set! cards/test-timeout 1000)

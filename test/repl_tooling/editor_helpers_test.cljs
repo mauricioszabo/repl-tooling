@@ -1,7 +1,7 @@
 (ns repl-tooling.editor-helpers-test
-  (:require [clojure.test :refer-macros [testing]]
-            [devcards.core :refer [deftest] :include-macros true]
-            [check.core :refer-macros [check]]
+  (:require [clojure.test :refer [testing]]
+            [devcards.core :as cards]
+            [check.core :refer [check]]
             [repl-tooling.editor-helpers :as helpers]))
 
 (def simple-clj
@@ -29,7 +29,7 @@
 90)
 ")
 
-(deftest text-in-range
+(cards/deftest text-in-range
   (testing "gets text in same line"
     (check (helpers/text-in-range ":foo" [[0 1] [0 2]]) => "fo"))
 
@@ -42,7 +42,7 @@
     (check (helpers/text-in-range "123\n456\n" [[0 0] [3 5]]) => "123\n456\n")
     (check (helpers/text-in-range "123\n456\n" [[1 0] [4 5]]) => "456\n")))
 
-(deftest toplevel-forms
+(cards/deftest toplevel-forms
   (testing "gets top-level forms"
     (check (helpers/top-levels simple-clj) =>
            [[[[0 0] [0 6]] "(+ 1 2)"]
@@ -61,7 +61,7 @@
            => [[[[0 0] [0 4]] "(+ 1)"]
                [[[0 8] [0 12]] "(+ 2)"]])))
 
-(deftest getting-top-blocks
+(cards/deftest getting-top-blocks
   (testing "text and range from top-block"
     (check (helpers/top-block-for some-clj [9 3])
            => [[[9 0] [9 10]] "(ns barbaz)"])
@@ -85,7 +85,7 @@
     (check (helpers/top-block-for "#_(+ 1 2)\n()" [0 2])
            => [[[0 2] [0 8]] "(+ 1 2)"])))
 
-(deftest getting-blocks
+(cards/deftest getting-blocks
   (testing "text and range from block"
     (check (helpers/block-for simple-clj [0 10]) => [[[0 8] [0 16]] "(+ (3) 4)"])
     (check (helpers/block-for simple-clj [1 2]) => [[[1 0] [2 1]] "[1 2\n3]"]))
@@ -117,7 +117,7 @@
     (check (helpers/block-for "(+ (- 1 2) 3)" [0 10]) =>
            [[[0 3] [0 9]] "(- 1 2)"])))
 
-(deftest getting-blocks-with-special-symbols
+(cards/deftest getting-blocks-with-special-symbols
   (testing "top-block with syntax quote"
     (check (helpers/top-block-for "(defmacro foo [] `(+ 1 2))" [0 21])
            => [[[0 0] [0 25]] "(defmacro foo [] `(+ 1 2))"]))
@@ -128,7 +128,7 @@
 
 
 (def ns-code "(ns foobar)\n(def foo 10)\n(ns barbaz)\n(def wow 1)\n\n")
-(deftest getting-ns
+(cards/deftest getting-ns
   (testing "getting NS top-level"
     (check (helpers/ns-range-for ns-code [1 2]) => [[[0 0] [0 10]] 'foobar])
     (check (helpers/ns-range-for ns-code [1 2]) => [[[0 0] [0 10]] 'foobar]))
@@ -144,7 +144,7 @@
       (check (helpers/ns-range-for txt [2 0])
              => [[[0 0] [0 49]] 'my-ns]))))
 
-(deftest getting-current-var
+(cards/deftest getting-current-var
   (testing "getting var under cursor"
     (check (helpers/current-var " some-var " [0 1]) => [[[0 1] [0 8]] "some-var"]))
 
