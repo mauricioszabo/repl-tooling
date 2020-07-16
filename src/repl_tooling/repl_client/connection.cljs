@@ -16,10 +16,9 @@
 
     (swap! control assoc :emitted-frags [])
     (on-fragment (apply str (concat frags [fst "\n"])))
-    (p/do!
-     (swap! buffer #(if (empty? snd)
-                      (subvec % (-> frags count inc))
-                      (-> % (subvec (count frags)) (assoc 0 snd)))))))
+    (swap! buffer #(if (empty? snd)
+                     (subvec % (-> frags count inc))
+                     (-> % (subvec (count frags)) (assoc 0 snd))))))
 
 (defn- schedule-fragment! [control on-fragment buffer new-state]
   (let [frags (cond-> new-state (-> new-state peek (= :closed)) pop)]
