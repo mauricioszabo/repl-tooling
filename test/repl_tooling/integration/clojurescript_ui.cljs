@@ -210,8 +210,6 @@
         (async/<! (change-stdout))
         (check (:stdout @state) => #"THIS IS UPPER"))
 
-      ;FIXME: Makes this pass on new REPL
-      #_
       (testing "displays invalid EDN"
         (ui/assert-out "{ :foo bar 10 }" "{(keyword \"foo bar\") 10}")
         (ui/click-nth-link-and-assert-children
@@ -266,8 +264,6 @@
         (ui/click-nth-link-and-assert-children
          "{ :a ( 0 1 2 3 4 5 6 7 8 9 ) , :b 20 }" 1))
 
-      ; FIXME: Makes this pass on new REPL
-      #_
       (testing "evaluates promises, and patches result"
         (ui/assert-out #"#promise <pending>"
                        "(js/Promise. (fn [resolve] (js/setTimeout #(resolve 10) 200)))")
