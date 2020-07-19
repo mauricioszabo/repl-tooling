@@ -6,7 +6,7 @@
                       'unrepl/browsable
                       [(if (clojure.core/= js/Function (type js-obj))
                          (let [splitted (-> js-obj .-name cljs.core/demunge
-                                            (clojure.string/split #"/"))]
+                                            (clojure.string/split (clojure.core/re-pattern "/")))]
                            (clojure.core/tagged-literal 'unrepl/bad-symbol
                                                           [(->> splitted
                                                                 butlast
