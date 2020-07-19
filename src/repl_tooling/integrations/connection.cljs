@@ -81,7 +81,8 @@ an evaluator that will pipe all commands to Shadow-CLJS' workers."
     (shadow-cljs/upgrade-repl! clj-repl build-id)))
 
 (defn connect-shadow-ws!
-  [{:keys [identifier build-id on-stdout on-stderr on-patch directories compile-error]
+  [{:keys [identifier build-id on-stdout on-stderr on-patch directories compile-error
+           on-eval on-start-eval]
     :or {identifier :cljs-eval}}]
   (let [host "localhost"
         dir (->> directories
@@ -91,6 +92,13 @@ an evaluator that will pipe all commands to Shadow-CLJS' workers."
         token (-> (join dir ".shadow-cljs" "server.token") readFileSync str)
         on-output (fn [res]
                     (cond
+                      (:result res)
+                      (let [res (:result res)]
+                        (on-start-eval (dissoc res :result))
+                        (on-eval (-> res
+                                     (update :result helpers/parse-result)
+                                     (assoc :repl nil))))
+
                       (:out res)
                       (on-stdout (:out res))
 
@@ -98,17 +106,10 @@ an evaluator that will pipe all commands to Shadow-CLJS' workers."
                       (on-stderr (:err res))
 
                       (:compile-err res)
-                      (compile-error (:compile-err res))))]
+                      (compile-error (:compile-err res))
 
-                      ; FIXME: Resolve promises in the future
-                      ; (:patch res)
-                      ; (let [txt-in-txt (-> res :patch :result :result)
-                      ;       txt (edn/read-string txt-in-txt)]
-                      ;   (on-patch (update (:patch res)
-                      ;                     :result merge
-                      ;                     (helpers/parse-result
-                      ;                      {:as-text txt
-                      ;                       :result txt}))))))]
+                      (:patch res)
+                      (on-patch (:patch res))))]
 
     (shadow-ws/connect! {:id identifier
                          :build-id build-id

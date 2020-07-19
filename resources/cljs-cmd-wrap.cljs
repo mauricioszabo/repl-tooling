@@ -1,10 +1,12 @@
-(clojure.core/let [tooling$norm$jsbeam
+(clojure.core/let [tooling$norm$walk (clojure.core/atom nil)
+
+                   tooling$norm$jsbeam
                    (clojure.core/fn [js-obj]
                      (clojure.core/tagged-literal
                       'unrepl/browsable
                       [(if (clojure.core/= js/Function (type js-obj))
                          (let [splitted (-> js-obj .-name cljs.core/demunge
-                                            (clojure.string/split #"/"))]
+                                            (clojure.string/split (clojure.core/re-pattern "/")))]
                            (clojure.core/tagged-literal 'unrepl/bad-symbol
                                                           [(->> splitted
                                                                 butlast
@@ -50,31 +52,22 @@
 
                        (clojure.core/and change-keywords? (clojure.core/keyword? res))
                        (clojure.core/symbol (clojure.core/str "#unrepl/bad-keyword ["
-                                                 (clojure.core/pr-str (clojure.core/namespace res)) " "
-                                                 (clojure.core/pr-str (clojure.core/name res))
-                                                 "]"))
+                                              (clojure.core/pr-str (clojure.core/namespace res)) " "
+                                              (clojure.core/pr-str (clojure.core/name res))
+                                              "]"))
 
                        (clojure.core/instance? js/Promise res)
                        (clojure.core/let [id (clojure.core/gensym "patch")]
                          (.then res
                                 (clojure.core/fn [res]
-                                  (clojure.core/let [ws (clojure.core/or
-                                                          (clojure.core/resolve 'shadow.cljs.devtools.client.browser/socket-ref)
-                                                          (clojure.core/resolve 'shadow.cljs.devtools.client.node/ws-ref)
-                                                          (clojure.core/resolve 'shadow.cljs.devtools.client.react-native/socket-ref)
-                                                          (clojure.core/resolve 'shadow.cljs.devtools.client.worker/socket-ref))]
-                                    (.send @@ws
-                                           (clojure.core/pr-str
-                                            {:type :repl/result
-                                             :id id
-                                             :patch (clojure.core/pr-str
-                                                     (clojure.core/tagged-literal
-                                                      'promise
-                                                      (if (clojure.core/record? res)
-                                                        (clojure.walk/postwalk (clojure.core/fn [a] (res-fn a false)) res)
-                                                        (if (clojure.core/coll? res)
-                                                          (clojure.walk/postwalk (clojure.core/fn [a] (res-fn a true)) res)
-                                                          (res-fn res true)))))})))))
+                                  (cljs.core/tap>
+                                   (clojure.core/tagged-literal
+                                    'repl-tooling/patch
+                                    [id
+                                     (clojure.core/pr-str
+                                      (clojure.core/tagged-literal
+                                       'promise
+                                       (@tooling$norm$walk res)))]))))
                          (clojure.core/tagged-literal
                           'repl-tooling/patchable [id (clojure.core/tagged-literal 'promise '<pending>)]))
 
@@ -85,14 +78,16 @@
                        (clojure.core/string? res) res
                        (clojure.core/regexp? res) res
                        (clojure.core/coll? res) res
-                       (clojure.core/coll? res) res
                        :else (tooling$norm$jsbeam res)))]
   (try
+    (clojure.core/reset! tooling$norm$walk
+                        (clojure.core/fn [res]
+                          (if (clojure.core/record? res)
+                            (clojure.walk/postwalk (clojure.core/fn [a] (res-fn a false)) res)
+                            (if (clojure.core/coll? res)
+                              (clojure.walk/postwalk (clojure.core/fn [a] (res-fn a true)) res)
+                              (res-fn res true)))))
+
     (clojure.core/let [res (do __COMMAND__)]
-      [:result (clojure.core/pr-str
-                (if (clojure.core/record? res)
-                  (clojure.walk/postwalk (clojure.core/fn [a] (res-fn a false)) res)
-                  (if (clojure.core/coll? res)
-                    (clojure.walk/postwalk (clojure.core/fn [a] (res-fn a true)) res)
-                    (res-fn res true))))])
-    (catch :default e [:error (clojure.core/pr-str (res-fn e true))])))
+      ['tooling$eval-res :result (clojure.core/pr-str (@tooling$norm$walk res))])
+    (catch :default e ['tooling$eval-res :error (clojure.core/pr-str (res-fn e true))])))

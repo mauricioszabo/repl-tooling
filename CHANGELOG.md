@@ -2,6 +2,8 @@
 
 ## 0.5.1
 - Shadow-CLJS can call its own internal API by passing a specific command
+- Support for resolving promises on Shadow Relay API
+- `tap>` support for Shadow-CLJS Relay API
 
 ## 0.5.0
 - Performance improvement while parsing Clojure code

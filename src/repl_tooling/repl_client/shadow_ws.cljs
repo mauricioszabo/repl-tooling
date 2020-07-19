@@ -7,6 +7,7 @@
             [repl-tooling.eval :as eval]
             [repl-tooling.integrations.repls :as repls]
             [cognitect.transit :as t]
+            [repl-tooling.repl-client.clj-helper :as h]
             ["ws" :as Websocket]))
 
 (def State (s/atom {:build-id s/Keyword
@@ -27,12 +28,14 @@
         out (t/write writer msg)]
     (.send ws out)))
 
+(def ^:private blob (h/contents-for-fn "cljs-cmd-wrap.cljs"))
 (defn- evaluate! [state namespace code opts]
   (let [ws (:ws @state)
         row (:row opts 0)
         file (:filename opts "[EVAL]")
         build-id (:build-id @state)
         client-id (-> @state (get-in [:build->id build-id]) first)
+        blobbed-code (str/replace blob #"__COMMAND__" code)
         prom (p/deferred)]
     (if client-id
       (do
@@ -43,7 +46,7 @@
         (send! ws {:op :cljs-eval
                    :to client-id
                    :call-id (:id opts)
-                   :input {:code code :ns (symbol namespace)}}))
+                   :input {:code blobbed-code :ns (symbol namespace)}}))
       (p/resolve! prom (merge (:pass opts)
                               (helpers/error-result "No clients connected"
                                                     (str "No clients connected to "
@@ -95,9 +98,11 @@
         builds (:build->id @state)]
     (doseq [[_ ids] builds
             id ids]
-      (send! ws {:op :runtime-print-unsub :to id}))
+      (send! ws {:op :runtime-print-unsub :to id})
+      (send! ws {:op :tap-unsubscribe :to id}))
     (when-let [id (-> builds build-id first)]
-      (send! ws {:op :runtime-print-sub :to id}))))
+      (send! ws {:op :runtime-print-sub :to id})
+      (send! ws {:op :tap-subscribe :to id}))))
 
 (defn- parse-clients! [state {:keys [clients]}]
   (let [build-id (:build-id @state)
@@ -131,7 +136,6 @@
                   (remove-id % client-id)))
   (listen-to-events! state))
 
-
 (defn- resolve-pending! [state {:keys [call-id]} result]
   (let [{:keys [promise]} (-> @state :pending-evals (get call-id))]
     (swap! state update :pending-evals dissoc call-id)
@@ -139,9 +143,10 @@
 
 (defn- capture-result! [state {:keys [result call-id] :as msg}]
   (when-let [{:keys [success? pass]} (-> @state :pending-evals (get call-id))]
-    (resolve-pending! state msg (assoc pass
-                                       (if success? :result :error) result
-                                       :as-text result))))
+    (let [[_ key parsed-res] (if (str/starts-with? result "[tooling$eval-res")
+                               (edn/read-string {:default tagged-literal} result)
+                               [nil (if success? :result :error) result])]
+      (resolve-pending! state msg (assoc pass key parsed-res :as-text parsed-res)))))
 
 (defn- get-result! [state msg]
   (swap! state update-in [:pending-evals (:call-id msg)] assoc :success? true)
@@ -217,6 +222,27 @@
         result (assoc pass :result res :as-text res)]
     (resolve-pending! state msg result)))
 
+(defn- tap! [state msg]
+  (send! (:ws @state) {:op :obj-request
+                       :call-id (gensym "tap-result")
+                       :to (:from msg)
+                       :request-op :edn
+                       :oid (:oid msg)}))
+
+(defn- unexpected-obj! [state {:keys [result call-id]}]
+  (let [on-out (:on-output @state)
+        tapped? (str/starts-with? (str call-id) "tap-result")
+        patch? (str/starts-with? result "#repl-tooling/patch")]
+    (if (and tapped? patch?)
+      (let [[id res] (edn/read-string {:readers {'repl-tooling/patch identity}} result)]
+        (on-out {:patch {:id id :result {:as-text res :result res}}}))
+      (on-out {:result {:id call-id
+                        :result {:as-text result :result result}
+                        :editor-data {:filename "<console>.cljs"
+                                      :range [[0 0] [0 0]]
+                                      :contents ""},
+                        :range [[0 0] [0 0]]}}))))
+
 (s/defn ^:private treat-ws-message! [state :- State, {:keys [op call-id] :as msg}]
   (if-let [pending (-> @state :pending-evals (get call-id))]
     (case op
@@ -235,6 +261,8 @@
       :runtime-print (send-output! state msg)
       :shadow.cljs.model/sub-msg (compile-error! state msg)
       :access-denied (access-denied! state)
+      :tap (tap! state msg)
+      :obj-result (unexpected-obj! state msg)
       (prn :unknown-op op))))
 
 (defn- create-ws-conn! [id url state]
