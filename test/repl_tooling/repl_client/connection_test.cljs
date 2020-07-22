@@ -23,16 +23,18 @@
 
 (cards/deftest buffer-treatment
   (let [buffer (atom [])
-        lines (async/chan)
+        lines (atom [])
+        get-lines #(let [l @lines] (reset! lines []) l)
         frags (async/chan)]
     (async-test "treating buffer info" {:teardown (do
-                                                    (async/close! lines)
                                                     (async/close! frags))}
-      (c/treat-buffer! buffer #(async/put! lines (str %)) #(async/put! frags (str %)))
+      (c/treat-buffer! buffer #(swap! lines conj %)
+                       #(when-not (re-find #"BIG" (str %))
+                          (async/put! frags (str %))))
 
       (testing "emits line"
         (swap! buffer conj "foo\n")
-        (check (async/<! lines) =expect=> "foo")
+        (check (get-lines) => ["foo"])
         (check (async/<! frags) =expect=> "foo\n")
         (check @buffer =expect=> []))
 
@@ -40,7 +42,7 @@
         (swap! buffer conj "foo")
         (swap! buffer conj "bar")
         (swap! buffer conj "b\nbaz")
-        (check (async/<! lines) =expect=> "foobarb")
+        (check (get-lines) =expect=> ["foobarb"])
         (check @buffer =expect=> ["baz"]))
 
       (testing "emits fragments"
@@ -50,13 +52,17 @@
 
       (testing "emits lines of already emitted frags"
         (swap! buffer conj "aar\n")
-        (check (async/<! lines) =expect=> "bazaar")
+        (check (get-lines) =expect=> ["bazaar"])
         (check (async/<! frags) =expect=> "aar\n"))
+
+      (testing "emits LOTS of lines"
+        (swap! buffer conj (reduce str (repeat 600000 "BIG\n")))
+        (check (count (get-lines)) => 600000))
 
       (testing "emits nil when closed connection"
         (swap! buffer conj :closed)
         (check (async/<! frags) =expect=> "")
-        (check (async/<! lines) =expect=> "")))))
+        (check (get-lines) =expect=> [nil])))))
 
 (cards/deftest eval-cycle
   (async done
@@ -107,11 +113,11 @@
          (check (async/<! output) =expect=> "bar"))
 
        (testing "captures output in different fragments"
-         (swap! control update :pending-evals conj 'id01)
-         (swap! buffer conj "[tooling$eval-res id01 \"[\n")
+         (swap! control update :pending-evals conj 'id02)
+         (swap! buffer conj "[tooling$eval-res id02 \"[\n")
          (swap! buffer conj "1 2\n")
          (swap! buffer conj "]\"]")
-         (check (async/<! results) =expect=> '[id01 "[\n1 2\n]"]))
+         (check (async/<! results) =expect=> '[id02 "[\n1 2\n]"]))
 
        (async/close! output)
        (async/close! results)
