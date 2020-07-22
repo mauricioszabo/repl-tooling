@@ -7,18 +7,26 @@
 
 (defn- emit-line! [control on-line on-fragment buffer frags last-line]
   (js/clearTimeout (:timeout-id @control))
-  (let [[fst snd] (str/split last-line #"\r?\n" 2)
-        line (apply str (concat (:emitted-frags @control) frags [fst]))]
-    (on-line line)
+  (let [raw-lines (vec (.split last-line #"\r?\n"))
+        last-fragment (peek raw-lines)
+        lines (-> raw-lines
+                  (update 0 #(apply str (concat (:emitted-frags @control) frags [%])))
+                  butlast)
+        [first-line & rest-of-lines] lines]
+    (on-line first-line)
+    (on-fragment (apply str (concat frags [(first raw-lines) "\n"])))
+    (doseq [line rest-of-lines]
+      (on-line line)
+      (on-fragment (str line "\n")))
     (when-let [p (:next-line-prom @control)]
-      (p/resolve! p line)
+      (p/resolve! p first-line)
       (swap! control dissoc :next-line-prom))
 
-    (swap! control assoc :emitted-frags [])
-    (on-fragment (apply str (concat frags [fst "\n"])))
-    (swap! buffer #(if (empty? snd)
-                     (subvec % (-> frags count inc))
-                     (-> % (subvec (count frags)) (assoc 0 snd))))))
+    (swap! buffer #(if (empty? last-fragment)
+                     (subvec % 1)
+                     (-> %
+                         (subvec (count frags))
+                         (assoc 0 last-fragment))))))
 
 (defn- schedule-fragment! [control on-fragment buffer new-state]
   (let [frags (cond-> new-state (-> new-state peek (= :closed)) pop)]
@@ -33,9 +41,11 @@
             1000))))
 
 (defn- treat-new-state [control buffer new-state]
+  ; (prn :STR new-state)
   (let [has-newline? #(re-find #"\r?\n" (str %))
         {:keys [on-line on-fragment]} @control
         [frags [last-line]] (split-with (complement has-newline?) new-state)]
+    ; (prn :SPLIT (split-with (complement has-newline?) new-state))
     (cond
       (= [:closed] new-state)
       (do
