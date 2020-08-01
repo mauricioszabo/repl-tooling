@@ -64,9 +64,7 @@
               (if document-part
                 (try-spec (:result document-part) (assoc options :var (:result var)))
                 (treat-error "\"Unknown error\"" options)))
-           #(do
-              (prn :ERROR %)
-              (treat-error (:error %) options))))
+           #(treat-error (:error %) options)))
 
 (defn doc-for-var [{:keys [contents range filename] :as editor-data} opts state]
   (let [id (gensym "doc-for-var")

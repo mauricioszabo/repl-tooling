@@ -225,7 +225,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
            _ (case kind
                :cljs (prepare-cljs primary host port state options)
                :joker (prepare-joker primary host port state options)
-               (p/let [[_ aux] (repls/connect-repl! :clj-aux host port callback)]
+               (p/let [[_ aux] (repls/connect-repl! :clj-aux host port identity)]
                  (prepare-generic primary aux host port state options kind)))
            nrepl? (instance? nrepl/Evaluator primary)]
      (notify {:type :info :title (str (tr-kind kind)
