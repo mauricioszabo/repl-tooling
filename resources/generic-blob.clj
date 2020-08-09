@@ -6,6 +6,11 @@
                              (clojure.core/str "#repl-tooling/literal-render \""
                                   (clojure.core/pr-str res) "\""))
 
+                            (clojure.core/var? res)
+                            (clojure.core/symbol
+                             (clojure.core/str "#repl-tooling/literal-render \""
+                                  (clojure.core/pr-str res) "\""))
+
                             (clojure.core/symbol? res)
                             (clojure.core/symbol (clojure.core/str "#unrepl/bad-symbol [nil "
                                                       (clojure.core/pr-str (clojure.core/str res))
