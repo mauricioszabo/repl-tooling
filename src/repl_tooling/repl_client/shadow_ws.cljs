@@ -51,7 +51,7 @@
                               (helpers/error-result "No clients connected"
                                                     (str "No clients connected to "
                                                          "the runtime " build-id)
-                                                    [[file "" build-id row]]))))
+                                                    [[file nil build-id row]]))))
     prom))
 
 (defn- send-custom-command! [state message id opts]
@@ -169,7 +169,7 @@
     (let [trace (->> warnings
                      (mapv (fn [{:keys [msg line]}]
                              [(str/replace msg #"Use of.* (.*/.*)$" "$1")
-                              ""
+                              nil
                               file
                               (dec (+ row line))])))]
       (resolve-pending! state msg
@@ -181,7 +181,7 @@
   (when-let [{:keys [row file]} (-> @state :pending-evals (get call-id))]
     (resolve-pending! state msg (helpers/error-result "404"
                                                       "Result not found"
-                                                      [[file "" "" row]]))))
+                                                      [[file nil nil row]]))))
 
 (defn- send-output! [state {:keys [stream text]}]
   (let [on-out (:on-output @state)
