@@ -20,5 +20,8 @@
 (defmacro cljs-blob-contents []
   (slurp (io/resource "cljs-blob.cljs")))
 
+(defmacro generic-blob-contents []
+  (slurp (io/resource "generic_printer_blob.clj")))
+
 (defmacro generic-eval-wrapper []
-  (slurp (io/resource "generic-blob.clj")))
+  (slurp (io/resource "generic_blob.clj")))

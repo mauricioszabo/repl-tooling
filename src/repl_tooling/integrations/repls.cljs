@@ -1,5 +1,6 @@
 (ns repl-tooling.integrations.repls
   (:require [repl-tooling.repl-client.connection :as connection]
+            [repl-tooling.repl-client.clj-helper :as h]
             [promesa.core :as p]
             [clojure.string :as str]
             [repl-tooling.nrepl.bencode :as bencode]
@@ -86,6 +87,12 @@
     (swap! control update :ignore-output conj #"^\r?\n?.*?=> " #"(?:.+Namespace.+|nil)\r?\n")
     (.write conn (str "(" ns-command namespace ")"))))
 
+(defn- wait-for-blob-done [conn control]
+  (.write conn (str "(do " (h/generic-blob-contents) ")\n"))
+  (p/loop [curr (connection/next-line control)]
+    (when-not (re-find #":DONE-BLOB" curr)
+      (p/recur (connection/next-line control)))))
+
 (defn- instantiate-correct-evaluator [repl-kind ^js conn control on-output]
   (let [pending-evals (atom {})
         cmd-for (case repl-kind
@@ -121,7 +128,9 @@
 
     (if (= :clj repl-kind)
       (clj/prepare-unrepl-evaluator conn control on-output)
-      (do
+      (p/do!
+        (p/race [(wait-for-blob-done conn control) (p/delay 1000)])
+        (wait-for-blob-done conn control)
         (swap! control assoc :ignore-prompt true)
         (connection/prepare-evals control
                                   #(if-let [out %] (on-output {:out out}) (on-output nil))
@@ -140,9 +149,9 @@
     (swap! connections assoc id {:conn conn :buffer buffer})
     (if evaluator
       [repl-kind evaluator]
-      (do
-        (ignore-output-on-control control repl-kind)
-        [repl-kind (instantiate-correct-evaluator repl-kind conn control on-output)]))))
+      (p/let [_ (ignore-output-on-control control repl-kind)
+              evaluator (instantiate-correct-evaluator repl-kind conn control on-output)]
+        [repl-kind evaluator]))))
 
 (defn disconnect! [id]
   (when-let [{:keys [conn buffer]} ^js (get @connections id)]
