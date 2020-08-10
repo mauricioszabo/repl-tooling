@@ -88,7 +88,7 @@
     (.write conn (str "(" ns-command namespace ")"))))
 
 (defn- wait-for-blob-done [conn control]
-  (.write conn (str "(do " (h/generic-blob-contents) ")\n"))
+  (.write conn (str (h/generic-blob-contents) "\n"))
   (p/loop [curr (connection/next-line control)]
     (when-not (re-find #":DONE-BLOB" curr)
       (p/recur (connection/next-line control)))))
