@@ -61,5 +61,8 @@
     (string? res) res
     :else (tagged-literal 'repl-tooling/literal-render (pr-str res))))
 
+(defn nrepl-pprint [value writer opts]
+  (.write writer (pr-str (serialize value))))
+
 (ns user)
 :DONE-BLOB
