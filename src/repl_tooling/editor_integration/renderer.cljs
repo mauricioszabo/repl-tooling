@@ -375,7 +375,7 @@
        [:div
         "in "
         (when var [:span {:class "class"} var])
-        (when-not (or clj-file? method)
+        (when-not (or clj-file? (nil? method))
           [:span {:class "method"} "." method])
         (cond
           clj-file? (trace-link var file row editor-state)
