@@ -58,6 +58,8 @@
       (tagged-literal 'repl-tooling/literal-render (pr-str res))
       res)
 
+    (contains? [true false nil] res) res
+
     (string? res) res
     :else (tagged-literal 'repl-tooling/literal-render (pr-str res))))
 
