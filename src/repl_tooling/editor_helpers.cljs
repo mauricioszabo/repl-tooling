@@ -297,3 +297,5 @@ that the cursor is in row and col (0-based)"
                              (or (<= b-col col e-col)
                                  (<= b-col (dec col) e-col)))))]
     (->> tops (filter in-range?) first)))
+
+(def ^:dynamic *out-on-aux* false)

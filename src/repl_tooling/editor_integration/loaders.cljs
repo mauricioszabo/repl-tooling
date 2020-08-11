@@ -1,10 +1,12 @@
 (ns repl-tooling.editor-integration.loaders
   (:refer-clojure :exclude [load-file])
   (:require [clojure.string :as str]
+            [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.editor-integration.evaluation :as e-eval]))
 
 (defn- eval-code [code {:keys [editor-data notify evaluate on-eval]}]
   (let [filename (:filename editor-data)]
+    (set! helpers/*out-on-aux* true)
     (.. (evaluate {:text code :auto-opts true :aux true})
         (then #(notify {:type :info :title "Loaded file" :message filename}))
         (catch (fn [error]
@@ -13,7 +15,8 @@
                            :repl nil ; FIXME: get the right REPL
                            :range [[0 0] [0 0]]
                            :editor-data editor-data
-                           :result error}))))))
+                           :result error})))
+        (finally #(set! helpers/*out-on-aux* false)))))
 
 (defn- do-load-file [{:keys [editor-data] :as options}]
   (let [filename (str/replace (:filename editor-data) "\\" "/")

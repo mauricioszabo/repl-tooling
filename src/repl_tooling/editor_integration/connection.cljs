@@ -174,12 +174,10 @@
                                                        (:repl @patchable)
                                                        (:editor-state @patchable))))))))
 
-(def ^:dynamic *out-on-aux* false)
-
 (defn- callback-aux [original-callback]
   (fn [msg]
     (if (or (:out msg) (:err msg))
-      (when *out-on-aux* (original-callback msg))
+      (when helpers/*out-on-aux* (original-callback msg))
       (original-callback msg))))
 
 ; Config Options:
