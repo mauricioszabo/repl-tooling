@@ -31,11 +31,17 @@
   (when-let [{:keys [callback filename row col]} (get @pending (get msg "id"))]
     (swap! pending dissoc (get msg "id"))
     (when-let [status (get msg "status")]
-      (if (some #{"namespace-not-found"} status)
+      (cond
+        (some #{"namespace-not-found"} status)
         (callback
          (helpers/error-result "namespace-not-found"
                                (str "Namespace " (get msg "ns") " was not found. Maybe "
                                     "you neeed to load-file, or evaluate the ns form?")
+                               [[nil nil (or filename "<no-file>") row col]]))
+        (some #{"error"} status)
+        (callback
+         (helpers/error-result "Error"
+                               (pr-str status)
                                [[nil nil (or filename "<no-file>") row col]]))))
 
     (when-let [value (get msg "value")]
@@ -114,11 +120,12 @@
   (p/let [[pending session-msg] (session-for buffer on-output)
           session-id (get session-msg "new-session")
           evaluator (->Evaluator conn pending session-id)
+          _ (eval/eval evaluator (h/generic-blob-contents)
+                       {:ignore true :default-printer true})
+          _ (p/delay 100)
           repl-kind (-> (eval/eval evaluator detection)
                         (p/then :result)
-                        (p/catch (constantly :unknown)))
-          _ (eval/eval evaluator (h/generic-blob-contents)
-                       {:ignore true :default-printer true})]
+                        (p/catch (constantly :unknown)))]
     {:evaluator evaluator
      :conn conn
      :buffer buffer
