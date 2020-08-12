@@ -27,32 +27,37 @@
   (break [_ _]
     (.write conn (bencode/encode {:op :interrupt :session session-id}) "binary")))
 
+(defn- send-state-res! [msg status filename row col callback]
+  (cond
+    (some #{"namespace-not-found"} status)
+    (callback
+     (helpers/error-result "namespace-not-found"
+                           (str "Namespace " (get msg "ns") " was not found. Maybe "
+                                "you neeed to load-file, or evaluate the ns form?")
+                           [[nil nil (or filename "<no-file>") row col]]))
+    (some #{"interrupted"} (get msg "status"))
+    (callback {:error "Interrupted!" :as-text "Interrupted!"})
+
+    (some #{"error"} status)
+    (callback
+     (helpers/error-result "Error"
+                           (pr-str status)
+                           [[nil nil (or filename "<no-file>") row col]]))))
+
 (defn- treat-output! [pending on-output msg]
   (when-let [{:keys [callback filename row col]} (get @pending (get msg "id"))]
-    (swap! pending dissoc (get msg "id"))
+    (when (some #{"status" "value" "ex"} (keys msg))
+      (swap! pending dissoc (get msg "id")))
+
     (when-let [status (get msg "status")]
-      (cond
-        (some #{"namespace-not-found"} status)
-        (callback
-         (helpers/error-result "namespace-not-found"
-                               (str "Namespace " (get msg "ns") " was not found. Maybe "
-                                    "you neeed to load-file, or evaluate the ns form?")
-                               [[nil nil (or filename "<no-file>") row col]]))
-        (some #{"error"} status)
-        (callback
-         (helpers/error-result "Error"
-                               (pr-str status)
-                               [[nil nil (or filename "<no-file>") row col]]))))
+      (send-state-res! msg status filename row col callback))
 
     (when-let [value (get msg "value")]
       (callback {:result value :as-text value}))
 
     (when-let [value (get msg "ex")]
       (let [value (->> value (tagged-literal 'repl-tooling/literal-render) pr-str)]
-        (callback {:error value :as-text value})))
-
-    (when (some #{"interrupted"} (get msg "status"))
-      (when callback (callback {:error "Interrupted!" :as-text "Interrupted!"}))))
+        (callback {:error value :as-text value}))))
 
   (when-let [out (-> msg (get "out") not-empty)]
     (on-output {:out out}))
