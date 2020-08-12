@@ -4,6 +4,9 @@
 - Shadow-CLJS can call its own internal API by passing a specific command
 - Support for resolving promises on Shadow Relay API
 - `tap>` support for Shadow-CLJS Relay API
+- Clickable stacktraces for Clojerl
+- Better printer for Clojerl and nREPL
+- Cutting some stdout messages from aux REPL
 
 ## 0.5.0
 - Performance improvement while parsing Clojure code
