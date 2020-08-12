@@ -8,7 +8,7 @@ sudo apt-get update
 sudo apt install libglib2.0-0 libnss3 libgtk3.0 libxss1 libasound2 ffmpeg wget unzip
 npm install
 
-sudo wget https://chromedriver.storage.googleapis.com/73.0.3683.68/chromedriver_linux64.zip
+sudo wget https://chromedriver.storage.googleapis.com/76.0.3809.126/chromedriver_linux64.zip
 sudo unzip chromedriver_linux64.zip
 sudo mv chromedriver /usr/bin
 sudo rm chromedriver_linux64.zip
