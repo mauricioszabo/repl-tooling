@@ -1,4 +1,4 @@
-(defproject repl-tooling "0.5.1"
+(defproject repl-tooling "0.5.2"
   :dependencies [[org.clojure/core.async "0.4.490"]
                  [com.cognitect/transit-cljs "0.8.264"]
                  [reagent "0.10.0"]
