@@ -90,7 +90,7 @@
 (defn for-cljs [repl aux shadow-env cmd-for-cljs-env ns-name text prefix row col]
   (let [ns (when ns-name (str ns-name))
         context (make-context text prefix row col)
-        client-id (-> repl :state deref :build->id shadow-env first)
+        client-id (some-> repl :state deref :build->id shadow-env first)
         suitable (and client-id (suitable aux prefix client-id ns context))
         compliment (compliment aux prefix cmd-for-cljs-env ns context)]
     (-> (p/all [suitable compliment])
