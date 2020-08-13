@@ -89,5 +89,7 @@
                               (res-fn res true)))))
 
     (clojure.core/let [res (do __COMMAND__)]
-      ['tooling$eval-res :result (clojure.core/pr-str (@tooling$norm$walk res))])
-    (catch :default e ['tooling$eval-res :error (clojure.core/pr-str (res-fn e true))])))
+      ['tooling$eval-res '__ID__ {:result (clojure.core/pr-str (@tooling$norm$walk res))
+                                  :as-text (clojure.core/pr-str (@tooling$norm$walk res))}])
+    (catch :default e ['tooling$eval-res '__ID__ {:error (clojure.core/pr-str (res-fn e true))
+                                                  :as-text (clojure.core/pr-str (res-fn e true))}])))

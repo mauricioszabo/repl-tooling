@@ -153,10 +153,10 @@
 
 (defn- capture-result! [state {:keys [result call-id] :as msg}]
   (when-let [{:keys [success? pass]} (-> @state :pending-evals (get call-id))]
-    (let [[_ key parsed-res] (if (str/starts-with? result "[tooling$eval-res")
-                               (edn/read-string {:default tagged-literal} result)
-                               [nil (if success? :result :error) result])]
-      (resolve-pending! state msg (assoc pass key parsed-res :as-text parsed-res)))))
+    (let [[_ _ parsed-res] (if (str/starts-with? result "[tooling$eval-res")
+                             (edn/read-string {:default tagged-literal} result)
+                             [nil (if success? :result :error) result])]
+      (resolve-pending! state msg (merge pass parsed-res)))))
 
 (defn- get-result! [state msg]
   (swap! state update-in [:pending-evals (:call-id msg)] assoc :success? true)
