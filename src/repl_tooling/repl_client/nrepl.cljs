@@ -1,16 +1,20 @@
 (ns repl-tooling.repl-client.nrepl
   (:require [repl-tooling.nrepl.bencode :as bencode]
             [repl-tooling.eval :as eval]
+            [repl-tooling.repl-client.clj-helper :as h]
+            [repl-tooling.editor-helpers :as helpers]
             [promesa.core :as p]))
 
 (defrecord Evaluator [^js conn pending session-id]
   eval/Evaluator
   (evaluate [this command opts callback]
     (let [id (:id opts (gensym "eval"))
-          op {:op "eval"
-              :code (str command)
-              :id id
-              :session session-id}
+          op (cond-> {:op "eval"
+                      :code (str command)
+                      :id id
+                      :session session-id}
+                     (nil? (:default-printer opts))
+                     (assoc :nrepl.middleware.print/print "___repl-tooling.__generic_printer_blob/nrepl-pprint"))
           full-op (cond-> op
                           (:namespace opts) (assoc :ns (:namespace opts))
                           (:filename opts) (assoc :file (:filename opts))
@@ -23,21 +27,37 @@
   (break [_ _]
     (.write conn (bencode/encode {:op :interrupt :session session-id}) "binary")))
 
+(defn- send-state-res! [msg status filename row col callback]
+  (cond
+    (some #{"namespace-not-found"} status)
+    (callback
+     (helpers/error-result "namespace-not-found"
+                           (str "Namespace " (get msg "ns") " was not found. Maybe "
+                                "you neeed to load-file, or evaluate the ns form?")
+                           [[nil nil (or filename "<no-file>") row col]]))
+    (some #{"interrupted"} (get msg "status"))
+    (callback {:error "Interrupted!" :as-text "Interrupted!"})
+
+    (some #{"error"} status)
+    (callback
+     (helpers/error-result "Error"
+                           (pr-str status)
+                           [[nil nil (or filename "<no-file>") row col]]))))
+
 (defn- treat-output! [pending on-output msg]
-  (when-let [value (get msg "value")]
-    (when-let [{:keys [callback ignore]} (get @pending (get msg "id"))]
-      (callback {:result value :as-text value})
-      (swap! pending dissoc (get msg "id"))))
+  (when-let [{:keys [callback filename row col]} (get @pending (get msg "id"))]
+    (when (some #{"status" "value" "ex"} (keys msg))
+      (swap! pending dissoc (get msg "id")))
 
-  (when-let [value (get msg "ex")]
-    (when-let [{:keys [callback]} (get @pending (get msg "id"))]
+    (when-let [status (get msg "status")]
+      (send-state-res! msg status filename row col callback))
+
+    (when-let [value (get msg "value")]
+      (callback {:result value :as-text value}))
+
+    (when-let [value (get msg "ex")]
       (let [value (->> value (tagged-literal 'repl-tooling/literal-render) pr-str)]
-        (callback {:error value :as-text value})
-        (swap! pending dissoc (get msg "id")))))
-
-  (when (some #{"interrupted"} (get msg "status"))
-    (let [{:keys [callback]} (get @pending (get msg "id"))]
-      (when callback (callback {:error "Interrupted!" :as-text "Interrupted!"}))))
+        (callback {:error value :as-text value}))))
 
   (when-let [out (-> msg (get "out") not-empty)]
     (on-output {:out out}))
@@ -105,6 +125,9 @@
   (p/let [[pending session-msg] (session-for buffer on-output)
           session-id (get session-msg "new-session")
           evaluator (->Evaluator conn pending session-id)
+          _ (eval/eval evaluator (h/generic-blob-contents)
+                       {:ignore true :default-printer true})
+          _ (p/delay 100)
           repl-kind (-> (eval/eval evaluator detection)
                         (p/then :result)
                         (p/catch (constantly :unknown)))]

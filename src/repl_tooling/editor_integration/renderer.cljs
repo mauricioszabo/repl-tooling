@@ -374,12 +374,13 @@
       [:div {:key idx :class ["row" (if clj-file? "clj-stack" "stack")]}
        [:div
         "in "
-        [:span {:class "class"} var]
-        (when-not clj-file? [:span {:class "method"} "."
-                             method])
-        (if clj-file?
-          (trace-link var file row editor-state)
-          (trace-span file row))]])))
+        (when var [:span {:class "class"} var])
+        (when-not (or clj-file? (nil? method))
+          [:span {:class "method"} "." method])
+        (cond
+          clj-file? (trace-link var file row editor-state)
+          (existsSync (str file)) (trace-link var file row editor-state)
+          :else (trace-span file row))]])))
 
 (defn- to-trace-row-txt [repl ratom idx trace]
   (let [[class method file row] trace

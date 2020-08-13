@@ -8,6 +8,7 @@
             [repl-tooling.integrations.repls :as repls]
             [cognitect.transit :as t]
             [repl-tooling.repl-client.clj-helper :as h]
+            [repl-tooling.repl-client.source :as source]
             ["ws" :as Websocket]))
 
 (def State (s/atom {:build-id s/Keyword
@@ -35,9 +36,16 @@
         file (:filename opts "[EVAL]")
         build-id (:build-id @state)
         client-id (-> @state (get-in [:build->id build-id]) first)
-        blobbed-code (str/replace blob #"__COMMAND__" code)
+        blobbed-code (source/parse-command (str/replace blob #"__COMMAND__" code) true)
         prom (p/deferred)]
-    (if client-id
+    (cond
+      (:error blobbed-code)
+      (p/resolve! prom (merge (:pass opts)
+                              (helpers/error-result "Syntax Error"
+                                                    (:error blobbed-code)
+                                                    [[file nil build-id row]])))
+
+      client-id
       (do
         (swap! state update :pending-evals assoc (:id opts) {:promise prom
                                                              :file file
@@ -46,12 +54,14 @@
         (send! ws {:op :cljs-eval
                    :to client-id
                    :call-id (:id opts)
-                   :input {:code blobbed-code :ns (symbol namespace)}}))
+                   :input {:code (:result blobbed-code) :ns (symbol namespace)}}))
+
+      :else
       (p/resolve! prom (merge (:pass opts)
                               (helpers/error-result "No clients connected"
                                                     (str "No clients connected to "
                                                          "the runtime " build-id)
-                                                    [[file "" build-id row]]))))
+                                                    [[file nil build-id row]]))))
     prom))
 
 (defn- send-custom-command! [state message id opts]
@@ -169,7 +179,7 @@
     (let [trace (->> warnings
                      (mapv (fn [{:keys [msg line]}]
                              [(str/replace msg #"Use of.* (.*/.*)$" "$1")
-                              ""
+                              nil
                               file
                               (dec (+ row line))])))]
       (resolve-pending! state msg
@@ -181,7 +191,7 @@
   (when-let [{:keys [row file]} (-> @state :pending-evals (get call-id))]
     (resolve-pending! state msg (helpers/error-result "404"
                                                       "Result not found"
-                                                      [[file "" "" row]]))))
+                                                      [[file nil nil row]]))))
 
 (defn- send-output! [state {:keys [stream text]}]
   (let [on-out (:on-output @state)

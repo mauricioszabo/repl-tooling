@@ -174,6 +174,12 @@
                                                        (:repl @patchable)
                                                        (:editor-state @patchable))))))))
 
+(defn- callback-aux [original-callback]
+  (fn [msg]
+    (if (or (:out msg) (:err msg))
+      (when helpers/*out-on-aux* (original-callback msg))
+      (original-callback msg))))
+
 ; Config Options:
 ; {:project-paths [...]
 ;  :eval-mode (enum :clj :cljs :prefer-clj :prefer-cljs)}
@@ -225,7 +231,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
            _ (case kind
                :cljs (prepare-cljs primary host port state options)
                :joker (prepare-joker primary host port state options)
-               (p/let [[_ aux] (repls/connect-repl! :clj-aux host port callback)]
+               (p/let [[_ aux] (repls/connect-repl! :clj-aux host port (callback-aux callback))]
                  (prepare-generic primary aux host port state options kind)))
            nrepl? (instance? nrepl/Evaluator primary)]
      (notify {:type :info :title (str (tr-kind kind)
