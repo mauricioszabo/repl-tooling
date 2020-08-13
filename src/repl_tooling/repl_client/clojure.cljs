@@ -1,6 +1,6 @@
 (ns repl-tooling.repl-client.clojure
   (:require [repl-tooling.editor-helpers :as helpers]
-            [repl-tooling.repl-client.clj-helper :refer [blob-contents]]
+            [repl-tooling.repl-client.clj-helper :as h]
             [repl-tooling.eval :as eval]
             [cljs.reader :as reader]
             [clojure.string :as str]
@@ -8,7 +8,7 @@
             [repl-tooling.repl-client.source :as source]
             [rewrite-clj.parser :as parser]))
 
-(def blob (blob-contents))
+(def clj-blob (h/blob-contents))
 
 ; Pending eval format:
 ; {:cmd string? :channel async :id symbol? :ignore-result? boolean :opts map?}
@@ -156,7 +156,7 @@
                      :conn conn
                      :on-output on-output})
         session (atom {:state state})]
-    (.write conn blob)
+    (.write conn clj-blob)
     (swap! control assoc
            :on-line #(if %
                        (treat-all-output! % state)
@@ -172,13 +172,14 @@
   (.write conn (str (:result code) "\n"))
   (swap! (-> evaluator :evaluator :session) assoc :pending []))
 
+(def ^:private cljs-blob (h/contents-for-fn "cljs-cmd-wrap.cljs"))
 (defrecord SelfHostedCljs [evaluator pending]
   eval/Evaluator
   (evaluate [self command opts callback]
     (let [id (or (:id opts) (gensym))
           state (-> evaluator :session deref :state deref)
           conn (:conn state)
-          code (source/wrap-command id command :default false)]
+          code (source/wrap-command cljs-blob id command :default false)]
 
       (if (:error code)
         (let [output (:on-output state)]
