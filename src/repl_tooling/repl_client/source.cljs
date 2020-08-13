@@ -27,17 +27,20 @@
       {:result (str (cond-> res remove-lines? normalize-command))}
       cmd)))
 
-(def ^:private template (generic-eval-wrapper))
-(defn wrap-command [id cmd ex-type strip-newlines?]
-  (let [cmd (parse-command cmd strip-newlines?)]
-    (if-let [res (:result cmd)]
-      (-> template
-          (str/replace #"__COMMAND__" (str res "\n"))
-          (str/replace #"__ID__" (pr-str id))
-          (str/replace #"__EX_TYPE__" (pr-str ex-type))
-          (parse-command strip-newlines?)
-          (update :result str "\n"))
-      cmd)))
+(def ^:private default-template (generic-eval-wrapper))
+(defn wrap-command
+  ([id cmd ex-type strip-newlines?]
+   (wrap-command default-template id cmd ex-type strip-newlines?))
+  ([template id cmd ex-type strip-newlines?]
+   (let [cmd (parse-command cmd strip-newlines?)]
+     (if-let [res (:result cmd)]
+       (-> template
+           (str/replace #"__COMMAND__" (str res "\n"))
+           (str/replace #"__ID__" (pr-str id))
+           (str/replace #"__EX_TYPE__" (pr-str ex-type))
+           (parse-command strip-newlines?)
+           (update :result str "\n"))
+       cmd))))
 
 (defn have-ns-command [ns-name]
   (str "(try (#?(:joker joker.core/require :default clojure.core/require) '" ns-name ") "
