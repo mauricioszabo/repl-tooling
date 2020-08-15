@@ -111,6 +111,9 @@
     (->> res type str (re-find #"BigInt"))
     (str "#unrepl/bigint "res)
 
+    (->> res pr-str (re-find #"^#error "))
+    res
+
     (number? res)
     (if (> res 9007199254740990)
       (tagged-literal 'repl-tooling/literal-render (pr-str res))
