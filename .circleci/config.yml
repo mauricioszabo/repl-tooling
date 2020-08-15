@@ -14,8 +14,8 @@ jobs:
       - store_artifacts:
           path: ~/video
       - run: ls target -lh
-      - save_cache:
-          key: fixture-app
+      - persist_to_workspace:
+          root: .
           paths:
             - target
 
@@ -28,9 +28,8 @@ jobs:
   babashka:
     <<: *defaults
     steps:
-      - restore_cache:
-          keys:
-            - fixture-app
+      - attach_workspace
+          at: .
       - run: wget https://github.com/borkdude/babashka/releases/download/v0.1.3/babashka-0.1.3-linux-amd64.zip
       - run: unzip babashka*zip
       - run: bb --socket-repl 4444 &
