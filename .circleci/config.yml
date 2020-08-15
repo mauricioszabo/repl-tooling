@@ -17,6 +17,7 @@ jobs:
           key: fixture-app
           paths:
             - target
+            - .shadow-cljs
 
   publish:
     <<: *defaults
