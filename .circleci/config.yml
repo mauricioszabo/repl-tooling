@@ -13,12 +13,27 @@ jobs:
           when: always
       - store_artifacts:
           path: ~/video
+      - save_cache:
+          key: fixture-app
+          paths:
+            - target
 
   publish:
     <<: *defaults
     steps:
       - checkout
       - run: ./scripts/deploy.sh
+
+  babashka:
+    <<: *defaults
+    steps:
+      - restore_cache:
+          keys:
+            - target
+      - run: wget https://github.com/borkdude/babashka/releases/download/v0.1.3/babashka-0.1.3-linux-amd64.zip
+      - run: unzip babashka*zip
+      - run: bb --socket-repl 4444 &
+      - run: node target/fixture babashka.bb
 
 workflows:
   version: 2
@@ -41,3 +56,7 @@ workflows:
             branches:
               only:
                 - master
+
+      - babashka:
+          requires:
+            - test
