@@ -49,8 +49,8 @@ jobs:
     steps:
       - attach_workspace:
           at: '.'
-      - run: sudo npm install -g lumo
-      - run: lumo -n 4444 & sleep 2; node target/fixture.js lumo.cljs
+      - run: npm install lumo
+      - run: npx lumo -n 4444 & sleep 2; node target/fixture.js lumo.cljs
 
 workflows:
   version: 2
