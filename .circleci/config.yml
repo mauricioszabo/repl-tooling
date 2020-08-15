@@ -30,6 +30,7 @@ jobs:
     steps:
       - attach_workspace:
           at: '.'
+      - run: npm install ws source-map-support
       - run: wget https://github.com/borkdude/babashka/releases/download/v0.1.3/babashka-0.1.3-linux-amd64.zip
       - run: unzip babashka*zip
       - run: bb --socket-repl 4444 &
