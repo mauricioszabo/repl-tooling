@@ -13,6 +13,7 @@ jobs:
           when: always
       - store_artifacts:
           path: ~/video
+      - run: ls target -lh
       - save_cache:
           key: fixture-app
           paths:
