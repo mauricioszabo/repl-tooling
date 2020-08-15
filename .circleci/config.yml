@@ -35,6 +35,23 @@ jobs:
       - run: unzip babashka*zip
       - run: ./bb --socket-repl 4444 & sleep 2; node target/fixture.js babashka.bb
 
+  joker:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: '.'
+      - run: wget https://github.com/candid82/joker/releases/download/v0.15.6/joker-0.15.6-linux-amd64.zip
+      - run: unzip joker.zip
+      - run: ./joker --exit-to-repl localhost:4444 & sleep 2; node target/fixture.js joker.joke
+
+  lumo:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: '.'
+      - run: npm install -g lumo
+      - run: lumo -n 4444 & sleep 2; node target/fixture.js lumo.cljs
+
 workflows:
   version: 2
   default-workflow:
@@ -58,5 +75,11 @@ workflows:
                 - master
 
       - babashka:
+          requires:
+            - test
+      - joker:
+          requires:
+            - test
+      - lumo:
           requires:
             - test
