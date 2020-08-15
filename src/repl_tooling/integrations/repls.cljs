@@ -130,7 +130,6 @@
       (clj/prepare-unrepl-evaluator conn control on-output)
       (p/do!
         (p/race [(wait-for-blob-done conn control) (p/delay 1000)])
-        (wait-for-blob-done conn control)
         (swap! control assoc :ignore-prompt true)
         (connection/prepare-evals control
                                   #(if-let [out %] (on-output {:out out}) (on-output nil))
