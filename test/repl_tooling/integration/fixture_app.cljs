@@ -11,4 +11,4 @@
   :cljs-autocomplete-keyword
   (if (-> args count zero?)
     (prn :CONNECTED)
-    (test/run)))
+    (test/run (first args))))

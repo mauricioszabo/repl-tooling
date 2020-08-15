@@ -87,5 +87,7 @@
       (p/let [res (evaluate! "(throw (ex-info :foo {}))")]
         (check res => {:result {:error {:message :foo}}})))))
 
-(defn run []
-  (run-tests))
+(defn run [file-name]
+  (reset! filename file-name)
+  (p/let [{:keys [fail error]} (run-tests)]
+    (.exit js/process (+ fail error))))
