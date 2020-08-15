@@ -3,6 +3,10 @@
 
 (defmulti serialize #(-> % type pr-str))
 
+#?(:joker
+   (defn tagged-literal [a-sym a-val]
+     (symbol (str "#" a-sym " " (pr-str a-val)))))
+
 (defn- to-symbol [res]
   (let [r (pr-str res)]
     (if (re-matches #":[a-zA-Z0-9\-.$!?\/><*=_]+" r)
@@ -49,37 +53,39 @@
        (+ (clojerl.IHash/hash (get this :tag))
           (clojerl.IHash/hash (get this :form))))))
 
-(defmethod serialize "#object[cljs$core$ExceptionInfo]" [res]
-  (tagged-literal 'error
-    {:type "cljs.core.ExceptionInfo"
-     :data (.-data res)
-     :message (.-message res)
-     :trace (->> res .-stack clojure.string/split-lines)}))
+#?(:cljs
+   (defmethod serialize "#object[cljs$core$ExceptionInfo]" [res]
+     (tagged-literal 'error
+        {:type "cljs.core.ExceptionInfo"
+         :data (.-data res)
+         :message (.-message res)
+         :trace (->> res .-stack clojure.string/split-lines)})))
 
 (defmethod serialize "erlang.Tuple" [res]
   (tagged-literal 'erl (serialize (vec res))))
 
-(defmethod serialize "#object[Promise]" [res]
-  (let [id (gensym "patch")]
-    (.then res
-      (fn [res]
-        (tap>
-         (tagged-literal
-          'repl-tooling/patch
-          [id
-           (pr-str
-            (tagged-literal
-             'promise
-             (serialize res)))]))))
-    (tagged-literal
-     'repl-tooling/patchable [id (tagged-literal 'promise '<pending>)])))
+#?(:cljs
+    (defmethod serialize "#object[Promise]" [res]
+      (let [id (gensym "patch")]
+        (.then res
+          (fn [res]
+            (tap>
+             (tagged-literal
+              'repl-tooling/patch
+              [id
+               (pr-str
+                (tagged-literal
+                 'promise
+                 (serialize res)))]))))
+        (tagged-literal
+         'repl-tooling/patchable [id (tagged-literal 'promise '<pending>)]))))
 
 (defmethod serialize :default [res]
   (cond
      #?(:cljs false :clje false :default (ratio? res))
      (tagged-literal 'repl-tooling/literal-render (pr-str res))
 
-    (record? res)
+    #?(:joker false :default (record? res))
     res
 
     (map? res)
