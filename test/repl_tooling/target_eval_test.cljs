@@ -84,10 +84,13 @@
         (check res => {:result {:result {:a 1 :b 2}}})))
 
     (testing "evaluates errors"
-      (p/let [res (evaluate! "(throw (ex-info :foo {}))")]
-        (check res => {:result {:error {:message :foo}}})))))
+      (p/let [res (evaluate! "(throw (ex-info \"Foo\" {}))")]
+        (check res => {:result {:error {:message "Foo"}}})))))
 
 (defn run [file-name]
   (reset! filename file-name)
-  (p/let [{:keys [fail error]} (run-tests)]
-    (.exit js/process (+ fail error))))
+  (p/let [res (run-tests)
+          {:keys [fail error]} (:report-counters res)]
+    (if res
+      (.exit js/process (+ fail error))
+      (.exit js/process 1))))
