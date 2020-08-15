@@ -3,6 +3,18 @@
 
 (defmulti serialize #(-> % type pr-str))
 
+(defn- to-symbol [res]
+  (let [r (pr-str res)]
+    (if (re-matches #":[a-zA-Z0-9\-.$!?\/><*=_]+" r)
+      res
+      (tagged-literal 'unrepl/bad-symbol [nil (pr-str res)]))))
+
+(defn- to-keyword [res]
+  (let [r (pr-str res)]
+    (if (re-matches #"[a-zA-Z0-9\-.$!?\/><*=_]+" r)
+      res
+      (tagged-literal 'unrepl/bad-keyword [(namespace res) (name res)]))))
+
 #?(:cljs
    (defn norm-js-obj [js-obj]
      (tagged-literal
@@ -76,6 +88,9 @@
     (vector? res)
     (mapv serialize res)
 
+    (set? res)
+    (into #{} (map serialize res))
+
     (coll? res)
     (map serialize res)
 
@@ -83,19 +98,12 @@
     (tagged-literal 'repl-tooling/literal-render (pr-str res))
 
     (->> res type str (re-find #"(?i)regex"))
-    (tagged-literal 'repl-tooling/literal-render (pr-str res))
+    (tagged-literal 'unrepl/pattern (-> (pr-str res)
+                                        (clojure.string/replace #"^#\"" "")
+                                        (clojure.string/replace #"\"$" "")))
 
-    (symbol? res)
-    (let [r (pr-str res)]
-      (if (re-matches #"[a-zA-Z0-9\-.$!?\/><*=_]+" r)
-        res
-        (tagged-literal 'unrepl/bad-symbol [nil (pr-str res)])))
-
-    (keyword? res)
-    (let [r (pr-str res)]
-      (if (re-matches #"[a-zA-Z0-9\-.$!?\/><*=_]+" r)
-        res
-        (tagged-literal 'unrepl/bad-keyword [(namespace res) (name res)])))
+    (symbol? res) (to-symbol res)
+    (keyword? res) (to-keyword res)
 
     (->> res type str (re-find #"Big(Decimal|Float)"))
     (str "#unrepl/bigdec " res)
@@ -108,7 +116,7 @@
       (tagged-literal 'repl-tooling/literal-render (pr-str res))
       res)
 
-    (contains? [true false nil] res) res
+    (contains? #{true false nil} res) res
 
     #?(:cljs (instance? js/Error res))
     #?(:cljs (tagged-literal 'error
