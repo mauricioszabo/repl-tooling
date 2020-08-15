@@ -82,9 +82,10 @@
 
 (defn run-tests-on-ci {:shadow/requires-server true} []
   (shadow/watch :integration)
-  (shadow/watch :fixture))
+  (shadow/watch :fixture)
   ; (let [sh (future (shell/sh "node" "target/fixture.js"))
   ;       failures (run-tests!)]
   ;   (System/exit (if (zero? failures) 0 1))))
+  (System/exit 0))
 
 #_(run-tests!)
