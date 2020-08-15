@@ -41,7 +41,7 @@ jobs:
       - attach_workspace:
           at: '.'
       - run: wget https://github.com/candid82/joker/releases/download/v0.15.6/joker-0.15.6-linux-amd64.zip
-      - run: unzip joker.zip
+      - run: unzip joker*.zip
       - run: ./joker --exit-to-repl localhost:4444 & sleep 2; node target/fixture.js joker.joke
 
   lumo:
@@ -49,7 +49,7 @@ jobs:
     steps:
       - attach_workspace:
           at: '.'
-      - run: npm install -g lumo
+      - run: sudo npm install -g lumo
       - run: lumo -n 4444 & sleep 2; node target/fixture.js lumo.cljs
 
 workflows:
