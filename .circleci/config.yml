@@ -67,6 +67,22 @@ jobs:
       - run: tmux send-keys "(do (require 'clojure.core.server) (clojure.core.server/start-server {:name \"socket-repl\" :port 4444 :accept 'clojure.main/repl :address \"localhost\"}))" Enter
       - run: sleep 20; node target/fixture.js clojerl.clje
 
+  clojureclr:
+    docker:
+      - image: mono
+    steps:
+      - attach_workspace:
+          at: '.'
+      - run: apt-get update
+      - run: apt-get install -y npm nodejs wget unzip tmux
+      - run: wget https://ayera.dl.sourceforge.net/project/clojureclr/clojure-clr-1.9.0-Release%204.0.zip
+      - run: unzip clojure-*.zip
+      - run: cd Release*
+      - run: tmux new-session -d
+      - run: tmux send-keys 'mono Clojure.Main.exe' Enter
+      - run: tmux send-keys "(do (require 'clojure.core.server) (clojure.core.server/start-server {:name \"socket-repl\" :port 4444 :accept 'clojure.main/repl :address \"localhost\"}))" Enter
+      - run: sleep 20; node target/fixture.js somefile.clj
+
 workflows:
   version: 2
   default-workflow:
@@ -99,5 +115,8 @@ workflows:
           requires:
             - test
       - clojerl:
+          requires:
+            - test
+      - clojureclr:
           requires:
             - test
