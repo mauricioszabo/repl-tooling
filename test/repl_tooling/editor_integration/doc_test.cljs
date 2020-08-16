@@ -8,10 +8,8 @@
             [check.core :refer [check]]
             [check.async :refer [async-test await!]]
             [clojure.core.async :as async]
-            [repl-tooling.eval-helpers :as h]
             [repl-tooling.integration.ui-macros :as m]
             [devcards.core :as cards]))
-            ; [repl-tooling.commands-to-repl.doc-and-spec :as sdoc]))
 
 (cards/deftest orchard-info
   (async-test "with editor infrastructure" {:timeout 8000
