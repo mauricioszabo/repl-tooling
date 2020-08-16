@@ -49,8 +49,11 @@ jobs:
     steps:
       - attach_workspace:
           at: '.'
-      - run: sudo npm install -g lumo-cljs
-      - run: lumo -n 4444 & sleep 20; node target/fixture.js lumo.cljs
+      - run: sudo apt install tmux
+      - run: sudo npm install -g lumo-cljs --unsafe-perm
+      - run: tmux new-session -d
+      - run: tmux send-keys 'lumo -n 4444 ' Enter
+      - run: sleep 5; node target/fixture.js lumo.cljs
 
   clojerl:
     docker:
