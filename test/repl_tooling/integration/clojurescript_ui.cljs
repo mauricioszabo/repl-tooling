@@ -19,7 +19,7 @@
 (defn- click-selector [sel]
   (-> js/document (.querySelector sel) .click))
 
-(set! cards/test-timeout 8000)
+(set! cards/test-timeout 20000)
 
 (cards/deftest repl-evaluation
   (async-test "ClojureScript REPL evaluation" {:teardown (fake/disconnect!)

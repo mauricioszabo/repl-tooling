@@ -85,7 +85,7 @@
     (.click elem)
     elem))
 
-(set! cards/test-timeout 8000)
+(set! cards/test-timeout 20000)
 (cards/deftest repl-evaluation
   (async done
     (async/go

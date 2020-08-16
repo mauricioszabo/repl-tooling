@@ -11,7 +11,7 @@
             [repl-tooling.features.autocomplete.suitable :as suit]
             [repl-tooling.eval-helpers :as h]))
 
-(set! cards/test-timeout 8000)
+(set! cards/test-timeout 20000)
 (cards/deftest clojure-simple-autocomplete
   (h/async-with-repl "Clojure simple autocomplete"
     (testing "completing core functions"

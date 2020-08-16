@@ -7,7 +7,7 @@
             [repl-tooling.repl-client.connection :as c]
             [reagent.core :as r]))
 
-(set! cards/test-timeout 8000)
+(set! cards/test-timeout 20000)
 (defonce state (atom nil))
 (defn- buffer [] (some-> @state :buffer deref))
 

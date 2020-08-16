@@ -9,7 +9,7 @@
             [repl-tooling.eval-helpers
              :refer [eval-on-repl async-with-repl async-with-cljs-repl]]))
 
-(set! cards/test-timeout 80000)
+(set! cards/test-timeout 20000)
 (cards/deftest finding-definition
   (async-with-repl "finding definition on Clojure"
     (eval-on-repl "(require '[repl-tooling.features.definition-helper :reload :all])")

@@ -9,7 +9,7 @@
                                                       async-with-clj-repl]]
             [repl-tooling.repl-client.clojure :as clj]))
 
-(set! cards/test-timeout 8000)
+(set! cards/test-timeout 20000)
 (cards/deftest evaluate-ellisions
   (async-with-clj-repl "ellisions"
        (testing "objects without get-more"

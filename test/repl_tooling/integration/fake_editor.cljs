@@ -37,16 +37,15 @@
     (reset! (:eval-result @state) res)
     (swap! state update :stdout (fn [e] (str e "=> " (-> result :result :as-text) "\n")))))
 
-(defn evaluate []
-  (let [lines (-> @state :code str/split-lines)
-        eval-sel (-> @state :commands :evaluate-selection :command)]
-    (swap! state assoc :range [[0 0] [(-> lines count dec) (-> lines last count dec)]])
-    (eval-sel)))
-
 (defn run-command! [command]
   (if-let [cmd (get-in @state [:commands command :command])]
     (cmd)
     (prn "Command not found" command)))
+
+(defn evaluate []
+  (let [lines (-> @state :code str/split-lines)]
+    (swap! state assoc :range [[0 0] [(-> lines count dec) (-> lines last count dec)]])
+    (run-command! :evaluate-selection)))
 
 (defn type [txt] (swap! state assoc :code txt))
 (defn type-and-eval [txt]
