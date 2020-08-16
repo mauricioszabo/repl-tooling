@@ -49,7 +49,7 @@ jobs:
     steps:
       - attach_workspace:
           at: '.'
-      - run: npm install -g lumo-cljs
+      - run: sudo npm install -g lumo-cljs
       - run: lumo -n 4444 & sleep 20; node target/fixture.js lumo.cljs
 
   clojerl:
