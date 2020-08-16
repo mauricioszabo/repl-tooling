@@ -49,12 +49,11 @@ jobs:
     steps:
       - attach_workspace:
           at: '.'
-      - run: npm install lumo
-      - run: npx lumo -n 4444 & sleep 2; node target/fixture.js lumo.cljs
+      - run: npx -p lumo-cljs lumo -n 4444 & sleep 2; node target/fixture.js lumo.cljs
 
   clojerl:
     docker:
-      - image: erlang:alpine
+      - image: erlang
     steps:
       - attach_workspace:
           at: '.'
