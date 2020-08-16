@@ -50,7 +50,7 @@ jobs:
       - attach_workspace:
           at: '.'
       - run: npm install lumo-cljs
-      - run: npx -p lumo-cljs lumo -n 4444 & sleep 2; node target/fixture.js lumo.cljs
+      - run: npx -p lumo-cljs lumo -n 4444 & sleep 20; node target/fixture.js lumo.cljs
 
   clojerl:
     docker:
