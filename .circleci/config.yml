@@ -95,18 +95,6 @@ workflows:
               only:
                 - /^v.+/
 
-      - publish:
-          context: Clojure Libs
-          requires:
-            - test
-          filters:
-            tags:
-              only:
-                - /^v.+/
-            branches:
-              only:
-                - master
-
       - babashka:
           requires:
             - test
@@ -122,3 +110,19 @@ workflows:
       - clojureclr:
           requires:
             - test
+
+      - publish:
+          context: Clojure Libs
+          requires:
+            - babashka
+            - joker
+            - lumo
+            - clojerl
+            - clojureclr
+          filters:
+            tags:
+              only:
+                - /^v.+/
+            branches:
+              only:
+                - master
