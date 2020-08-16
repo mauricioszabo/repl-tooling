@@ -113,8 +113,8 @@
                                                           (async/close! out)
                                                           (editor/disconnect!))}
       (swap! editor/state assoc :port 3322)
-      (editor/connect! {:on-stderr #(swap! editor/state update :stdout
-                                           (fn [e] (str e "ERR: " %)))})
+      (await! (editor/connect! {:on-stderr #(swap! editor/state update :stdout
+                                                   (fn [e] (str e "ERR: " %)))}))
       (await! (editor/wait-for #(-> @editor/state :repls :eval)))
 
       (testing "evaluation works"
