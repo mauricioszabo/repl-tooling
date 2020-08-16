@@ -91,7 +91,7 @@
   (reset! filename file-name)
   (p/catch (p/let [res (run-tests)
                    {:keys [fail error]} (:report-counters res)]
-             (if res
+             (if (and fail error)
                (.exit js/process (+ fail error))
                (.exit js/process 1)))
            #(.exit js/process 1)))
