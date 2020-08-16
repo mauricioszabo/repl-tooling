@@ -132,7 +132,11 @@
     (str "#unrepl/bigint "res)
 
     (->> res pr-str (re-find #"^#error "))
-    res
+    #?(:cljr (-> res pr-str
+                 (clojure.string/replace-first #":message"
+                                               (str ":message " (.Message res)))
+                 symbol)
+       :default res)
 
     (number? res)
     (if (> res 9007199254740990)
