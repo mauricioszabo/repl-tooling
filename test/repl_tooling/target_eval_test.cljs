@@ -89,8 +89,9 @@
 
 (defn run [file-name]
   (reset! filename file-name)
-  (p/let [res (run-tests)
-          {:keys [fail error]} (:report-counters res)]
-    (if res
-      (.exit js/process (+ fail error))
-      (.exit js/process 1))))
+  (p/catch (p/let [res (run-tests)
+                   {:keys [fail error]} (:report-counters res)]
+             (if res
+               (.exit js/process (+ fail error))
+               (.exit js/process 1)))
+           #(.exit js/process 1)))
