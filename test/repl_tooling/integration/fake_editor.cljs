@@ -1,4 +1,5 @@
 (ns repl-tooling.integration.fake-editor
+  (:require-macros [repl-tooling.integration.fake-editor])
   (:refer-clojure :exclude [type])
   (:require [clojure.string :as str]
             [promesa.core :as p]
@@ -19,6 +20,7 @@
            (recur (inc t))))))))
 
 (defonce state (r/atom {:host "localhost"
+                        :filename "foo.clj"
                         :port 2233
                         :code "(do (defrecord Foo [a b]) (->Foo (range 20) 20))"
                         :repls {:eval nil
@@ -85,10 +87,13 @@
                               :on-stdout #(swap! state update :stdout (fn [e] (str e %)))
                               :on-eval res
                               :notify identity
+                              :prompt (constantly (. js/Promise resolve "fixture"))
+                              :get-config (constantly {:eval-mode :prefer-clj
+                                                       :project-paths [(. js/process cwd)]})
                               :on-stderr #(swap! state update :stderr (fn [e] (str e %)))
                               :editor-data #(let [code (:code @state)]
                                               {:contents code
-                                               :filename "foo.clj"
+                                               :filename (:filename @state)
                                                :range (:range @state)})}
                              additional-callbacks))
        (then (fn [res]
