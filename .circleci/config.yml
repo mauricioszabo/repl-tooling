@@ -49,8 +49,8 @@ jobs:
     steps:
       - attach_workspace:
           at: '.'
-      - run: npm install lumo-cljs
-      - run: npx -p lumo-cljs lumo -n 4444 & sleep 20; node target/fixture.js lumo.cljs
+      - run: npm install -g lumo-cljs
+      - run: lumo -n 4444 & sleep 20; node target/fixture.js lumo.cljs
 
   clojerl:
     docker:
@@ -61,10 +61,11 @@ jobs:
       - run: apt-get update
       - run: apt-get install -y git npm nodejs rlwrap tmux
       - run: echo '{erl_opts, [debug_info]}. {deps, [{clojerl, {git, "https://github.com/clojerl/clojerl", {branch, "master"}}}]}. {plugins, [{rebar3_clojerl, "0.8.3"}]}.' > rebar.config
+      - run: echo ":foo" | rebar3 clojerl repl
       - run: tmux new-session -d
       - run: tmux send-keys 'rebar3 clojerl repl' Enter
       - run: tmux send-keys "(do (require 'clojure.core.server) (clojure.core.server/start-server {:name \"socket-repl\" :port 4444 :accept 'clojure.main/repl :address \"localhost\"}))" Enter
-      - run: sleep 60; node target/fixture.js clojerl.clje
+      - run: sleep 20; node target/fixture.js clojerl.clje
 
 workflows:
   version: 2
