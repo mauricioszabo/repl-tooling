@@ -95,3 +95,5 @@
                (.exit js/process (+ fail error))
                (.exit js/process 1)))
            #(.exit js/process 1)))
+
+#_(reset! filename "foo.clj")

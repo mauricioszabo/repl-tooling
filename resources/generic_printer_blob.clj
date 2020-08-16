@@ -53,6 +53,20 @@
        (+ (clojerl.IHash/hash (get this :tag))
           (clojerl.IHash/hash (get this :form))))))
 
+#?(:clje
+   (defn normalize-error [res]
+     (let [trace (mapv (fn [[_ _ _ [[_ file] [_ line]]]]
+                         [nil nil (str file) line])
+                       (erlang/get_stacktrace))]
+       (if (instance? clojerl.ExceptionInfo res)
+         {:type "clojerl.ExceptionInfo"
+          :message (serialize (.message res))
+          :data (serialize (ex-data res))
+          :trace trace}
+         {:type "Error"
+          :message (serialize res)
+          :trace trace}))))
+
 #?(:cljs
    (defmethod serialize "#object[cljs$core$ExceptionInfo]" [res]
      (tagged-literal 'error
@@ -105,8 +119,8 @@
 
     (->> res type str (re-find #"(?i)regex"))
     (tagged-literal 'unrepl/pattern (-> (pr-str res)
-                                        (clojure.string/replace #"^#\"" "")
-                                        (clojure.string/replace #"\"$" "")))
+                                        (clojure.string/replace (re-pattern "^#\"") "")
+                                        (clojure.string/replace (re-pattern "\"$") "")))
 
     (symbol? res) (to-symbol res)
     (keyword? res) (to-keyword res)
