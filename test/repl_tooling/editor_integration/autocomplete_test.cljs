@@ -10,7 +10,7 @@
             [repl-tooling.eval-helpers :as h]
             [repl-tooling.editor-integration.connection :as conn]))
 
-(set! cards/test-timeout 1000)
+(set! cards/test-timeout 20000)
 (cards/deftest autodetection-of-autocomplete
   (async-test "autocomplete" {:teardown (conn/disconnect!)}
     (let [data (atom {:contents "(let [foa 10] foa)\n(let [foo 10] (+ fo))"

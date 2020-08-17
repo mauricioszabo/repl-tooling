@@ -9,7 +9,7 @@
             [repl-tooling.editor-integration.renderer :as render]
             [repl-tooling.repl-client.clojure :as clj]))
 
-(set! cards/test-timeout 8000)
+(set! cards/test-timeout 20000)
 (defn as-txt [parsed repl]
   (-> parsed (render/parse-result repl (atom {}))
       render/txt-for-result))

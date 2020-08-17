@@ -23,7 +23,7 @@
     (.click elem)
     elem))
 
-(set! cards/test-timeout 8000)
+(set! cards/test-timeout 20000)
 (cards/deftest copy-to-clipboard
   (async done
     (async/go

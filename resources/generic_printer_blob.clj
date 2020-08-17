@@ -3,6 +3,22 @@
 
 (defmulti serialize #(-> % type pr-str))
 
+#?(:joker
+   (defn tagged-literal [a-sym a-val]
+     (symbol (str "#" a-sym " " (pr-str a-val)))))
+
+(defn- to-symbol [res]
+  (let [r (pr-str res)]
+    (if (re-matches #":[a-zA-Z0-9\-.$!?\/><*=_]+" r)
+      res
+      (tagged-literal 'unrepl/bad-symbol [nil (pr-str res)]))))
+
+(defn- to-keyword [res]
+  (let [r (pr-str res)]
+    (if (re-matches #"[a-zA-Z0-9\-.$!?\/><*=_]+" r)
+      res
+      (tagged-literal 'unrepl/bad-keyword [(namespace res) (name res)]))))
+
 #?(:cljs
    (defn norm-js-obj [js-obj]
      (tagged-literal
@@ -37,37 +53,53 @@
        (+ (clojerl.IHash/hash (get this :tag))
           (clojerl.IHash/hash (get this :form))))))
 
-(defmethod serialize "#object[cljs$core$ExceptionInfo]" [res]
-  (tagged-literal 'error
-    {:type "cljs.core.ExceptionInfo"
-     :data (.-data res)
-     :message (.-message res)
-     :trace (->> res .-stack clojure.string/split-lines)}))
+#?(:clje
+   (defn normalize-error [res]
+     (let [trace (mapv (fn [[_ _ _ [[_ file] [_ line]]]]
+                         [nil nil (str file) line])
+                       (erlang/get_stacktrace))]
+       (if (instance? clojerl.ExceptionInfo res)
+         {:type "clojerl.ExceptionInfo"
+          :message (serialize (.message res))
+          :data (serialize (ex-data res))
+          :trace trace}
+         {:type "Error"
+          :message (serialize res)
+          :trace trace}))))
+
+#?(:cljs
+   (defmethod serialize "#object[cljs$core$ExceptionInfo]" [res]
+     (tagged-literal 'error
+        {:type "cljs.core.ExceptionInfo"
+         :data (.-data res)
+         :message (.-message res)
+         :trace (->> res .-stack clojure.string/split-lines)})))
 
 (defmethod serialize "erlang.Tuple" [res]
   (tagged-literal 'erl (serialize (vec res))))
 
-(defmethod serialize "#object[Promise]" [res]
-  (let [id (gensym "patch")]
-    (.then res
-      (fn [res]
-        (tap>
-         (tagged-literal
-          'repl-tooling/patch
-          [id
-           (pr-str
-            (tagged-literal
-             'promise
-             (serialize res)))]))))
-    (tagged-literal
-     'repl-tooling/patchable [id (tagged-literal 'promise '<pending>)])))
+#?(:cljs
+    (defmethod serialize "#object[Promise]" [res]
+      (let [id (gensym "patch")]
+        (.then res
+          (fn [res]
+            (tap>
+             (tagged-literal
+              'repl-tooling/patch
+              [id
+               (pr-str
+                (tagged-literal
+                 'promise
+                 (serialize res)))]))))
+        (tagged-literal
+         'repl-tooling/patchable [id (tagged-literal 'promise '<pending>)]))))
 
 (defmethod serialize :default [res]
   (cond
      #?(:cljs false :clje false :default (ratio? res))
      (tagged-literal 'repl-tooling/literal-render (pr-str res))
 
-    (record? res)
+    #?(:joker false :default (record? res))
     res
 
     (map? res)
@@ -76,6 +108,9 @@
     (vector? res)
     (mapv serialize res)
 
+    (set? res)
+    (into #{} (map serialize res))
+
     (coll? res)
     (map serialize res)
 
@@ -83,19 +118,12 @@
     (tagged-literal 'repl-tooling/literal-render (pr-str res))
 
     (->> res type str (re-find #"(?i)regex"))
-    (tagged-literal 'repl-tooling/literal-render (pr-str res))
+    (tagged-literal 'unrepl/pattern (-> (pr-str res)
+                                        (clojure.string/replace (re-pattern "^#\"") "")
+                                        (clojure.string/replace (re-pattern "\"$") "")))
 
-    (symbol? res)
-    (let [r (pr-str res)]
-      (if (re-matches #"[a-zA-Z0-9\-.$!?\/><*=_]+" r)
-        res
-        (tagged-literal 'unrepl/bad-symbol [nil (pr-str res)])))
-
-    (keyword? res)
-    (let [r (pr-str res)]
-      (if (re-matches #"[a-zA-Z0-9\-.$!?\/><*=_]+" r)
-        res
-        (tagged-literal 'unrepl/bad-keyword [(namespace res) (name res)])))
+    (symbol? res) (to-symbol res)
+    (keyword? res) (to-keyword res)
 
     (->> res type str (re-find #"Big(Decimal|Float)"))
     (str "#unrepl/bigdec " res)
@@ -103,12 +131,19 @@
     (->> res type str (re-find #"BigInt"))
     (str "#unrepl/bigint "res)
 
+    (->> res pr-str (re-find #"^#error "))
+    #?(:cljr (-> res pr-str
+                 (clojure.string/replace-first #":message"
+                                               (str ":message " (.Message res)))
+                 symbol)
+       :default res)
+
     (number? res)
     (if (> res 9007199254740990)
       (tagged-literal 'repl-tooling/literal-render (pr-str res))
       res)
 
-    (contains? [true false nil] res) res
+    (contains? #{true false nil} res) res
 
     #?(:cljs (instance? js/Error res))
     #?(:cljs (tagged-literal 'error

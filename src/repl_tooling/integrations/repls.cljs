@@ -87,8 +87,9 @@
     (swap! control update :ignore-output conj #"^\r?\n?.*?=> " #"(?:.+Namespace.+|nil)\r?\n")
     (.write conn (str "(" ns-command namespace ")"))))
 
-(defn- wait-for-blob-done [conn control]
-  (.write conn (str (h/generic-blob-contents) "\n"))
+(defn- wait-for-blob-done [kind conn control]
+  (.write conn (cond-> (str (h/generic-blob-contents) "\n")
+                       (= :joker kind) (str/replace #"clojure.string" "joker.string")))
   (p/loop [curr (connection/next-line control)]
     (when-not (re-find #":DONE-BLOB" curr)
       (p/recur (connection/next-line control)))))
@@ -129,8 +130,7 @@
     (if (= :clj repl-kind)
       (clj/prepare-unrepl-evaluator conn control on-output)
       (p/do!
-        (p/race [(wait-for-blob-done conn control) (p/delay 1000)])
-        (wait-for-blob-done conn control)
+        (p/race [(wait-for-blob-done repl-kind conn control) (p/delay 1000)])
         (swap! control assoc :ignore-prompt true)
         (connection/prepare-evals control
                                   #(if-let [out %] (on-output {:out out}) (on-output nil))

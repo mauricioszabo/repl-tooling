@@ -9,7 +9,7 @@
                                                async-with-cljs-repl
                                                async-with-clj-repl]]))
 
-(set! cards/test-timeout 8000)
+(set! cards/test-timeout 20000)
 (cards/deftest clojure-evaluation
   (async-with-clj-repl "evaluation"
     (testing "evaluating request-response"

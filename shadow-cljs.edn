@@ -27,4 +27,7 @@
                                            :infer-externs :auto}}
           :fixture {:target :node-script
                     :output-to "target/fixture.js"
-                    :main repl-tooling.integration.fixture-app/main}}}
+                    :output-dir "target/fixture"
+                    :main repl-tooling.integration.fixture-app/main
+                    :compiler-options {:elide-asserts false
+                                       :optimizations :simple}}}}
