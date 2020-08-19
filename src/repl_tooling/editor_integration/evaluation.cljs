@@ -81,12 +81,12 @@
         (and on-start-eval (on-start-eval eval-data))
         (eval/evaluate repl
                        code
-                       (assoc opts
-                              :filename filename
-                              :id id
-                              :row (inc row)
-                              :col (inc col)
-                              :namespace namespace)
+                       (merge {:filename filename
+                               :id id
+                               :row (inc row)
+                               :col (inc col)
+                               :namespace namespace}
+                              opts)
                        #(when (and on-eval @state)
                           (let [parsed (helpers/parse-result %)]
                             (on-eval (assoc eval-data
