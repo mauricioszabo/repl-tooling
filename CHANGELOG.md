@@ -4,6 +4,8 @@
 - Clickable stacktraces for Clojerl
 - Better printer for Clojerl and nREPL
 - Cutting some stdout messages from aux REPL
+- Adding commands `render/add-class` and `render/set-attr`
+- Adding custom tag `:div/ansi` to render ANSI char codes
 
 ## 0.5.1
 - Shadow-CLJS can call its own internal API by passing a specific command
