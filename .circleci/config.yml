@@ -117,7 +117,7 @@ workflows:
             - babashka
             - joker
             - lumo
-            - clojerl
+            # - clojerl
             - clojureclr
           filters:
             tags:
