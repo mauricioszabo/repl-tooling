@@ -101,6 +101,11 @@
    'create-tag #(.createElement js/document %)
    'set-text #(aset %1 "innerText" %2)
    'set-html #(aset %1 "innerHTML" %2)
+   'set-class (fn [^js e & args]
+                (doseq [a args]
+                  (.. e -classList (add a))))
+   'set-attr (fn [^js e attr value]
+              (.setAttribute e attr value))
    'register-reagent #(if (and (keyword? %1) (namespace %1) (fn? %2))
                         (pinkie/register-tag %1 (norm-reagent-fn %2))
                         (cmds/run-callback!
