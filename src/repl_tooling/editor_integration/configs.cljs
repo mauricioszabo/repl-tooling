@@ -12,7 +12,8 @@
             [reagent.core :as r]
             [reagent.dom :as rdom]
             ["path" :refer [dirname join]]
-            ["fs" :refer [watch readFile existsSync]]))
+            ["fs" :refer [watch readFile existsSync]]
+            ["ansi_up" :default Ansi]))
 
 (defn- read-config-file [config-file]
   (let [p (p/deferred)]
@@ -101,6 +102,11 @@
    'create-tag #(.createElement js/document %)
    'set-text #(aset %1 "innerText" %2)
    'set-html #(aset %1 "innerHTML" %2)
+   'add-class (fn [^js e & args]
+                (doseq [a args]
+                  (.. e -classList (add a))))
+   'set-attr (fn [^js e attr value]
+              (.setAttribute e attr value))
    'register-reagent #(if (and (keyword? %1) (namespace %1) (fn? %2))
                         (pinkie/register-tag %1 (norm-reagent-fn %2))
                         (cmds/run-callback!
@@ -261,8 +267,19 @@
     (swap! editor-state assoc :editor/commands commands)
     (cmds/run-callback! editor-state :register-commands commands)))
 
+(defonce ^:private ansi (new Ansi))
+(defn- ansi-tag [attrs & txts]
+  (let [[attrs txts] (if (map? attrs)
+                       [attrs txts]
+                       [{} (cons attrs txts)])
+        attrs (merge {:class "pre code"} attrs)]
+    [:div (assoc attrs
+                 :dangerouslySetInnerHTML
+                 #js {:__html (. ansi ansi_to_html (apply str txts))})]))
+
 (defn prepare-commands [editor-state cmds-from-tooling]
   (swap! editor-state assoc :editor/commands cmds-from-tooling)
+  (pinkie/register-tag :div/ansi ansi-tag)
   (p/let [config-file (-> @editor-state :editor/callbacks :config-file-path)]
     (watch-config editor-state cmds-from-tooling config-file)
     (reg-commands editor-state cmds-from-tooling config-file)))
