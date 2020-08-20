@@ -63,7 +63,7 @@ jobs:
           at: '.'
       - run: apt-get update
       - run: apt-get install -y git npm nodejs rlwrap tmux
-      - run: echo '{erl_opts, [debug_info]}. {deps, [{clojerl, {git, "https://github.com/clojerl/clojerl", {branch, "master"}}}]}. {plugins, [{rebar3_clojerl, "0.8.3"}]}.' > rebar.config
+      - run: echo '{erl_opts, [debug_info]}. {deps, [{clojerl, {git, "https://github.com/clojerl/clojerl", {branch, "master"}}}]}. {plugins, [{rebar3_clojerl, "0.8.4"}]}.' > rebar.config
       - run: echo ":foo" | rebar3 clojerl repl
       - run: tmux new-session -d
       - run: tmux send-keys 'rebar3 clojerl repl' Enter
