@@ -102,7 +102,7 @@
    'create-tag #(.createElement js/document %)
    'set-text #(aset %1 "innerText" %2)
    'set-html #(aset %1 "innerHTML" %2)
-   'set-class (fn [^js e & args]
+   'add-class (fn [^js e & args]
                 (doseq [a args]
                   (.. e -classList (add a))))
    'set-attr (fn [^js e attr value]
