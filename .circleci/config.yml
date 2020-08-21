@@ -98,18 +98,38 @@ workflows:
       - babashka:
           requires:
             - test
+          filters:
+            tags:
+              only:
+                - /^v.+/
       - joker:
           requires:
             - test
+          filters:
+            tags:
+              only:
+                - /^v.+/
       - lumo:
           requires:
             - test
+          filters:
+            tags:
+              only:
+                - /^v.+/
       - clojerl:
           requires:
             - test
+          filters:
+            tags:
+              only:
+                - /^v.+/
       - clojureclr:
           requires:
             - test
+          filters:
+            tags:
+              only:
+                - /^v.+/
 
       - publish:
           context: Clojure Libs
