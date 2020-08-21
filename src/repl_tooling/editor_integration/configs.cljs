@@ -272,7 +272,7 @@
   (let [[attrs txts] (if (map? attrs)
                        [attrs txts]
                        [{} (cons attrs txts)])
-        attrs (merge {:class "pre code"} attrs)]
+        attrs (merge {:class "pre block"} attrs)]
     [:div (assoc attrs
                  :dangerouslySetInnerHTML
                  #js {:__html (. ansi ansi_to_html (apply str txts))})]))
