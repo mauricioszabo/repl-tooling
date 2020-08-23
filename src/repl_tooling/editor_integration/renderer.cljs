@@ -485,10 +485,6 @@
   (as-renderable [obj repl editor-state]
     (r/atom (->Leaf obj editor-state)))
 
-  helpers/Patchable
-  (as-renderable [{:keys [id value]} repl editor-state]
-    (r/atom (->Patchable id (proto/as-renderable value repl editor-state))))
-
   default
   (as-renderable [obj repl editor-state]
     (r/atom
