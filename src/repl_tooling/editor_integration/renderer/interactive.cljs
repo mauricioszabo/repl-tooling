@@ -5,8 +5,7 @@
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
             [repl-tooling.ui.pinkie :as pinkie]
-            [sci.core :as sci]
-            [repl-tooling.editor-integration.configs :as configs]))
+            [repl-tooling.editor-integration.interpreter :as int]))
 
 (defn- edn? [obj]
   (or (number? obj)
@@ -66,7 +65,7 @@
                  (-> {:code code
                       :bindings (bindings-for state fns repl)
                       :editor-state editor-state}
-                     configs/evaluate-code
+                     int/evaluate-code
                      pinkie/tag-inject
                      treat-error)
                  (catch :default e
