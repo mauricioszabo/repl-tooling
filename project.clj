@@ -5,7 +5,7 @@
                  [funcool/promesa "4.0.2"]
                  [rewrite-cljs "0.4.4"]
                  [paprika "0.1.3"]
-                 [borkdude/sci "0.0.13-alpha.17"]
+                 [borkdude/sci "0.1.1-alpha.6"]
                  [org.pinkgorilla/gorilla-renderable-ui "0.1.33"]]
 
   :source-paths ["src"])
