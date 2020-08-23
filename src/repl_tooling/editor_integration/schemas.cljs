@@ -131,5 +131,4 @@
                            (s/optional-key :cljs/repl-env) s/Any
                            (s/optional-key :cljs/autocomplete-kind) s/Any
                            (s/optional-key :clj/autocomplete-kind) s/Any}
-
                           :editor/commands Commands}))
