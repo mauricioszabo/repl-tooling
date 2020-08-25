@@ -6,6 +6,7 @@
             [repl-tooling.integration.fake-editor :as editor]
             [clojure.core.async :as async]
             [check.async :refer [async-test await!]]
+            [repl-tooling.editor-integration.interpreter :as int]
             ["fs" :refer [writeFileSync]]))
 
 (cards/defcard-rg fake-editor
@@ -21,17 +22,17 @@
 (cards/deftest config-eval
   (async-test "evaluating code"
     (testing "evaluates simple code"
-      (check (configs/evaluate-code {:code "(+ 1 2)" :editor-state (atom {})}) => 3))
+      (check (int/evaluate-code {:code "(+ 1 2)" :editor-state (atom {})}) => 3))
 
     (testing "resolves promises with p/let"
-      (-> (configs/evaluate-code {:code "(p/let [a (promise 1) b (promise 2)] (+ a b))"
-                                  :editor-state (atom {})})
+      (-> (int/evaluate-code {:code "(p/let [a (promise 1) b (promise 2)] (+ a b))"
+                              :editor-state (atom {})})
           await!
           (check => 3)))
 
     (testing "resolves mixed promises / non-promises"
-      (-> (configs/evaluate-code {:code "(p/let [a (promise 1) b 2] (+ a b))"
-                                  :editor-state (atom {})})
+      (-> (int/evaluate-code {:code "(p/let [a (promise 1) b 2] (+ a b))"
+                              :editor-state (atom {})})
           await!
           (check => 3)))))
 

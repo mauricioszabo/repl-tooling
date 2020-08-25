@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 0.5.3
+- Adding custom tag `:div/clj` to render ANSI char codes
+
 ## 0.5.2
 - Clickable stacktraces for Clojerl
 - Better printer for Clojerl and nREPL

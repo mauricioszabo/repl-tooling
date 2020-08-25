@@ -424,7 +424,7 @@
       [:div {:class "exception row"}
        [:div {:class "description"}
         [:span {:class "ex-kind"} (str type)] ": " [proto/as-html @message message root?]]
-       (when add-data
+       (when (and add-data root?)
          [:div {:class "children additional"}
           [proto/as-html @add-data add-data root?]])
        (when root?
