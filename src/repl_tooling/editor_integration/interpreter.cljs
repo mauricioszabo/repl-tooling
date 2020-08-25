@@ -14,7 +14,6 @@
             ["path" :refer [dirname join]]
             ["fs" :refer [watch readFile existsSync]]
             ["ansi_up" :default Ansi]))
-            ; [repl-tooling.editor-integration.renderer :as renderer]))
 
 (defn- read-config-file [config-file]
   (let [p (p/deferred)]
@@ -148,7 +147,8 @@
                  'reactify-component r/reactify-component
                  'wrap r/wrap})
       (assoc 'render (render-ns editor-state))
-      (assoc 'editor (editor-ns repl editor-state))))
+      (assoc 'editor (editor-ns repl editor-state))
+      (assoc 'repl-tooling.editor-helpers {'Error helpers/Error})))
 
 (def ^:private promised-bindings {'promise #(.resolve js/Promise %)
                                   'then #(.then ^js %1 %2)
@@ -159,25 +159,37 @@
   (assoc promised-bindings
          'println (fn [& args]
                     (cmds/run-callback! editor-state :on-stdout
-                                        (str (str/join " " args) "\n")))
+                                        (str (str/join " " args) "\n"))
+                    nil)
          'print (fn [& args]
-                   (cmds/run-callback! editor-state :on-stdout
-                                       (str/join " " args)))
+                  (cmds/run-callback! editor-state :on-stdout
+                                      (str/join " " args))
+                  nil)
          'prn (fn [& args]
                 (->> args (map pr-str)
                      (str/join " ")
                      (#(str % "\n"))
-                     (cmds/run-callback! editor-state :on-stdout)))
+                     (cmds/run-callback! editor-state :on-stdout))
+                nil)
          'log (fn [& args] (apply js/console.log args))
          'pr (fn [& args]
-                (->> args (map pr-str)
-                     (str/join " ")
-                     (cmds/run-callback! editor-state :on-stdout)))))
+               (->> args (map pr-str)
+                    (str/join " ")
+                    (cmds/run-callback! editor-state :on-stdout))
+               nil)))
+
+(defn- readers-for [editor-state]
+  {'repl-tooling.editor-helpers.Error helpers/map->Error
+   'repl-tooling.editor-helpers.Browseable helpers/map->Browseable})
 
 (defn evaluate-code [{:keys [code bindings sci-state editor-state repl]
-                      :or {bindings promised-bindings
-                           sci-state (atom {})}}]
-  (sci/eval-string code {:env sci-state
-                         :preset {:termination-safe true}
-                         :namespaces (prepare-nses repl editor-state)
-                         :bindings bindings}))
+                      :or {sci-state (atom {})}}]
+  (let [bindings (cond
+                   bindings bindings
+                   editor-state (default-bindings editor-state)
+                   :else promised-bindings)]
+    (sci/eval-string code {:env sci-state
+                           :preset {:termination-safe true}
+                           :readers (readers-for editor-state)
+                           :namespaces (prepare-nses repl editor-state)
+                           :bindings bindings})))
