@@ -63,7 +63,8 @@
         html (fn [state]
                (try
                  (-> {:code code
-                      :bindings (bindings-for state fns repl)
+                      :bindings (merge (bindings-for state fns repl)
+                                       (int/default-bindings editor-state))
                       :editor-state editor-state}
                      int/evaluate-code
                      pinkie/tag-inject
