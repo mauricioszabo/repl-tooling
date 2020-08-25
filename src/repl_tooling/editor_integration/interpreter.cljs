@@ -180,7 +180,9 @@
 
 (defn- readers-for [editor-state]
   {'repl-tooling.editor-helpers.Error helpers/map->Error
-   'repl-tooling.editor-helpers.Browseable helpers/map->Browseable})
+   'repl-tooling.editor-helpers.Browseable helpers/map->Browseable
+   'repl-tooling.editor-helpers.Patchable helpers/map->Patchable
+   'repl-tooling.editor-helpers.IncompleteObj helpers/map->IncompleteObj})
 
 (defn evaluate-code [{:keys [code bindings sci-state editor-state repl]
                       :or {sci-state (atom {})}}]
