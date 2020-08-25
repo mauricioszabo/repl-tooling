@@ -9,7 +9,8 @@
             [repl-tooling.integration.ui-macros :as m]
             [repl-tooling.eval-helpers :as e]
             [clojure.core.async :as async]
-            [devcards.core :as cards]))
+            [devcards.core :as cards]
+            [repl-tooling.editor-integration.configs :as configs]))
 
 (m/card-for-renderer!)
 (defn render [interactive-obj repl]
@@ -64,4 +65,9 @@
               repl)
       (check (wait-for-change m/text-on-result) => {:text "20"})
       (m/click-on "20")
-      (check (wait-for-change m/text-on-result) => {:text "21"}))))
+      (check (wait-for-change m/text-on-result) => {:text "21"}))
+
+    (testing "renders tooling's EDN renderer"
+      (configs/register-custom-tags! {})
+      (render '{:html [:div/clj '(+ 1 2 3 4)]} repl)
+      (check (wait-for-change m/text-on-result) => {:text "( + 1 2 3 4 )"}))))
