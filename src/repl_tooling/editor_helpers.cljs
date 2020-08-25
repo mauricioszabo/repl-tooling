@@ -87,6 +87,8 @@
                     pr-str)]
      {:error error :as-text error})))
 
+(defrecord Patchable [id value])
+
 (defn as-obj [data]
   (let [params (last data)
         [browseable pr-str-obj obj-id] data]
@@ -109,6 +111,7 @@
                                 'unrepl/pattern re-pattern
                                 'repl-tooling/literal-render #(LiteralRender. %)
                                 'repl-tooling/interactive #(Interactive. %)
+                                'repl-tooling/patchable #(->Patchable (first %) (second %))
                                 'clojure/var #(->> % (str "#'") symbol)
                                 'error parse-error
                                 'unrepl/object as-obj}
