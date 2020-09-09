@@ -146,7 +146,7 @@
   (if-let [hello (re-find #"\[:unrepl/hello.*" (str raw-out))]
     (treat-hello! hello state)
     (if (:session @state)
-      (treat-unrepl-message! raw-out state)
+      (treat-unrepl-message! (re-find #"\[.*" (str raw-out)) state)
       (some-> @state :session deref :on-output (#(% {:unexpected (str raw-out)}))))))
 
 (defn prepare-unrepl-evaluator [conn control on-output]
