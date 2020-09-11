@@ -78,7 +78,7 @@ jobs:
           at: '.'
       - run: apt-get update
       - run: apt-get install -y npm nodejs wget unzip tmux
-      - run: wget https://ayera.dl.sourceforge.net/project/clojureclr/clojure-clr-1.9.0-Release%204.0.zip
+      - run: wget https://master.dl.sourceforge.net/project/clojureclr/clojure-clr-1.9.0-Release%204.0.zip
       - run: unzip clojure-*.zip
       - run: tmux new-session -d
       - run: tmux send-keys 'cd Release*; mono Clojure.Main.exe' Enter
