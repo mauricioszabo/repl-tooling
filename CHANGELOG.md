@@ -2,6 +2,8 @@
 
 ## 0.5.3
 - Adding custom tag `:div/clj` to render ANSI char codes
+- Fixed defining functions with same name as `clojure.core` (fixes https://github.com/mauricioszabo/atom-chlorine/issues/214).
+- Fixed clojure REPL not connecting on first try
 
 ## 0.5.2
 - Clickable stacktraces for Clojerl
