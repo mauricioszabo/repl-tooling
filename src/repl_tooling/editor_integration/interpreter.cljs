@@ -39,6 +39,15 @@
   (p/let [data (cmds/run-callback! state :editor-data)]
     (cmds/run-feature! state :repl-for (:filename data) true)))
 
+(defn- interactive-eval [state params]
+  (set! helpers/*out-on-aux* true)
+  (-> state
+      (cmds/run-feature! :evaluate-and-render
+                         (update params :pass assoc
+                                 :interactive true
+                                 :aux true))
+      (p/finally (fn [ & _] (set! helpers/*out-on-aux* false)))))
+
 (defn- editor-ns [repl state]
   (let [repl (delay (or repl (find-repl state)))]
     {'run-callback (partial cmds/run-callback! state)
@@ -57,10 +66,7 @@
      'get-namespace #(p/let [res (cmds/run-feature! state :get-code :ns)]
                        (update res :text str))
      'eval-and-render #(cmds/run-feature! state :evaluate-and-render %)
-     'eval-interactive #(cmds/run-feature! state :evaluate-and-render
-                                           (update % :pass assoc
-                                                   :interactive true
-                                                   :aux true))
+     'eval-interactive #(interactive-eval state %)
      'eval (partial cmds/run-feature! state :eval)}))
 
 (defn- norm-reagent-fn [fun]
