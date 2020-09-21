@@ -32,7 +32,7 @@
         (if (nil? var)
           body
           (recur
-            (list 'then (list 'promise elem) (list 'fn [var] body))
+            (list 'p/then (list 'promise elem) (list 'fn [var] body))
             rest))))))
 
 (defn- find-repl [state]
@@ -151,8 +151,8 @@
       (assoc 'repl-tooling.editor-helpers {'Error helpers/Error})))
 
 (def ^:private promised-bindings {'promise #(.resolve js/Promise %)
-                                  'then #(.then ^js %1 %2)
-                                  'catch #(.catch ^js %1 %2)
+                                  'p/then #(.then ^js %1 %2)
+                                  'p/catch #(.catch ^js %1 %2)
                                   'p/let promised-let})
 
 (defn default-bindings [editor-state]
@@ -191,6 +191,7 @@
                    editor-state (default-bindings editor-state)
                    :else promised-bindings)]
     (sci/eval-string code {:env sci-state
+                           :classes {:allow :all}
                            :preset {:termination-safe true}
                            :readers (readers-for editor-state)
                            :namespaces (prepare-nses repl editor-state)
