@@ -39,7 +39,10 @@
                 :unrepl/line (-> row (or 1) dec dec)}]
     (when namespace
       (add-to-eval-queue! state
-                          {:cmd (str "(ns " namespace ")") :ignore-result? true}))
+                          {:cmd (str "(if (find-ns '" namespace ")"
+                                     "  (in-ns '" namespace ")"
+                                     "  (ns " namespace "))") 
+                           :ignore-result? true}))
     (when (or filename row col)
       (add-to-eval-queue! state
                           {:cmd (unrepl-cmd state :set-source params) :ignore-result? true}))))
