@@ -12,6 +12,7 @@
             [repl-tooling.editor-integration.schemas :as schemas]
             [repl-tooling.repl-client.nrepl :as nrepl]
             [repl-tooling.commands-to-repl.all-cmds :as cmds]
+            [repl-tooling.commands-to-repl.pathom :as pathom]
             [schema.core :as s]
             [repl-tooling.editor-integration.definition :as definition]
             [repl-tooling.editor-integration.configs :as configs]))
