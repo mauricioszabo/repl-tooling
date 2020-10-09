@@ -72,7 +72,39 @@
       (swap! config assoc :eval-mode :prefer-clj)
       (swap! fake/state assoc :filename "somefile.cljs")
       (check (pathom/eql (:editor-state @fake/state) [:repl/eval :repl/aux :repl/clj])
-             => cljs-repls))))
+             => cljs-repls))
+
+    (testing "Full qualified name variables"
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (swap! config assoc :eval-mode :clj)
+      (check (pathom/eql (:editor-state @fake/state) [:var/fqn])
+             => {:var/fqn 'clojure.core/str})
+
+      (swap! config assoc :eval-mode :cljs)
+      (check (pathom/eql (:editor-state @fake/state) [:var/fqn])
+             => {:var/fqn 'cljs.core/str}))
+
+    (testing "getting meta from Clojure vars"
+      (swap! config assoc :eval-mode :clj)
+      (swap! fake/state assoc
+             :range [[2 1] [2 1]] :code "(ns promesa.core)\n\n(str 1 2)")
+      (check (pathom/eql (:editor-state @fake/state) [:var/meta])
+             => {:var/meta {:doc #"With no args, returns the empty string"}}))
+
+    (testing "getting meta from ClojureScript vars"
+      (swap! config assoc :eval-mode :cljs)
+      (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(p/deferred 1 2)")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql (:editor-state @fake/state) [:var/meta])
+             => {:var/meta {:doc #"Creates an empty promise"}}))
+
+    (testing "getting meta from ClojureScript macros"
+      (swap! config assoc :eval-mode :cljs)
+      (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(p/let [] )")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql (:editor-state @fake/state) [:var/meta])
+             => {:var/meta {:doc #"always returns promise"}}))))
+
     ; TODO: Test all namespaces
     ; TODO: Test all namespaces in CLJS
     ; TODO: Test all vars in NS
