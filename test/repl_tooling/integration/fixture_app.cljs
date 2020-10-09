@@ -1,5 +1,6 @@
 (ns repl-tooling.integration.fixture-app
   (:require [clojure.string :as st]
+            [promesa.core :as p]
             [repl-tooling.target-eval-test :as test]))
 
 (def ^:private private-var 20)
