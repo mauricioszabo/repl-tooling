@@ -1,5 +1,6 @@
 (ns repl-tooling.editor-integration.doc
   (:require [repl-tooling.editor-helpers :as helpers]
+            [repl-tooling.editor-integration.commands :as cmds]
             [repl-tooling.repl-client.clj-helper :refer [contents-for-fn]]
             [promesa.core :as p]
             [repl-tooling.eval :as eval]
@@ -66,18 +67,48 @@
                 (treat-error "\"Unknown error\"" options)))
            #(treat-error (:error %) options)))
 
+(defn- translate-to-doc [meta]
+  (str "-------------------------\n"
+       (:ns meta) "/" (:name meta) "\n"
+       (:arglists meta) "\n  "
+       (:doc meta)))
+
 (defn doc-for-var [{:keys [contents range filename] :as editor-data} opts state]
-  (let [id (gensym "doc-for-var")
-        [_ var] (helpers/current-var contents (first range))
-        [_ ns] (helpers/ns-range-for contents (first range))
-        repl (e-eval/repl-for state filename true)
-        eval-data {:id id
-                   :editor-data editor-data
-                   :range range}]
-    (when repl
-      (run-documentation-code {:ns ns
-                               :repl repl
-                               :var var
-                               :opts opts
-                               :eval-data eval-data
-                               :editor-data editor-data}))))
+  (p/let [id (gensym "doc-for-var")
+          {:keys [:editor/current-var-range]} (cmds/run-feature! state :eql
+                                                                 [:editor/current-var-range])
+          _ (cmds/run-callback! state :on-start-eval {:id id
+                                                      :editor-data editor-data
+                                                      :range current-var-range})
+          {:keys [var/meta]} (cmds/run-feature! state :eql '[:var/meta])
+          doc (if (= :com.wsscode.pathom.core/not-found meta)
+                {:error "Can't find doc for this variable"}
+                {:result (helpers/LiteralRender. (translate-to-doc meta))})]
+    (cmds/run-callback! state :on-eval {:id id
+                                        :repl nil
+                                        :result (assoc doc
+                                                       :parsed? true
+                                                       :as-text (pr-str (or (:error doc) (:success doc))))
+                                        :editor-data editor-data
+                                        :range current-var-range})))
+    ; (on-eval (assoc eval-data
+    ;                 :result {:error error
+    ;                          :parsed? true
+    ;                          :as-text (pr-str error)}
+    ;                 :repl repl))))
+    ; (tap> (translate-to-doc meta))))
+
+  ; (let [id (gensym "doc-for-var")
+  ;       [_ var] (helpers/current-var contents (first range))
+  ;       [_ ns] (helpers/ns-range-for contents (first range))
+  ;       repl (e-eval/repl-for state filename true)
+  ;       eval-data {:id id
+  ;                  :editor-data editor-data
+  ;                  :range range}]
+  ;   (when repl
+  ;     (run-documentation-code {:ns ns
+  ;                              :repl repl
+  ;                              :var var
+  ;                              :opts opts
+  ;                              :eval-data eval-data
+  ;                              :editor-data editor-data}))))
