@@ -11,10 +11,10 @@
             [com.wsscode.pathom.core :as pathom]
             [com.wsscode.pathom.connect :as connect]))
 
-(connect/defresolver editor-data [{:keys [editor-state]} _]
+(connect/defresolver editor-data [{:keys [callbacks]} _]
   {::connect/output [:editor/data]}
 
-  (p/let [data (cmds/run-callback! editor-state :editor-data)]
+  (p/let [data ((:editor-data callbacks))]
     {:editor/data data}))
 
 (connect/defresolver separate-data [_ {:editor/keys [data]}]
@@ -34,14 +34,14 @@
      :editor/namespace (str ns)}))
 
 (connect/defresolver namespace-from-editor
-  [{:keys [editor-state]} {:editor/keys [namespace]}]
+  [_ {:editor/keys [namespace]}]
   {::connect/input #{:editor/namespace}
    ::connect/output [:repl/namespace]}
 
   {:repl/namespace (symbol namespace)})
 
 (connect/defresolver var-from-editor
-  [{:keys [editor-state]} {:editor/keys [contents range]}]
+  [_ {:editor/keys [contents range]}]
   {::connect/input #{:editor/contents :editor/range}
    ::connect/output [:editor/current-var :editor/current-var-range]}
 
@@ -72,7 +72,7 @@
     :cljs {:cljs/required? true}
     nil))
 
-(connect/defresolver need-cljs [{:keys [editor-state]} {:editor/keys [config filename]}]
+(connect/defresolver need-cljs [_ {:editor/keys [config filename]}]
   {::connect/input #{:editor/config :editor/filename}
    ::connect/output [:cljs/required?]}
 
@@ -104,15 +104,11 @@
        :repl/clj clj-aux})))
 
 (connect/defresolver all-vars-in-ns
-  [{:keys [editor-state ast]} {:keys [repl/namespace repl/aux]}]
+  [_ {:keys [repl/namespace repl/aux]}]
   {::connect/input #{:repl/namespace :repl/aux}
    ::connect/output [{:namespace/vars [:var/fqn]}]}
 
   (p/let [{:keys [result]} (eval/eval aux (str "(ns-interns '" namespace ")"))]
-          ; (cmds/run-feature! editor-state :eval
-          ;                    {:text (str "(ns-interns '" namespace ")")
-          ;                     :ignore true
-          ;                     :aux true})]
     {:namespace/vars (map (fn [v] {:var/fqn (symbol namespace v)})
                           (keys result))}))
 
@@ -124,8 +120,8 @@
           [:var/fqn (:var/meta {:keys [:file :line :macro? :macro]})]}]}])
 
 (connect/defresolver fqn-var
-  [{:keys [editor-state]} {:keys [repl/namespace editor/current-var editor/filename
-                                  repl/aux]}]
+  [_ {:keys [repl/namespace editor/current-var editor/filename
+             repl/aux]}]
   {::connect/input #{:repl/namespace :editor/current-var :editor/filename :repl/aux}
    ::connect/output [:var/fqn]}
 
@@ -147,10 +143,10 @@
     (p/let [{:keys [result]} (eval/eval clj (str cmd))]
       {:cljs/env result})))
 
-(connect/defresolver get-config [{:keys [editor-state]} _]
+(connect/defresolver get-config [{:keys [callbacks]} _]
   {::connect/output [:editor/config]}
 
-  (p/let [cfg (cmds/run-callback! editor-state :get-config)]
+  (p/let [cfg ((:get-config callbacks))]
     {:editor/config cfg}))
 
 #_
@@ -158,8 +154,8 @@
      [:cljs/required?])
 
 (connect/defresolver meta-for-var
-  [{:keys [editor-state ast]} {:keys [var/fqn editor/filename cljs/required?
-                                      repl/aux repl/clj]}]
+  [{:keys [ast]} {:keys [var/fqn editor/filename cljs/required?
+                         repl/aux repl/clj]}]
   {::connect/input #{:var/fqn :editor/filename :cljs/required? :repl/aux :repl/clj}
    ::connect/output [:var/meta]}
 
@@ -202,12 +198,18 @@
                        pathom/error-handler-plugin
                        pathom/trace-plugin]}))
 
-(s/defn eql :- js/Promise [editor-state :- schemas/EditorState, query]
-  (let [p (p/deferred)]
+(s/defn eql :- js/Promise
+  [params :- {(s/optional-key :editor-state) schemas/EditorState
+              (s/optional-key :callbacks) schemas/Callbacks}
+   query]
+  (let [p (p/deferred)
+        params (cond-> params
+
+                       (-> params :callbacks nil?)
+                       (assoc :callbacks (-> params :editor-state deref :editor/callbacks)))]
     (async/go
       (try
-        (p/resolve! p (async/<! (parser {:editor-state editor-state}
-                                  query)))
+        (p/resolve! p (async/<! (parser params query)))
        (catch :default e
          (p/reject! p e))))
     p))

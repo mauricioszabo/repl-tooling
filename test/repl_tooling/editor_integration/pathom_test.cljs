@@ -25,7 +25,7 @@
     (testing "resolves editor data"
       (swap! fake/state assoc :filename "somefile.cljc" :range [[0 0] [0 0]])
       (fake/type "(ns foo)\n\n(str 1 2)")
-      (check (pathom/eql (-> @fake/state :editor-state)
+      (check (pathom/eql {:editor-state (-> @fake/state :editor-state)}
                          [:editor/contents :editor/filename :editor/range])
              => {:editor/contents "(ns foo)\n\n(str 1 2)"
                  :editor/filename "somefile.cljc"
@@ -33,7 +33,7 @@
 
     (testing "derives information from the editor data"
       (swap! fake/state assoc :range [[2 1] [2 1]])
-      (check (pathom/eql (-> @fake/state :editor-state)
+      (check (pathom/eql {:editor-state (-> @fake/state :editor-state)}
                          [:editor/namespace :editor/ns-range
                           :editor/current-var :editor/current-var-range])
              => {:editor/namespace "foo"
@@ -43,66 +43,72 @@
 
     (testing "will get Clojure REPLs info from config only"
       (swap! config assoc :eval-mode :clj)
-      (check (pathom/eql (:editor-state @fake/state) [:repl/eval :repl/aux :repl/clj])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         [:repl/eval :repl/aux :repl/clj])
              => clj-repls))
 
     (testing "will get ClojureScript REPLs info from config only"
       (fake/run-command! :connect-embedded)
       (swap! config assoc :eval-mode :cljs)
-      (check (pathom/eql (:editor-state @fake/state) [:repl/eval :repl/aux :repl/clj])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         [:repl/eval :repl/aux :repl/clj])
              => cljs-repls))
 
     (testing "will get Clojure REPL info from config + editor data"
       (swap! fake/state assoc :filename "somefile.cljc")
       (swap! config assoc :eval-mode :prefer-clj)
-      (check (pathom/eql (:editor-state @fake/state) [:repl/eval :repl/aux :repl/clj])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         [:repl/eval :repl/aux :repl/clj])
              => clj-repls)
 
       (swap! config assoc :eval-mode :prefer-cljs)
       (swap! fake/state assoc :filename "somefile.clj")
-      (check (pathom/eql (:editor-state @fake/state) [:repl/eval :repl/aux :repl/clj])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         [:repl/eval :repl/aux :repl/clj])
              => clj-repls))
 
     (testing "will get ClojureScript REPL info from config + editor data"
       (swap! fake/state assoc :filename "somefile.cljc")
       (swap! config assoc :eval-mode :prefer-cljs)
-      (check (pathom/eql (:editor-state @fake/state) [:repl/eval :repl/aux :repl/clj])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         [:repl/eval :repl/aux :repl/clj])
              => cljs-repls)
 
       (swap! config assoc :eval-mode :prefer-clj)
       (swap! fake/state assoc :filename "somefile.cljs")
-      (check (pathom/eql (:editor-state @fake/state) [:repl/eval :repl/aux :repl/clj])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         [:repl/eval :repl/aux :repl/clj])
              => cljs-repls))
 
     (testing "Full qualified name variables"
       (swap! fake/state assoc :range [[2 1] [2 1]])
       (swap! config assoc :eval-mode :clj)
-      (check (pathom/eql (:editor-state @fake/state) [:var/fqn])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:var/fqn])
              => {:var/fqn 'clojure.core/str})
 
       (swap! config assoc :eval-mode :cljs)
-      (check (pathom/eql (:editor-state @fake/state) [:var/fqn])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:var/fqn])
              => {:var/fqn 'cljs.core/str}))
 
     (testing "getting meta from Clojure vars"
       (swap! config assoc :eval-mode :clj)
       (swap! fake/state assoc
              :range [[2 1] [2 1]] :code "(ns promesa.core)\n\n(str 1 2)")
-      (check (pathom/eql (:editor-state @fake/state) [:var/meta])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:var/meta])
              => {:var/meta {:doc #"With no args, returns the empty string"}}))
 
     (testing "getting meta from ClojureScript vars"
       (swap! config assoc :eval-mode :cljs)
       (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(p/deferred 1 2)")
       (swap! fake/state assoc :range [[2 1] [2 1]])
-      (check (pathom/eql (:editor-state @fake/state) [:var/meta])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:var/meta])
              => {:var/meta {:doc #"Creates an empty promise"}}))
 
     (testing "getting meta from ClojureScript macros"
       (swap! config assoc :eval-mode :cljs)
       (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(p/let [] )")
       (swap! fake/state assoc :range [[2 1] [2 1]])
-      (check (pathom/eql (:editor-state @fake/state) [:var/meta])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:var/meta])
              => {:var/meta {:doc #"always returns promise"}}))))
 
     ; TODO: Test all namespaces
