@@ -18,7 +18,7 @@
                  :repl/aux #(instance? shadow-ws/ShadowCLJS %)
                  :repl/clj #(instance? clj/Evaluator %)})
 
-(cards/deftest pathom-resolver
+(cards/deftest pathom-resolver-with-repl
   (async-test "pathom resolvers" {:teardown (fake/disconnect!)}
     (fake/connect! {:get-config #(deref config)})
 
