@@ -3,7 +3,7 @@
             [clojure.test :refer [testing is]]
             [check.core :refer [check] :as c]
             [clojure.core.async :as async]
-            [check.async :refer [async-test await!]]
+            [check.async-old :refer [async-test await!]]
             [repl-tooling.nrepl.bencode :as bencode]
             [repl-tooling.integration.fake-editor :as editor]
             [repl-tooling.editor-integration.connection :as conn]))

@@ -2,7 +2,7 @@
   (:require [clojure.test :refer [testing async is]]
             [devcards.core :as cards]
             [check.core :refer [check]]
-            [check.async :refer [async-test]]
+            [check.async-old :refer [async-test]]
             [clojure.core.async :as async]
             [repl-tooling.repl-client.connection :as c]
             [reagent.core :as r]))

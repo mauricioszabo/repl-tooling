@@ -96,8 +96,10 @@
                                                :range (:range @state)})}
                              additional-callbacks))
        (then (fn [res]
-               (swap! state assoc :repls {:eval (:clj/repl @res)
-                                          :aux (:clj/aux @res)}
+               (swap! state assoc
+                      :editor-state res
+                      :repls {:eval (:clj/repl @res)
+                              :aux (:clj/aux @res)}
                       :commands (:editor/commands @res)
                       :features (:editor/features @res)
                       :stdout "" :stderr "")))))))

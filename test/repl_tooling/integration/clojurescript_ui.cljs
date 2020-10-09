@@ -8,7 +8,7 @@
              :refer [change-stdout txt-for-selector type-and-eval change-result]]
             [clojure.test :refer [async testing is]]
             [check.core :refer [check]]
-            [check.async :refer [async-test await!]]
+            [check.async-old :refer [async-test await!]]
             [clojure.core.async :as async]
             [devcards.core :as cards]))
 

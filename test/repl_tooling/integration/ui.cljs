@@ -24,7 +24,8 @@
             [repl-tooling.editor-integration.renderer.interactive-test]
             [repl-tooling.editor-integration.doc-test]
             [repl-tooling.nrepl.nrepl-test]
-            [repl-tooling.editor-integration.configs-test]))
+            [repl-tooling.editor-integration.configs-test]
+            [repl-tooling.editor-integration.pathom-test]))
 
 (cards/defcard-rg rendered-result
   (fn [result]

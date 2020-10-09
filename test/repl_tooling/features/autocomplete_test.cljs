@@ -4,7 +4,7 @@
             [clojure.core.async :as async]
             [matcher-combinators.matchers :refer [embeds]]
             [check.core :refer [check]]
-            [check.async :refer [await!]]
+            [check.async-old :refer [await!]]
             [devcards.core :as cards]
             [repl-tooling.features.autocomplete.simple :as simple]
             [repl-tooling.features.autocomplete.compliment :as compliment]

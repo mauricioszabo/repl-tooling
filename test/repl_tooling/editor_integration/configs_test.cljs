@@ -5,7 +5,7 @@
             [check.core :refer [check]]
             [repl-tooling.integration.fake-editor :as editor]
             [clojure.core.async :as async]
-            [check.async :refer [async-test await!]]
+            [check.async-old :refer [async-test await!]]
             [repl-tooling.editor-integration.interpreter :as int]
             ["fs" :refer [writeFileSync]]))
 

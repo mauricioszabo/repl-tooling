@@ -1,7 +1,7 @@
 (ns repl-tooling.features.shadow-cljs-test
   (:require [repl-tooling.features.shadow-cljs :as shadow]
             [check.core :refer [check]]
-            [check.async :refer [await! async-test]]
+            [check.async-old :refer [await! async-test]]
             [devcards.core :as cards]
             [repl-tooling.eval-helpers :as h]
             [repl-tooling.repl-client.shadow-ws :as shadow-ws]

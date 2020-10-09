@@ -3,7 +3,7 @@
             [clojure.test :refer [async testing is]]
             [clojure.core.async :as async]
             [check.core :refer [check]]
-            [check.async :refer [async-test]]
+            [check.async-old :refer [async-test]]
             [matcher-combinators.matchers :refer [embeds]]
             [devcards.core :as cards]
             [repl-tooling.repl-client.clojure :as clj]

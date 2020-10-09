@@ -2,7 +2,7 @@
   (:require [clojure.test :refer [testing async is]]
             [devcards.core :as cards]
             [check.core :refer [check]]
-            [check.async :refer [await!]]
+            [check.async-old :refer [await!]]
             [clojure.core.async :as async]
             [repl-tooling.integrations.repls :as repls]
             [repl-tooling.features.definition :as def]

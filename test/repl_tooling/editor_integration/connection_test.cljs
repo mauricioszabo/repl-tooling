@@ -1,7 +1,7 @@
 (ns repl-tooling.editor-integration.connection-test
   (:require [clojure.test :refer [testing]]
             [check.core :refer [check]]
-            [check.async :as a]
+            [check.async-old :as a]
             [clojure.core.async :as async]
             [repl-tooling.editor-integration.connection :as connection]
             [repl-tooling.editor-helpers :as editor-helpers]

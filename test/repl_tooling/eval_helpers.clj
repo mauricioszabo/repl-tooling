@@ -1,6 +1,6 @@
 (ns repl-tooling.eval-helpers
   (:require [clojure.core.async :as async]
-            [check.async :refer [async-test]]))
+            [check.async-old :refer [async-test]]))
 
 (defmacro eval-on-repl
   "Helper to evaluate code on the repl, and don't parse. Expect you to have
