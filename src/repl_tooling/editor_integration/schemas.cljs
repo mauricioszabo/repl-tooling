@@ -116,7 +116,8 @@
                                                         :repl s/Any})
                      :get-full-var-name (s/=> js/Promise)
                      :get-code (s/=> js/Promise PossibleRanges)
-                     :repl-for (s/=> s/Any s/Str (s/enum true false :always nil))})
+                     :repl-for (s/=> s/Any s/Str (s/enum true false :always nil))
+                     :eql (s/=> s/Any s/Any)})
 
 (def EditorState (s/atom {:editor/callbacks Callbacks
                           :editor/features EditorFeatures
