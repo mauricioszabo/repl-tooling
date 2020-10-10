@@ -57,7 +57,7 @@
    :get-full-var-name #(cmds/fqn-for-var state)
    :get-code #(e-eval/get-code state %)
    :repl-for #(e-eval/repl-for state %1 %2)
-   :eql #(pathom/eql state %)})
+   :eql #(pathom/eql {:editor-state state} %)})
 
 (def ^:private default-opts
   {:on-start-eval identity
