@@ -9,7 +9,10 @@
             [repl-tooling.editor-integration.commands :as cmds]
             [clojure.core.async :as async]
             [com.wsscode.pathom.core :as pathom]
-            [com.wsscode.pathom.connect :as connect]))
+            [com.wsscode.pathom.connect :as connect]
+            ; FIXME: Remove this
+            [clojure.edn]
+            ["child_process" :refer [spawn]]))
 
 (connect/defresolver editor-data [{:keys [callbacks]} _]
   {::connect/output [:editor/data]}
@@ -94,7 +97,7 @@
   {::connect/input #{:cljs/required?}
    ::connect/output [:repl/eval :repl/aux :repl/clj]}
 
-  (let [clj-aux (:clj/aux @editor-state)]
+  (when-let [clj-aux (some-> editor-state deref :clj/aux)]
     (if required?
       {:repl/eval (:cljs/repl @editor-state)
        :repl/aux (:cljs/repl @editor-state)
@@ -128,6 +131,7 @@
   (p/let [{:keys [result]} (eval/eval aux (str "`" current-var)
                                       {:namespace (str namespace)
                                        :ignore true})]
+    (prn :FQN result)
     {:var/fqn result}))
 
 #_
@@ -149,14 +153,9 @@
   (p/let [cfg ((:get-config callbacks))]
     {:editor/config cfg}))
 
-#_
-(eql (-> @chlorine.state/state :tooling-state)
-     [:cljs/required?])
-
 (connect/defresolver meta-for-var
-  [{:keys [ast]} {:keys [var/fqn editor/filename cljs/required?
-                         repl/aux repl/clj]}]
-  {::connect/input #{:var/fqn :editor/filename :cljs/required? :repl/aux :repl/clj}
+  [{:keys [ast]} {:keys [var/fqn cljs/required? repl/aux repl/clj]}]
+  {::connect/input #{:var/fqn :cljs/required? :repl/aux :repl/clj}
    ::connect/output [:var/meta]}
 
   (p/let [keys (-> ast :params :keys)
@@ -168,6 +167,77 @@
                 res)]
     {:var/meta (cond-> (:result res)
                        (coll? keys) (select-keys keys))}))
+
+(defn- run-kondo [dirs]
+  (let [p (p/deferred)
+        buffer (atom "")
+        cp
+        (spawn "clj-kondo" (clj->js (concat ["--lint"]
+                                            dirs
+                                            ["--config"
+                                             "{:output {:analysis true :format :json}}"])))]
+    (.. cp -stdout (on "data" #(swap! buffer str %)))
+    (. cp on "close" #(p/resolve! p @buffer))
+    p))
+
+(connect/defresolver analysis-from-kondo
+  [{:keys [callbacks editor-state ast]} {:keys [editor/config]}]
+  {::connect/input #{:editor/config}
+   ::connect/output [:kondo/analysis]}
+
+  (when-not editor-state
+    (p/let [kondo (run-kondo (:project-paths config))]
+      {:kondo/analysis (.-analysis (.parse js/JSON kondo))})))
+
+(defn- get-from-ns-usages [analysis namespace ns-part]
+  (-> analysis
+      (aget "namespace-usages")
+      (->> (filter (fn [^js %] (and (-> % .-from (= (str namespace)))
+                                    (-> % .-alias (= ns-part))))))
+      first
+      (some-> .-to)))
+
+(defn- get-from-var-usages [analysis namespace current-var]
+  (-> analysis
+      (aget "var-usages")
+      (->> (filter (fn [^js %] (and (-> % .-from (= (str namespace)))
+                                    (-> % .-name (= current-var))))))
+      first
+      (some-> .-to)))
+
+(defn- get-from-definitions [analysis namespace current-var]
+  (-> analysis
+      (aget "var-definitions")
+      (->> (filter (fn [^js %] (and (-> % .-ns (= (str namespace)))
+                                    (-> % .-name (= current-var))))))
+      first
+      (some-> .-ns)))
+
+(connect/defresolver fqn-from-kondo
+  [_ {:keys [kondo/analysis editor/current-var repl/namespace]}]
+  {::connect/input #{:kondo/analysis :editor/current-var :repl/namespace}
+   ::connect/output [:var/fqn]}
+
+  (let [as-sym (symbol current-var)
+        ns-part (clojure.core/namespace as-sym)
+        without-ns (name as-sym)
+        finding (if ns-part
+                  (get-from-ns-usages analysis namespace ns-part)
+                  (or (get-from-var-usages analysis namespace current-var)
+                      (get-from-definitions analysis namespace current-var)))]
+    (when finding
+      {:var/fqn (symbol finding without-ns)})))
+ ; (prn :LOL))
+
+  ; (p/let [keys (-> ast :params :keys)
+  ;         res (-> aux
+  ;                 (eval/eval (str "(meta #'" fqn ")"))
+  ;                 (p/catch (constantly nil)))
+  ;         res (if (and required? (-> res :result nil?))
+  ;               (eval/eval clj (str "(meta #'" fqn ")"))
+  ;               res)]
+  ;   {:var/meta (cond-> (:result res)
+  ;                      (coll? keys) (select-keys keys))}))
 
 (def my-resolvers [;Editor resolvers
                    editor-data separate-data
@@ -183,8 +253,10 @@
                    repls-for-evaluation
 
                    ; Vars resolvers
-                   cljs-env
-                   fqn-var meta-for-var])
+                   cljs-env fqn-var meta-for-var
+
+                   ;; KONDO
+                   analysis-from-kondo fqn-from-kondo])
 
 (def parser
   (pathom/async-parser
@@ -200,7 +272,7 @@
 
 (s/defn eql :- js/Promise
   [params :- {(s/optional-key :editor-state) schemas/EditorState
-              (s/optional-key :callbacks) schemas/Callbacks}
+              (s/optional-key :callbacks) s/Any}
    query]
   (let [p (p/deferred)
         params (cond-> params
@@ -213,3 +285,37 @@
        (catch :default e
          (p/reject! p e))))
     p))
+
+#_
+(let [b (.readFileSync (js/require "fs") "/tmp/a.edn")
+      s (str b)]
+  (time
+   (def eden (clojure.edn/read-string s))))
+
+#_
+(-> eden
+    :analysis
+    :namespace-usages
+    (->> (filter #(-> % :to (= 'clojure.test))))
+    (nth 20))
+    ; (nth 50))
+
+#_
+(-> eden
+    :analysis
+    :var-definitions
+    (->> (filter #(and (-> % :ns (= 'repl-tooling.integration.fixture-app))
+                       (-> % :name (= 'private-fn))))))
+
+#_
+(-> eden
+    :analysis
+    :var-usages
+    (->> (filter #(and (-> % :from (= 'repl-tooling.integration.fixture-app))
+                       (-> % :name (= 'replace-first))))))
+    ; first)
+#_
+(let [b (.readFileSync (js/require "fs") "/tmp/a.json")
+      s (str b)]
+  (time
+   (def jsao (js/JSON.parse s))))

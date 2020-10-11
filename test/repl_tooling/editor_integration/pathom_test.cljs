@@ -116,6 +116,46 @@
     ; TODO: Test all vars in NS
     ; TODO: Test all vars in NS in CLJS
 
+
+(def callbacks
+  {:on-disconnect identity
+   :on-stdout identity
+   :on-eval identity
+   :notify identity
+   :prompt identity
+   :get-config (constantly {:eval-mode :prefer-clj
+                            :project-paths [(. js/process cwd)]})
+   :on-stderr identity
+   :editor-data #(let [code (:code @fake/state)]
+                   {:contents code
+                    :filename (:filename @fake/state)
+                    :range (:range @fake/state)})})
+
+(cards/deftest pathom-resolver-without-repl
+  (async-test "resolving with clj-kondo" {:timeout 8000}
+    (testing "will get fqn from aliases"
+      (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(p/let [] )")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql {:callbacks callbacks} [:var/fqn])
+             => {:var/fqn 'promesa.core/let}))
+
+    (testing "will get fqn from refers"
+      (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(replace-first )")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql {:callbacks callbacks} [:var/fqn])
+             => {:var/fqn 'clojure.string/replace-first}))
+
+    (testing "will get fqn from definitions in the same NS"
+      (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(private-fn )")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql {:callbacks callbacks} [:var/fqn])
+             => {:var/fqn 'repl-tooling.integration.fixture-app/private-fn}))))
+    ; (testing "will get meta from Kondo's result"
+    ;   (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
+    ;   (swap! fake/state assoc :range [[2 1] [2 1]])
+    ;   (check (pathom/eql {:callbacks callbacks} [:var/meta])
+    ;          => {:var/meta {:doc #"Connects to a clojure.*REPL"}}))))
+
 (cards/defcard-rg fake-editor
   fake/editor
   fake/state)
