@@ -74,46 +74,6 @@
        (:arglists meta) "\n  "
        (:doc meta)))
 
-; (defn doc-for-var
-;   ([{:keys [contents range filename] :as editor-data} opts state]
-;    (p/let [id (gensym "doc-for-var")
-;            {:keys [:editor/current-var-range]} (pathom/eql {:editor-state state}
-;                                                            [:editor/current-var-range])
-;            _ (cmds/run-callback! state :on-start-eval {:id id
-;                                                        :editor-data editor-data
-;                                                        :range current-var-range})
-;            {:keys [var/meta]} (pathom/eql {:editor-state state} '[:var/meta])
-;            doc (if (map? meta)
-;                  {:result (helpers/LiteralRender. (translate-to-doc meta))}
-;                  {:error "Can't find doc for this variable"})]
-;      (cmds/run-callback! state :on-eval {:id id
-;                                          :repl nil
-;                                          :result (assoc doc
-;                                                         :parsed? true
-;                                                         :as-text (pr-str (or (:error doc) (:success doc))))
-;                                          :editor-data editor-data
-;                                          :range current-var-range})))
-;   ([callbacks]
-;    (p/let [id (gensym "doc-for-var")
-;            {:keys [:editor/current-var-range]} (pathom/eql {:callbacks callbacks}
-;                                                            [:editor/current-var-range])
-;            {:keys [:editor/data]} (pathom/eql {:callbacks callbacks}
-;                                               [:editor/data])
-;            _ ((:on-start-eval callbacks) {:id id
-;                                           :editor-data data
-;                                           :range current-var-range})
-;            {:keys [var/meta]} (pathom/eql {:callbacks callbacks} [:var/meta])
-;            doc (if (= :com.wsscode.pathom.core/not-found meta)
-;                  {:error "Can't find doc for this variable"}
-;                  {:result (helpers/LiteralRender. (translate-to-doc meta))})]
-;      ((:on-eval callbacks) {:id id
-;                             :repl nil
-;                             :result (assoc doc
-;                                            :parsed? true
-;                                            :as-text (pr-str (or (:error doc) (:success doc))))
-;                             :editor-data data
-;                             :range current-var-range}))))
-
 (defn doc-for-var [state]
   (p/let [id (gensym "doc-for-var")
           {:keys [run-feature run-callback]} @state
