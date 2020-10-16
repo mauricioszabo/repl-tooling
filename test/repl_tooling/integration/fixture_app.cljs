@@ -9,7 +9,9 @@
 (defn- private-fn [a b] (+ a b 11))
 (defn local-fn [a b] (+ a b 10))
 
-(defn some-replace [s]
+(defn some-replace
+  "Replaces the first occurrence or Bar with nothing"
+  [s]
   (replace-first s "Bar" ""))
 
 (defn main [ & args]
