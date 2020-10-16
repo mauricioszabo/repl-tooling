@@ -54,14 +54,14 @@
                           :trace (clojure.core/->> res .-stack clojure.string/split-lines)})
 
                        (clojure.core/symbol? res)
-                       (if (clojure.core/re-find #"\s" (str res))
+                       (if (clojure.core/re-find (clojure.core/re-pattern "\\s") (str res))
                         (clojure.core/symbol (clojure.core/str "#unrepl/bad-symbol [nil "
                                                   (clojure.core/pr-str (clojure.core/str res))
                                                   "]"))
                         res)
 
                        (clojure.core/keyword? res)
-                       (if (clojure.core/re-find #"\s" (str res))
+                       (if (clojure.core/re-find (clojure.core/re-pattern "\\s") (str res))
                         (clojure.core/symbol (clojure.core/str "#unrepl/bad-keyword ["
                                                (clojure.core/pr-str (clojure.core/namespace res)) " "
                                                (clojure.core/pr-str (clojure.core/name res))
