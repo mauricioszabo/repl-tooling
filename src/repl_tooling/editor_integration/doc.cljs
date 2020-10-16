@@ -4,7 +4,8 @@
             [repl-tooling.repl-client.clj-helper :refer [contents-for-fn]]
             [promesa.core :as p]
             [repl-tooling.eval :as eval]
-            [repl-tooling.editor-integration.evaluation :as e-eval]))
+            [repl-tooling.editor-integration.evaluation :as e-eval]
+            [repl-tooling.commands-to-repl.pathom :as pathom]))
 
 (defn- doc-cmd [var filename]
   `(~'clojure.core/let
@@ -73,42 +74,66 @@
        (:arglists meta) "\n  "
        (:doc meta)))
 
-(defn doc-for-var [{:keys [contents range filename] :as editor-data} opts state]
-  (p/let [id (gensym "doc-for-var")
-          {:keys [:editor/current-var-range]} (cmds/run-feature! state :eql
-                                                                 [:editor/current-var-range])
-          _ (cmds/run-callback! state :on-start-eval {:id id
-                                                      :editor-data editor-data
-                                                      :range current-var-range})
-          {:keys [var/meta]} (cmds/run-feature! state :eql '[:var/meta])
-          doc (if (= :com.wsscode.pathom.core/not-found meta)
-                {:error "Can't find doc for this variable"}
-                {:result (helpers/LiteralRender. (translate-to-doc meta))})]
-    (cmds/run-callback! state :on-eval {:id id
-                                        :repl nil
-                                        :result (assoc doc
-                                                       :parsed? true
-                                                       :as-text (pr-str (or (:error doc) (:success doc))))
-                                        :editor-data editor-data
-                                        :range current-var-range})))
-    ; (on-eval (assoc eval-data
-    ;                 :result {:error error
-    ;                          :parsed? true
-    ;                          :as-text (pr-str error)}
-    ;                 :repl repl))))
-    ; (tap> (translate-to-doc meta))))
+; (defn doc-for-var
+;   ([{:keys [contents range filename] :as editor-data} opts state]
+;    (p/let [id (gensym "doc-for-var")
+;            {:keys [:editor/current-var-range]} (pathom/eql {:editor-state state}
+;                                                            [:editor/current-var-range])
+;            _ (cmds/run-callback! state :on-start-eval {:id id
+;                                                        :editor-data editor-data
+;                                                        :range current-var-range})
+;            {:keys [var/meta]} (pathom/eql {:editor-state state} '[:var/meta])
+;            doc (if (map? meta)
+;                  {:result (helpers/LiteralRender. (translate-to-doc meta))}
+;                  {:error "Can't find doc for this variable"})]
+;      (cmds/run-callback! state :on-eval {:id id
+;                                          :repl nil
+;                                          :result (assoc doc
+;                                                         :parsed? true
+;                                                         :as-text (pr-str (or (:error doc) (:success doc))))
+;                                          :editor-data editor-data
+;                                          :range current-var-range})))
+;   ([callbacks]
+;    (p/let [id (gensym "doc-for-var")
+;            {:keys [:editor/current-var-range]} (pathom/eql {:callbacks callbacks}
+;                                                            [:editor/current-var-range])
+;            {:keys [:editor/data]} (pathom/eql {:callbacks callbacks}
+;                                               [:editor/data])
+;            _ ((:on-start-eval callbacks) {:id id
+;                                           :editor-data data
+;                                           :range current-var-range})
+;            {:keys [var/meta]} (pathom/eql {:callbacks callbacks} [:var/meta])
+;            doc (if (= :com.wsscode.pathom.core/not-found meta)
+;                  {:error "Can't find doc for this variable"}
+;                  {:result (helpers/LiteralRender. (translate-to-doc meta))})]
+;      ((:on-eval callbacks) {:id id
+;                             :repl nil
+;                             :result (assoc doc
+;                                            :parsed? true
+;                                            :as-text (pr-str (or (:error doc) (:success doc))))
+;                             :editor-data data
+;                             :range current-var-range}))))
 
-  ; (let [id (gensym "doc-for-var")
-  ;       [_ var] (helpers/current-var contents (first range))
-  ;       [_ ns] (helpers/ns-range-for contents (first range))
-  ;       repl (e-eval/repl-for state filename true)
-  ;       eval-data {:id id
-  ;                  :editor-data editor-data
-  ;                  :range range}]
-  ;   (when repl
-  ;     (run-documentation-code {:ns ns
-  ;                              :repl repl
-  ;                              :var var
-  ;                              :opts opts
-  ;                              :eval-data eval-data
-  ;                              :editor-data editor-data}))))
+(defn doc-for-var [state]
+  (p/let [id (gensym "doc-for-var")
+          {:keys [run-feature run-callback]} @state
+          {:keys [:editor/current-var-range :editor/data]} (run-feature
+                                                            :eql
+                                                            [:editor/data
+                                                             :editor/current-var-range])
+          _ (run-callback :on-start-eval {:id id
+                                          :editor-data data
+                                          :range current-var-range})
+          k [:editor/data data]
+          res (run-feature :eql [{k [:var/meta]}])
+          {:keys [var/meta]} (get res k)
+          doc (if (map? meta)
+                {:result (helpers/LiteralRender. (translate-to-doc meta))}
+                {:error "Can't find doc for this variable"})]
+    (run-callback :on-eval {:id id
+                            :repl nil
+                            :result (assoc doc
+                                           :parsed? true
+                                           :as-text (pr-str (or (:error doc) (:success doc))))
+                            :editor-data data
+                            :range current-var-range})))
