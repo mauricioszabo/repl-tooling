@@ -132,4 +132,13 @@
                            (s/optional-key :cljs/repl-env) s/Any
                            (s/optional-key :cljs/autocomplete-kind) s/Any
                            (s/optional-key :clj/autocomplete-kind) s/Any}
-                          :editor/commands Commands}))
+                          :editor/commands Commands
+                          :run-callback (s/=> s/Any s/Any s/Any)
+                          :run-feature (s/=> s/Any s/Any s/Any)}))
+
+(def OnlyCallbacks (s/atom {:editor/callbacks Callbacks
+                            :editor/features (select-keys EditorFeatures [:eql])
+                            :editor/commands (select-keys Commands [:doc-for-var
+                                                                    :go-to-var-definition])
+                            :run-callback (s/=> s/Any s/Any s/Any)
+                            :run-feature (s/=> s/Any s/Any s/Any)}))
