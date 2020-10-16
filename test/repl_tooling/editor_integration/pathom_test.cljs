@@ -1,6 +1,7 @@
 (ns repl-tooling.editor-integration.pathom-test
   (:require [devcards.core :as cards]
             [repl-tooling.commands-to-repl.pathom :as pathom]
+            [matcher-combinators.matchers :as m]
             [clojure.test]
             [promesa.core :as p]
             [repl-tooling.integration.fake-editor :as fake]
@@ -19,7 +20,8 @@
                  :repl/clj #(instance? clj/Evaluator %)})
 
 (cards/deftest pathom-resolver-with-repl
-  (async-test "pathom resolvers" {:teardown (fake/disconnect!)}
+  (async-test "pathom resolvers" {:teardown (fake/disconnect!)
+                                  :timeout 8000}
     (fake/connect! {:get-config #(deref config)})
 
     (testing "resolves editor data"
@@ -109,13 +111,23 @@
       (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(p/let [] )")
       (swap! fake/state assoc :range [[2 1] [2 1]])
       (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:var/meta])
-             => {:var/meta {:doc #"always returns promise"}}))))
+             => {:var/meta {:doc #"always returns promise"}}))
 
-    ; TODO: Test all namespaces
-    ; TODO: Test all namespaces in CLJS
-    ; TODO: Test all vars in NS
-    ; TODO: Test all vars in NS in CLJS
-
+    (testing "getting full qualified vars in all namespaces"
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         '[{(:repl/namespaces {:filter "repl-tooling.integration."})
+                            [:repl/namespace {:namespace/vars [:var/fqn]}]}])
+             => {:repl/namespaces
+                 (m/embeds
+                  [{:repl/namespace 'repl-tooling.integration.fixture-app
+                    :namespace/vars
+                    (m/in-any-order
+                     [{:var/fqn 'repl-tooling.integration.fixture-app/private-var}
+                      {:var/fqn 'repl-tooling.integration.fixture-app/local-var}
+                      {:var/fqn 'repl-tooling.integration.fixture-app/private-fn}
+                      {:var/fqn 'repl-tooling.integration.fixture-app/local-fn}
+                      {:var/fqn 'repl-tooling.integration.fixture-app/some-replace}
+                      {:var/fqn 'repl-tooling.integration.fixture-app/main}])}])}))))
 
 (def callbacks
   {:on-disconnect identity
@@ -149,12 +161,13 @@
       (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(private-fn )")
       (swap! fake/state assoc :range [[2 1] [2 1]])
       (check (pathom/eql {:callbacks callbacks} [:var/fqn])
-             => {:var/fqn 'repl-tooling.integration.fixture-app/private-fn}))))
-    ; (testing "will get meta from Kondo's result"
-    ;   (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
-    ;   (swap! fake/state assoc :range [[2 1] [2 1]])
-    ;   (check (pathom/eql {:callbacks callbacks} [:var/meta])
-    ;          => {:var/meta {:doc #"Connects to a clojure.*REPL"}}))))
+             => {:var/fqn 'repl-tooling.integration.fixture-app/private-fn}))
+
+    (testing "will get meta from Kondo's result"
+      (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql {:callbacks callbacks} [:var/meta])
+             => {:var/meta {:doc #"Connects to a clojure.*REPL"}}))))
 
 (cards/defcard-rg fake-editor
   fake/editor

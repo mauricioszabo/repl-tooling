@@ -53,14 +53,12 @@
      :editor/current-var-range range}))
 
 (connect/defresolver all-namespaces
-  [{:keys [editor-state ast]} _]
-  {::connect/output [{:repl/namespaces [:repl/namespace]}]}
+  [{:keys [editor-state ast]} {:keys [:repl/clj]}]
+  {::connect/input #{:repl/clj}
+   ::connect/output [{:repl/namespaces [:repl/namespace]}]}
 
   (p/let [f (-> ast :params :filter)
-          {:keys [result]} (cmds/run-feature! editor-state :eval
-                                              {:aux true
-                                               :ignore true
-                                               :text "(map ns-name (all-ns))"})]
+          {:keys [result]} (eval/eval clj "(mapv ns-name (all-ns))")]
     {:repl/namespaces (cond->> (map (fn [n] {:repl/namespace n}) result)
                                f (filter (fn [n]
                                            (-> n :repl/namespace str
@@ -115,13 +113,6 @@
     {:namespace/vars (map (fn [v] {:var/fqn (symbol namespace v)})
                           (keys result))}))
 
-#_
-(eql (-> @chlorine.state/state :tooling-state)
-     '[{(:repl/namespaces {:filter "chlorine.utils"})
-        [:repl/namespace
-         {:namespace/vars
-          [:var/fqn (:var/meta {:keys [:file :line :macro? :macro]})]}]}])
-
 (connect/defresolver fqn-var
   [_ {:keys [repl/namespace editor/current-var editor/filename
              repl/aux]}]
@@ -131,13 +122,7 @@
   (p/let [{:keys [result]} (eval/eval aux (str "`" current-var)
                                       {:namespace (str namespace)
                                        :ignore true})]
-    (prn :FQN result)
     {:var/fqn result}))
-
-#_
-(eql (-> @chlorine.state/state :tooling-state)
-     '[{[:editor/current-var "fqn-var"]
-        [:var/meta]}])
 
 (connect/defresolver cljs-env [{:keys [editor-state]} {:keys [repl/clj]}]
   {::connect/input #{:repl/clj}
@@ -210,8 +195,7 @@
       (aget "var-definitions")
       (->> (filter (fn [^js %] (and (-> % .-ns (= (str namespace)))
                                     (-> % .-name (= current-var))))))
-      first
-      (some-> .-ns)))
+      first))
 
 (connect/defresolver fqn-from-kondo
   [_ {:keys [kondo/analysis editor/current-var repl/namespace]}]
@@ -224,20 +208,25 @@
         finding (if ns-part
                   (get-from-ns-usages analysis namespace ns-part)
                   (or (get-from-var-usages analysis namespace current-var)
-                      (get-from-definitions analysis namespace current-var)))]
+                      (some-> (get-from-definitions analysis namespace current-var)
+                              .-ns)))]
     (when finding
       {:var/fqn (symbol finding without-ns)})))
- ; (prn :LOL))
 
-  ; (p/let [keys (-> ast :params :keys)
-  ;         res (-> aux
-  ;                 (eval/eval (str "(meta #'" fqn ")"))
-  ;                 (p/catch (constantly nil)))
-  ;         res (if (and required? (-> res :result nil?))
-  ;               (eval/eval clj (str "(meta #'" fqn ")"))
-  ;               res)]
-  ;   {:var/meta (cond-> (:result res)
-  ;                      (coll? keys) (select-keys keys))}))
+(connect/defresolver meta-from-kondo
+  [_ {:keys [kondo/analysis var/fqn]}]
+  {::connect/input #{:kondo/analysis :var/fqn}
+   ::connect/output [:var/meta]}
+
+  (let [ns-part (namespace fqn)
+        without-ns (name fqn)]
+    (when-let [^js res (get-from-definitions analysis ns-part without-ns)]
+      {:var/meta (cond-> {:file (.-filename res)
+                          :line (.-row res)
+                          :column (.-col res)
+                          :ns (.-ns res) :name (.-name res)}
+                         (.-doc res) (assoc :doc (.-doc res))
+                         (.-test res) (assoc :test (.-test res)))})))
 
 (def my-resolvers [;Editor resolvers
                    editor-data separate-data
@@ -256,7 +245,7 @@
                    cljs-env fqn-var meta-for-var
 
                    ;; KONDO
-                   analysis-from-kondo fqn-from-kondo])
+                   analysis-from-kondo fqn-from-kondo meta-from-kondo])
 
 (def parser
   (pathom/async-parser
@@ -271,6 +260,7 @@
                        pathom/trace-plugin]}))
 
 (s/defn eql :- js/Promise
+  "Queries the Pathom graph for the REPLs"
   [params :- {(s/optional-key :editor-state) schemas/EditorState
               (s/optional-key :callbacks) s/Any}
    query]
@@ -285,37 +275,3 @@
        (catch :default e
          (p/reject! p e))))
     p))
-
-#_
-(let [b (.readFileSync (js/require "fs") "/tmp/a.edn")
-      s (str b)]
-  (time
-   (def eden (clojure.edn/read-string s))))
-
-#_
-(-> eden
-    :analysis
-    :namespace-usages
-    (->> (filter #(-> % :to (= 'clojure.test))))
-    (nth 20))
-    ; (nth 50))
-
-#_
-(-> eden
-    :analysis
-    :var-definitions
-    (->> (filter #(and (-> % :ns (= 'repl-tooling.integration.fixture-app))
-                       (-> % :name (= 'private-fn))))))
-
-#_
-(-> eden
-    :analysis
-    :var-usages
-    (->> (filter #(and (-> % :from (= 'repl-tooling.integration.fixture-app))
-                       (-> % :name (= 'replace-first))))))
-    ; first)
-#_
-(let [b (.readFileSync (js/require "fs") "/tmp/a.json")
-      s (str b)]
-  (time
-   (def jsao (js/JSON.parse s))))
