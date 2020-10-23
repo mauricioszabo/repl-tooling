@@ -13,6 +13,10 @@ sudo unzip chromedriver_linux64.zip
 sudo mv chromedriver /usr/bin
 sudo rm chromedriver_linux64.zip
 
+sudo wget https://github.com/borkdude/clj-kondo/releases/download/v2020.10.10/clj-kondo-2020.10.10-linux-static-amd64.zip
+sudo unzip clj-kondo*.zip
+sudo mv clj-kondo /usr/bin
+
 export DISPLAY=:99
 Xvfb -screen 0 1024x768x24+32 :99 &
 mkdir ~/video
