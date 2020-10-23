@@ -44,5 +44,5 @@
     (testing "getting definition on current NS"
       (check (await! (def/find-var-definition repl aux
                        'repl-tooling.integration.fixture-app "local-fn"))
-             => {:line 7
+             => {:line 9
                  :file-name #"test/repl_tooling/integration/fixture_app\.cljs"}))))
