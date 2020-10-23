@@ -1,6 +1,7 @@
 (ns repl-tooling.repl-client.clj-helper
   (:require [clojure.java.io :as io]
             [clojure.tools.reader :as r]
+            [clojure.test :refer [testing]]
             [clojure.string :as str]))
 
 (defmacro contents-for-fn
