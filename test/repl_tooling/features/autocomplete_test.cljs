@@ -15,7 +15,7 @@
 (cards/deftest clojure-simple-autocomplete
   (h/async-with-repl "Clojure simple autocomplete"
     (testing "completing core functions"
-      (let [res (simple/for-clj repl 'repl-tooling.integration.fixture-app "prn")]
+      (let [res (simple/for-clj repl 'user "prn")]
         (check (await! res) => [{:candidate "prn" :type :function}
                                 {:candidate "prn-str" :type :function}])))
 
