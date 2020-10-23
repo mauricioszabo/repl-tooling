@@ -36,11 +36,12 @@
       (when (api/exists? @cards [xpath "../button"])
         (api/wait-exists @cards [xpath "../button[2]"]))
       (print "    Results: ")
-      (let [results (->> (api/query-all @cards [xpath "../button"])
+      (let [elements (api/query-all @cards [xpath "../button"])
+            results (->> elements
                          (map #(api/get-element-text-el @cards %))
                          (map #(Integer/parseInt %)))
             [total fail-or-pass] results
-            style-of-element (api/get-element-attr-el @cards fail-or-pass "style")]
+            style-of-element (api/get-element-attr-el @cards (second elements) "style")]
         (prn results)
         (when (re-find #"rgb\(247, 145, 142\)" style-of-element)
           (println "\033[31m      " fail-or-pass "TESTS FAILED ON" description "\033[0m")
