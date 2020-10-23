@@ -156,12 +156,13 @@
 (defn- run-kondo [dirs]
   (let [p (p/deferred)
         buffer (atom "")
-        cp
-        (spawn "clj-kondo" (clj->js (concat ["--lint"]
-                                            dirs
-                                            ["--config"
-                                             "{:output {:analysis true :format :json}}"])))]
+        cp (spawn "clj-kondo"
+                  (clj->js (concat ["--lint"]
+                                   dirs
+                                   ["--config"
+                                    "{:output {:analysis true :format :json}}"])))]
     (.. cp -stdout (on "data" #(swap! buffer str %)))
+    (. cp on "error" #(p/resolve! p nil))
     (. cp on "close" #(p/resolve! p @buffer))
     p))
 
@@ -275,3 +276,8 @@
        (catch :default e
          (p/reject! p e))))
     p))
+
+#_
+(eql {:editor-state (:tooling-state @chlorine.state/state)}
+     '[{(:repl/namespaces {:filter "repl-tooling.integration."})
+        [:repl/namespace {:namespace/vars [:var/fqn]}]}])
