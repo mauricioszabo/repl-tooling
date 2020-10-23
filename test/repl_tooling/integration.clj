@@ -4,7 +4,7 @@
             [clojure.java.shell :as shell]
             [shadow.cljs.devtools.api :as shadow]))
 
-(def cards (atom nil))
+(defonce cards (atom nil))
 
 (defn- prepare-selenium! []
   (reset! cards
@@ -41,9 +41,10 @@
                          (map #(api/get-element-text-el @cards %))
                          (map #(Integer/parseInt %)))
             [total fail-or-pass] results
-            style-of-element (api/get-element-attr-el @cards (second elements) "style")]
+            style-of-element (when-let [e (second elements)]
+                               (api/get-element-attr-el @cards e "style"))]
         (prn results)
-        (when (re-find #"rgb\(247, 145, 142\)" style-of-element)
+        (when (re-find #"rgb\(247, 145, 142\)" (str style-of-element))
           (println "\033[31m      " fail-or-pass "TESTS FAILED ON" description "\033[0m")
           (swap! fails + fail-or-pass)
           (->> [xpath "../..//*[contains(@class, 'com-rigsomelight-devcards-test-line')]"]
