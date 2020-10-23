@@ -97,9 +97,10 @@
 
   (when-let [clj-aux (some-> editor-state deref :clj/aux)]
     (if required?
-      {:repl/eval (:cljs/repl @editor-state)
-       :repl/aux (:cljs/repl @editor-state)
-       :repl/clj clj-aux}
+      (when-let [cljs (:cljs/repl @editor-state)]
+        {:repl/eval cljs
+         :repl/aux cljs
+         :repl/clj clj-aux})
       {:repl/eval (:clj/repl @editor-state)
        :repl/aux clj-aux
        :repl/clj clj-aux})))
