@@ -39,9 +39,10 @@
       (let [results (->> (api/query-all @cards [xpath "../button"])
                          (map #(api/get-element-text-el @cards %))
                          (map #(Integer/parseInt %)))
-            [total fail-or-pass failed?] results]
+            [total fail-or-pass] results
+            style-of-element (api/get-element-attr-el @cards fail-or-pass "style")]
         (prn results)
-        (when failed?
+        (when (re-find #"rgb\(247, 145, 142\)" style-of-element)
           (println "\033[31m      " fail-or-pass "TESTS FAILED ON" description "\033[0m")
           (swap! fails + fail-or-pass)
           (->> [xpath "../..//*[contains(@class, 'com-rigsomelight-devcards-test-line')]"]
