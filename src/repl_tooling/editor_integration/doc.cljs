@@ -12,7 +12,7 @@
        (:ns meta) "/" (:name meta) "\n"
        (:arglists meta) "\n  "
        (:doc meta)
-       (when spec?
+       (when (map? spec?)
          (cond-> "\nSpec\n"
                  (:args spec?) (str "  args: " (pr-str (:args spec?)) "\n")
                  (:ret spec?) (str "  ret: " (pr-str (:ret spec?)) "\n")
