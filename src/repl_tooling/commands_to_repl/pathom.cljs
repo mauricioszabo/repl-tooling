@@ -154,6 +154,23 @@
     {:var/meta (cond-> (:result res)
                        (coll? keys) (select-keys keys))}))
 
+(connect/defresolver spec-for-var
+  [{:keys [ast]} {:keys [var/fqn repl/aux]}]
+  {::connect/input #{:var/fqn :repl/aux}
+   ::connect/output [:var/spec]}
+
+  (p/let [{:keys [result]}
+          (eval/eval
+           aux
+           (str "(clojure.core/let [s (clojure.spec.alpha/get-spec '" fqn ")"
+                "                   fun #(clojure.core/some->> (% s) clojure.spec.alpha/describe)]"
+                " (clojure.core/when s"
+                "   (clojure.core/->> [:args :ret :fn]"
+                "      (clojure.core/map (juxt identity fun))"
+                "      (clojure.core/filter clojure.core/second)"
+                "      (clojure.core/into {}))))"))]
+    (when result {:var/spec result})))
+
 (defn- run-kondo [dirs]
   (let [p (p/deferred)
         buffer (atom "")
@@ -244,7 +261,7 @@
                    repls-for-evaluation
 
                    ; Vars resolvers
-                   cljs-env fqn-var meta-for-var
+                   cljs-env fqn-var meta-for-var spec-for-var
 
                    ;; KONDO
                    analysis-from-kondo fqn-from-kondo meta-from-kondo])

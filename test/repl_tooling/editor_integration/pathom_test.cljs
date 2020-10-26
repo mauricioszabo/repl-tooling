@@ -113,6 +113,15 @@
       (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:var/meta])
              => {:var/meta {:doc #"always returns promise"}}))
 
+    (testing "getting spec of vars"
+      (swap! config assoc :eval-mode :clj)
+      (fake/type "(ns user)\n\n(let [a 1])")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:var/spec])
+             => {:var/spec '{:args (cat :bindings :clojure.core.specs.alpha/bindings
+                                        :body (* any?))
+                             :ret any?}}))
+
     (testing "getting full qualified vars in all namespaces"
       (check (pathom/eql {:editor-state (:editor-state @fake/state)}
                          '[{(:repl/namespaces {:filter "repl-tooling.integration."})
