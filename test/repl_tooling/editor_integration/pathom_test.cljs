@@ -142,6 +142,7 @@
                              :ret any?}}))
 
     (testing "getting full qualified vars in all namespaces"
+      (swap! config assoc :eval-mode :cljs)
       (check (pathom/eql {:editor-state (:editor-state @fake/state)}
                          '[{(:repl/namespaces {:filter "repl-tooling.integration."})
                             [:repl/namespace {:namespace/vars [:var/fqn]}]}])
