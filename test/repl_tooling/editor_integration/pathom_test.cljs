@@ -82,7 +82,26 @@
                          [:repl/eval :repl/aux :repl/clj])
              => cljs-repls))
 
-    (testing "Full qualified name variables"
+    (testing "getting current namespace when there's a NS form"
+      (swap! config assoc :eval-mode :clj)
+      (fake/type "(ns foo.bar) (+ 1 2)")
+      (swap! fake/state assoc :range [[0 2] [0 2]])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:repl/namespace])
+             => {:repl/namespace 'foo.bar}))
+
+    (testing "getting current namespace when there's no NS form"
+      (swap! config assoc :eval-mode :clj)
+      (fake/type "(+ 1 2)")
+      (swap! fake/state assoc :range [[0 2] [0 2]])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:repl/namespace])
+             => {:repl/namespace 'user})
+
+      (swap! config assoc :eval-mode :cljs))
+    (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:repl/namespace])
+           => {:repl/namespace 'cljs.user})
+
+    (testing "full qualified name variables"
+      (fake/type "(ns foo)\n\n(str 1 2)")
       (swap! fake/state assoc :range [[2 1] [2 1]])
       (swap! config assoc :eval-mode :clj)
       (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:var/fqn])

@@ -32,16 +32,20 @@
   {::connect/input #{:editor/contents :editor/range}
    ::connect/output [:editor/ns-range :editor/namespace]}
 
-  (when-let [[range ns] (helpers/ns-range-for contents (first range))]
+  (if-let [[range ns] (helpers/ns-range-for contents (first range))]
     {:editor/ns-range range
-     :editor/namespace (str ns)}))
+     :editor/namespace (str ns)}
+    {:editor/namespace nil}))
 
 (connect/defresolver namespace-from-editor
-  [_ {:editor/keys [namespace]}]
-  {::connect/input #{:editor/namespace}
+  [_ {:keys [editor/namespace cljs/required?]}]
+  {::connect/input #{:editor/namespace :cljs/required?}
    ::connect/output [:repl/namespace]}
 
-  {:repl/namespace (symbol namespace)})
+  (cond
+    namespace {:repl/namespace (symbol namespace)}
+    required? {:repl/namespace 'cljs.user}
+    :else {:repl/namespace 'user}))
 
 (connect/defresolver var-from-editor
   [_ {:editor/keys [contents range]}]
