@@ -4,7 +4,7 @@
             [clojure.core.async :as async]
             [matcher-combinators.matchers :refer [embeds]]
             [check.core :refer [check]]
-            [check.async :refer [await!]]
+            [check.async-old :refer [await!]]
             [devcards.core :as cards]
             [repl-tooling.features.autocomplete.simple :as simple]
             [repl-tooling.features.autocomplete.compliment :as compliment]
@@ -15,7 +15,7 @@
 (cards/deftest clojure-simple-autocomplete
   (h/async-with-repl "Clojure simple autocomplete"
     (testing "completing core functions"
-      (let [res (simple/for-clj repl 'repl-tooling.integration.fixture-app "prn")]
+      (let [res (simple/for-clj repl 'user "prn")]
         (check (await! res) => [{:candidate "prn" :type :function}
                                 {:candidate "prn-str" :type :function}])))
 

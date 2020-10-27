@@ -4,7 +4,7 @@
             [clojure.java.shell :as shell]
             [shadow.cljs.devtools.api :as shadow]))
 
-(def cards (atom nil))
+(defonce cards (atom nil))
 
 (defn- prepare-selenium! []
   (reset! cards
@@ -36,12 +36,15 @@
       (when (api/exists? @cards [xpath "../button"])
         (api/wait-exists @cards [xpath "../button[2]"]))
       (print "    Results: ")
-      (let [results (->> (api/query-all @cards [xpath "../button"])
+      (let [elements (api/query-all @cards [xpath "../button"])
+            results (->> elements
                          (map #(api/get-element-text-el @cards %))
                          (map #(Integer/parseInt %)))
-            [total fail-or-pass failed?] results]
+            [total fail-or-pass] results
+            style-of-element (when-let [e (second elements)]
+                               (api/get-element-attr-el @cards e "style"))]
         (prn results)
-        (when failed?
+        (when (re-find #"rgb\(247, 145, 142\)" (str style-of-element))
           (println "\033[31m      " fail-or-pass "TESTS FAILED ON" description "\033[0m")
           (swap! fails + fail-or-pass)
           (->> [xpath "../..//*[contains(@class, 'com-rigsomelight-devcards-test-line')]"]

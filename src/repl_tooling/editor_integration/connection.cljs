@@ -12,6 +12,8 @@
             [repl-tooling.editor-integration.schemas :as schemas]
             [repl-tooling.repl-client.nrepl :as nrepl]
             [repl-tooling.commands-to-repl.all-cmds :as cmds]
+            [repl-tooling.commands-to-repl.pathom :as pathom]
+            [repl-tooling.editor-integration.commands :as commands]
             [schema.core :as s]
             [repl-tooling.editor-integration.definition :as definition]
             [repl-tooling.editor-integration.configs :as configs]))
@@ -55,7 +57,8 @@
    :go-to-var-definition #(definition/goto-var (assoc % :state state))
    :get-full-var-name #(cmds/fqn-for-var state)
    :get-code #(e-eval/get-code state %)
-   :repl-for #(e-eval/repl-for state %1 %2)})
+   :repl-for #(e-eval/repl-for state %1 %2)
+   :eql #(pathom/eql {:editor-state state} %)})
 
 (def ^:private default-opts
   {:on-start-eval identity
@@ -76,7 +79,10 @@
 (defn- swap-state! [state options kind]
   (p/let [cmds (cmds/all state options kind)
           feats (features-for state options kind)]
-    (swap! state assoc :editor/features feats)
+    (swap! state assoc
+           :editor/features feats
+           :run-callback (partial commands/run-callback! state)
+           :run-feature (partial commands/run-feature! state))
     (configs/prepare-commands state cmds)))
 
 (defn connect-evaluator!
@@ -239,3 +245,20 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                                       " Connected")})
      state)
    #(connection-error! % notify)))
+
+(defn connect-callbacks!
+  "Connects callbacks only, for commands that can work without a REPL."
+  [callbacks]
+  (let [options (merge default-opts callbacks)
+        state-ish (atom  {:editor/callbacks options})
+        callback-cmds (commands/->Callbacks state-ish)]
+    (swap! state-ish assoc
+           :editor/features {:result-for-renderer
+                             #(renderer/parse-result (:result %)
+                                                     (:repl %)
+                                                     state-ish)
+                             :eql #(pathom/eql {:callbacks options} %)}
+           :run-callback (partial commands/run-callback! callback-cmds)
+           :run-feature (partial commands/run-feature! callback-cmds))
+    ((:register-commands options) (cmds/static-commands state-ish))
+    state-ish))

@@ -74,8 +74,7 @@
                    :command disconnect!}
       :doc-for-var {:name "Documentation for current var"
                     :description "Shows documentation for the current var under cursor"
-                    :command #(p/let [data (editor-data)]
-                                (doc/doc-for-var data opts state))}
+                    :command #(doc/doc-for-var state)}
       ; :spec-for-var {:name "Spec for current var"
       ;                :description "Shows spec for the current var under cursor if it exists"
       ;                :command (fn [] (ensure-data (editor-data)
@@ -86,8 +85,9 @@
                               (loaders/load-file data @state))}
       :go-to-var-definition {:name "Goto VAR definition"
                              :description "Goes to definition of the current variable"
-                             :command #(p/let [data (editor-data)]
-                                         (definition/goto-current-var data state))}}
+                             ; :command #(p/let [data (editor-data)]
+                             ;             (definition/goto-current-var data state))
+                             :command #(definition/goto-current-var' state)}}
 
      config-file
      (assoc :open-config {:name "Open Config File"
@@ -115,3 +115,19 @@
                                  {:text (str "`" var)
                                   :ignore true :auto-detect true :aux true})]
     (assoc res :range range)))
+
+(defn static-commands [state-ish]
+  (let [config-file (-> @state-ish :editor/callbacks :config-file-path)]
+    (cond->
+     {:doc-for-var {:name "Documentation for current var"
+                    :description "Shows documentation for the current var under cursor"
+                    :command #(doc/doc-for-var state-ish)}
+      :go-to-var-definition {:name "Goto VAR definition"
+                             :description "Goes to definition of the current variable"
+                             :command #(definition/goto-current-var' state-ish)}})))
+
+     ; config-file
+     ; (assoc :open-config {:name "Open Config File"
+     ;                      :description "Opens the current config file"
+     ;                      :command #(cmds/run-callback! state :open-editor
+     ;                                                    {:file-name config-file})}))))

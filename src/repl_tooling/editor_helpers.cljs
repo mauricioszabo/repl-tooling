@@ -14,7 +14,9 @@
 (deftype LiteralRender [string]
   IPrintWithWriter
   (-pr-writer [_ writer opts]
-    (-write writer string)))
+    (-write writer string))
+  Object
+  (toString [_] (str string)))
 
 (deftype Interactive [edn]
   IPrintWithWriter
@@ -58,7 +60,10 @@
   (obj [_] obj)
   (tag [_] (str "#" tag " ")))
 
-(defrecord Browseable [object more-fn attributes])
+(defrecord Browseable [object more-fn attributes]
+  Object
+  (toString [_] (str object)))
+
 (defrecord IncompleteObj [more-fn])
 
 (defrecord Error [type message add-data trace])
@@ -104,6 +109,7 @@
                                 'unrepl/bad-symbol (fn [[ns name]] (symbol ns name))
                                 'unrepl/ratio (fn [[n d]] (LiteralRender. (str n "/" d)))
                                 'unrepl/bigint (fn [n] (LiteralRender. (str n "N")))
+                                'unrepl/ns (fn [n] (LiteralRender. (str n)))
                                 'unrepl/bigdec (fn [n] (LiteralRender. (str n "M")))
                                 'unrepl.java/class (fn [k] (WithTag. k "class"))
                                 'unrepl/browsable (fn [[a b]]

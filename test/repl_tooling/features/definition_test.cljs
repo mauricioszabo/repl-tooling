@@ -2,7 +2,7 @@
   (:require [clojure.test :refer [testing async is]]
             [devcards.core :as cards]
             [check.core :refer [check]]
-            [check.async :refer [await!]]
+            [check.async-old :refer [await!]]
             [clojure.core.async :as async]
             [repl-tooling.integrations.repls :as repls]
             [repl-tooling.features.definition :as def]
@@ -44,5 +44,5 @@
     (testing "getting definition on current NS"
       (check (await! (def/find-var-definition repl aux
                        'repl-tooling.integration.fixture-app "local-fn"))
-             => {:line 7
+             => {:line 9
                  :file-name #"test/repl_tooling/integration/fixture_app\.cljs"}))))

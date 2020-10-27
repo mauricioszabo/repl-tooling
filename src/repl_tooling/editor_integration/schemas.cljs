@@ -116,7 +116,8 @@
                                                         :repl s/Any})
                      :get-full-var-name (s/=> js/Promise)
                      :get-code (s/=> js/Promise PossibleRanges)
-                     :repl-for (s/=> s/Any s/Str (s/enum true false :always nil))})
+                     :repl-for (s/=> s/Any s/Str (s/enum true false :always nil))
+                     :eql (s/=> s/Any s/Any)})
 
 (def EditorState (s/atom {:editor/callbacks Callbacks
                           :editor/features EditorFeatures
@@ -131,4 +132,13 @@
                            (s/optional-key :cljs/repl-env) s/Any
                            (s/optional-key :cljs/autocomplete-kind) s/Any
                            (s/optional-key :clj/autocomplete-kind) s/Any}
-                          :editor/commands Commands}))
+                          :editor/commands Commands
+                          :run-callback (s/=> s/Any s/Any s/Any)
+                          :run-feature (s/=> s/Any s/Any s/Any)}))
+
+(def OnlyCallbacks (s/atom {:editor/callbacks Callbacks
+                            :editor/features (select-keys EditorFeatures [:eql])
+                            :editor/commands (select-keys Commands [:doc-for-var
+                                                                    :go-to-var-definition])
+                            :run-callback (s/=> s/Any s/Any s/Any)
+                            :run-feature (s/=> s/Any s/Any s/Any)}))

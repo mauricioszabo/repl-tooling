@@ -4,7 +4,7 @@
             [reagent.core :as r]
             [clojure.test :refer [testing]]
             [check.core :refer [check]]
-            [check.async :refer [async-test]]
+            [check.async-old :refer [async-test]]
             [repl-tooling.eval-helpers :refer [wait-for-change]]
             [repl-tooling.integration.ui-macros :as m]
             [repl-tooling.eval-helpers :as e]

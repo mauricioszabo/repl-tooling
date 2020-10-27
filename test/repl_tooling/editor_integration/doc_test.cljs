@@ -6,7 +6,7 @@
             [repl-tooling.eval :as repl]
             [clojure.test :refer [testing]]
             [check.core :refer [check]]
-            [check.async :refer [async-test await!]]
+            [check.async-old :refer [async-test await!]]
             [clojure.core.async :as async]
             [repl-tooling.integration.ui-macros :as m]
             [devcards.core :as cards]))
