@@ -6,7 +6,7 @@
                  [rewrite-cljs "0.4.4"]
                  [paprika "0.1.3"]
                  [borkdude/sci "0.1.1-alpha.7"]
-                 [com.wsscode/pathom "2.3.0-alpha10"]
+                 [com.wsscode/pathom "2.3.0-alpha17"]
                  [org.pinkgorilla/gorilla-renderable-ui "0.1.33"]]
 
   :source-paths ["src"])
