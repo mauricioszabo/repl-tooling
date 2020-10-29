@@ -77,7 +77,6 @@
 (defn- fns-or-check-errors [editor-state config-file]
   (p/catch (fns-for editor-state config-file)
            (fn [error]
-             (aset js/window "e" error)
              (let [serialized (pr-str (tagged-literal 'error
                                                       {:type (.-name error)
                                                        :data (.-data error)
