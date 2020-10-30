@@ -149,7 +149,7 @@
         (->> (str/join "\n")))))
 
 (defn- simple-read [str]
-  (reader/read-string {:default (fn [_ res] res)} str))
+  (reader/read-string {:default (fn [_ res] res) :read-cond :allow} str))
 
 (defn- parse-reader [reader]
   (try

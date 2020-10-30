@@ -1,6 +1,8 @@
 # CHANGELOG
 
 ## 0.5.3
+- Fixed parsing NS form when there are reader conditionals
+- Removed node APIs from renderer so that it'll work on VSCode
 - Adding custom tag `:div/clj` to render ANSI char codes
 - Fixed defining functions with same name as `clojure.core` (fixes https://github.com/mauricioszabo/atom-chlorine/issues/214).
 - Fixed clojure REPL not connecting on first try

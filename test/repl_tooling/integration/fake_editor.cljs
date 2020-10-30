@@ -19,6 +19,15 @@
            (async/<! (async/timeout 100))
            (recur (inc t))))))))
 
+(defn wait-for-p [f]
+  (p/loop [t 0]
+    (when (< t 100)
+      (if-let [res (f)]
+        res
+        (p/do!
+         (p/delay 100)
+         (p/recur (inc t)))))))
+
 (defonce state (r/atom {:host "localhost"
                         :filename "foo.clj"
                         :port 2233

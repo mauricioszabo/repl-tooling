@@ -76,6 +76,8 @@
                 :notify (s/=> s/Any {:type (s/enum :info :warning :error)
                                      :title s/Str
                                      (s/optional-key :message) s/Str})
+                :file-exists (s/=> js/Promise s/Str)
+                :read-file (s/=> js/Promise s/Str)
                 :get-config (s/=> Config)
                 :prompt (s/=> s/Any {:title s/Str
                                      :message s/Str
