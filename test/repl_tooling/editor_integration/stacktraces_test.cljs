@@ -3,9 +3,7 @@
             [clojure.test]
             [promesa.core :as p]
             [repl-tooling.integration.fake-editor :as fake]
-            [check.async :refer [async-test check testing]]
-
-            [clojure.string :as str]))
+            [check.async :refer [async-test check testing]]))
 
 (defn- click-link [link-text]
   (p/let [find-link
