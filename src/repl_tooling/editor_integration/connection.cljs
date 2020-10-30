@@ -16,7 +16,9 @@
             [repl-tooling.editor-integration.commands :as commands]
             [schema.core :as s]
             [repl-tooling.editor-integration.definition :as definition]
-            [repl-tooling.editor-integration.configs :as configs]))
+            [repl-tooling.editor-integration.configs :as configs]
+            ["fs" :refer [exists readFile existsSync]]
+            ["path" :refer [join]]))
 
 ; FIXME: This only here because of tests
 (defn disconnect!
@@ -60,8 +62,28 @@
    :repl-for #(e-eval/repl-for state %1 %2)
    :eql #(pathom/eql {:editor-state state} %)})
 
+(defn- file-exists? [file]
+  (js/Promise. (fn [resolve] (exists file resolve))))
+
+(defn- read-file [editor-state file]
+  (let [run-callback (:run-callback @editor-state)
+        existing-file (->> (run-callback :get-config)
+                           :project-paths
+                           (cons ".")
+                           (map #(join % file))
+                           (filter #(existsSync %))
+                           first)]
+    (js/Promise. (fn [resolve]
+                   (if existing-file
+                     (readFile existing-file (fn [error not-error]
+                                               (if error
+                                                 (resolve nil)
+                                                 (resolve (str not-error)))))
+                     (resolve nil))))))
+
 (def ^:private default-opts
   {:on-start-eval identity
+   :file-exists file-exists?
    :config-file-path nil
    :register-commands identity
    :open-editor identity
@@ -83,6 +105,8 @@
            :editor/features feats
            :run-callback (partial commands/run-callback! state)
            :run-feature (partial commands/run-feature! state))
+    (swap! state update-in [:editor/callbacks :read-file]
+           #(or % (partial read-file state)))
     (configs/prepare-commands state cmds)))
 
 (defn connect-evaluator!
