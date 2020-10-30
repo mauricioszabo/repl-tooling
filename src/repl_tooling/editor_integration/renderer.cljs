@@ -1,12 +1,13 @@
 (ns repl-tooling.editor-integration.renderer
   (:require [reagent.core :as r]
+            [promesa.core :as p]
             [clojure.string :as str]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.features.definition :as definition]
             [repl-tooling.editor-integration.renderer.interactive :as int]
-            ["fs" :refer [existsSync readFileSync]]
+            [repl-tooling.editor-integration.commands :as cmds]
             ["source-map" :refer [SourceMapConsumer]]))
 
 (defn- parse-inner-root [objs more-fn a-for-more]
@@ -280,32 +281,35 @@
 (defn- trace-span [file row]
   [:span {:class "file"} " (" file ":" row ")"])
 
-(defn- trace-link [var file row editor-state]
+(defn- trace-link [var file row editor-state cache-exists?]
   (let [{:keys [open-editor notify]} (:editor/callbacks @editor-state)
         aux-repl (:clj/aux @editor-state)]
     [:a.file {:href "#"
               :on-click (fn [e]
                           (.preventDefault e)
                           (.stopPropagation e)
-                          (if (existsSync file)
+                          (if cache-exists?
                             (open-editor {:file-name file :line (dec row)})
-                            (.. (definition/find-var-definition
-                                  aux-repl
-                                  aux-repl
-                                  "user"
-                                  (re-find #"^.*?/[^/]+" var))
-                                (then #(open-editor (assoc % :line (dec row))))
-                                (catch #(notify {:type :error
-                                                 :title "Can't find file to go"})))))}
+                            (p/let [exists? (cmds/run-callback! editor-state
+                                                                :file-exists file)]
+                              (if exists?
+                                (open-editor {:file-name file :line (dec row)})
+                                (.. (definition/find-var-definition
+                                      aux-repl
+                                      aux-repl
+                                      "user"
+                                      (re-find #"^.*?/[^/]+" var))
+                                    (then #(open-editor (assoc % :line (dec row))))
+                                    (catch #(notify {:type :error
+                                                     :title "Can't find file to go"})))))))}
      " (" file ":" row ")"]))
 
-(defn- prepare-source-map [js-filename]
-  (try
-    (new SourceMapConsumer (-> js-filename
-                               (str ".map")
-                               readFileSync
-                               str))
-    (catch :default _ nil)))
+(defn- prepare-source-map [editor-state js-filename]
+  (p/let [run-callback (:run-callback @editor-state)
+          file-name (str js-filename ".map")
+          contents (run-callback :read-file file-name)]
+    (when contents
+      (new SourceMapConsumer contents))))
 
 (defn- resolve-source [^js sourcemap row col]
   (when-let [source (some-> sourcemap
@@ -327,31 +331,43 @@
         info (str/replace trace #"\(.*" "")
         filename-match (some-> (re-find #"\(.*\)" trace)
                                (str/replace #"[\(\)]" ""))
-        [file row col] (str/split filename-match #":")
-        [file row col] (if-let [res (-> file p-source (resolve-source row col))] res
-                         [file row col])]
-    [:div {:key idx :class ["row" "clj-stack"]}
-     (if filename-match
-       [:span.class (demunge-js-name info) "("
-        [:a.file {:href "#"
-                  :on-click (fn [e]
-                              (.preventDefault e)
-                              (.stopPropagation e)
-                              (if (existsSync file)
-                                (open-editor {:file-name file
-                                              :line (dec row)
-                                              :column (dec col)})
-                                (.. (definition/resolve-possible-path
-                                      aux-repl {:file file :line row})
-                                    (then #(open-editor (assoc %
-                                                               :line (dec row)
-                                                               :column (dec col))))
-                                    (catch #(notify {:type :error
-                                                     :title "Can't find file to go"})))))}
+        local-row (r/atom (str/split filename-match #":"))
+        loaded? (r/atom false)
+        fun
+        (fn []
+          (let [[file row col] @local-row]
+           (when-not @loaded?
+             (p/let [[file row col] @local-row
+                     file-contents (p-source file)
+                     data (resolve-source file-contents row col)]
+               (reset! loaded? true)
+               (when data (reset! local-row data))))
 
-         file ":" row ":" col]
-        ")"]
-       [:span.stack-line trace])]))
+           (if filename-match
+             [:span.class (demunge-js-name info) "("
+              [:a.file {:href "#"
+                        :on-click (fn [e]
+                                    (.preventDefault e)
+                                    (.stopPropagation e)
+                                    (p/let [exists? (cmds/run-callback! editor-state
+                                                                        :file-exists file)]
+                                      (if exists?
+                                        (open-editor {:file-name file
+                                                      :line (dec row)
+                                                      :column (dec col)})
+                                        (.. (definition/resolve-possible-path
+                                              aux-repl {:file file :line row})
+                                            (then #(open-editor (assoc %
+                                                                       :line (dec row)
+                                                                       :column (dec col))))
+                                            (catch #(notify {:type :error
+                                                             :title "Can't find file to go"}))))))}
+
+               file ":" row ":" col]
+              ")"]
+             [:span.stack-line trace])))]
+
+    [:div {:key idx :class ["row" "clj-stack"]} [fun]]))
 
 (defn- to-trace-row [p-source repl ratom editor-state idx trace]
   (let [[class method file row] trace
@@ -377,10 +393,17 @@
         (when var [:span {:class "class"} var])
         (when-not (or clj-file? (nil? method))
           [:span {:class "method"} "." method])
-        (cond
-          clj-file? (trace-link var file row editor-state)
-          (existsSync (str file)) (trace-link var file row editor-state)
-          :else (trace-span file row))]])))
+        (if clj-file?
+          (trace-link var file row editor-state nil)
+          (let [exists? (r/atom nil)
+                res (fn []
+                      (if @exists?
+                        (trace-link var file row editor-state true)
+                        (trace-span file row)))]
+            (.then (cmds/run-callback! editor-state :file-exists (str file))
+                   #(reset! exists? %))
+            [res]))]])))
+          ; :else (trace-span file row))]])))
 
 (defn- to-trace-row-txt [repl ratom idx trace]
   (let [[class method file row] trace
@@ -420,7 +443,7 @@
 
   (as-html [_ ratom root?]
     (let [{:keys [type message trace]} obj
-          p-source (memoize prepare-source-map)]
+          p-source (memoize #(prepare-source-map editor-state %))]
       [:div {:class "exception row"}
        [:div {:class "description"}
         [:span {:class "ex-kind"} (str type)] ": " [proto/as-html @message message root?]]
