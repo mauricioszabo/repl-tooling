@@ -21,7 +21,7 @@
 
 (cards/deftest pathom-resolver-with-repl
   (async-test "pathom resolvers" {:teardown (fake/disconnect!)
-                                  :timeout 8000}
+                                  :timeout 16000}
     (fake/connect! {:get-config #(deref config)})
 
     (testing "resolves editor data"
