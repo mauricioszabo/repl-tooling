@@ -195,10 +195,10 @@
   (let [bindings (cond
                    bindings bindings
                    editor-state (default-bindings editor-state)
-                   :else promised-bindings)]
-    (sci/eval-string code {:env sci-state
+                   :else promised-bindings
                            :classes {:allow :all}
                            :preset {:termination-safe true}
                            :readers (readers-for editor-state)
                            :namespaces (prepare-nses repl editor-state)
-                           :bindings bindings})))
+                           :bindings bindings)]
+    nil))

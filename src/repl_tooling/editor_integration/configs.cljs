@@ -1,20 +1,17 @@
 (ns repl-tooling.editor-integration.configs
   (:require [sci.core :as sci]
-            [clojure.set :as set]
             [promesa.core :as p]
-            [paprika.collection :as coll]
             [clojure.string :as str]
             [repl-tooling.editor-integration.commands :as cmds]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.ui.pinkie :as pinkie]
-            [pinkgorilla.ui.jsrender :as jsrender]
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [repl-tooling.editor-integration.interpreter :as int]
+            [repl-tooling.editor-integration.renderer :as render]
             ["path" :refer [dirname join]]
             ["fs" :refer [watch readFile existsSync]]
-            ["ansi_up" :default Ansi]
-            [repl-tooling.editor-integration.renderer :as render]))
+            ["ansi_up" :default Ansi]))
 
 (defn- read-config-file [config-file]
   (let [p (p/deferred)]
