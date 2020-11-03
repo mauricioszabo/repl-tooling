@@ -38,6 +38,12 @@
   (-run-callback! [this callback args]
     (state-run-callback! this callback args))
   (-run-feature! [this feature args]
+    (state-run-feature! this feature args))
+
+  Atom
+  (-run-callback! [this callback args]
+    (state-run-callback! this callback args))
+  (-run-feature! [this feature args]
     (state-run-feature! this feature args)))
 
 (defrecord Callbacks [quasi-state]
