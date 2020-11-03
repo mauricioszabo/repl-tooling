@@ -41,7 +41,7 @@
       (add-to-eval-queue! state
                           {:cmd (str "(if (find-ns '" namespace ")"
                                      "  (in-ns '" namespace ")"
-                                     "  (ns " namespace "))") 
+                                     "  (ns " namespace "))")
                            :ignore-result? true}))
     (when (or filename row col)
       (add-to-eval-queue! state
