@@ -201,5 +201,4 @@
                            :preset {:termination-safe true}
                            :readers (readers-for editor-state)
                            :namespaces (prepare-nses repl editor-state)
-                           :bindings bindings})
-    nil))
+                           :bindings bindings})))

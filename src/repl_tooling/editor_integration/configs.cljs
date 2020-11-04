@@ -43,10 +43,11 @@
     (p/let [config (read-config-file config-file)
             sci-state (atom {})
             bindings (int/default-bindings editor-state)
-            _ (int/evaluate-code {:code config
-                                  :bindings bindings
-                                  :sci-state sci-state
-                                  :editor-state editor-state})
+            _ (do (int/evaluate-code {:code config
+                                      :bindings bindings
+                                      :sci-state sci-state
+                                      :editor-state editor-state})
+                nil)
             vars (->> (sci/eval-string "(->> *ns* ns-publics keys)" {:env sci-state})
                       (map #(vector % (sci/eval-string (str %) {:env sci-state}))))]
       (->> vars
