@@ -53,5 +53,7 @@
   (-run-feature! [this feature args]
     (run-cmd feature quasi-state :editor/features args)))
 
-(defn run-callback! [this callback & args] (-run-callback! this callback args))
-(defn run-feature! [this feature & args] (-run-feature! this feature args))
+(defn run-callback! [this callback & args]
+  (when this (-run-callback! this callback args)))
+(defn run-feature! [this feature & args]
+  (when this (-run-feature! this feature args)))
