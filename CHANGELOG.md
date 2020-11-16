@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.5.4
+## 0.5.5
 - Fixed nREPL code disconnecting when you send accents
 
 ## 0.5.3
