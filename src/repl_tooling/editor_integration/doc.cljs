@@ -33,11 +33,15 @@
           {:keys [var/meta var/spec]} (get res k)
           doc (if (map? meta)
                 {:result (helpers/LiteralRender. (translate-to-doc meta spec))}
-                {:error "Can't find doc for this variable"})]
+                {:error (helpers/LiteralRender. "Can't find doc for this variable")})]
     (run-callback :on-eval {:id id
                             :repl nil
                             :result (assoc doc
                                            :parsed? true
-                                           :as-text (pr-str (or (:error doc) (:success doc))))
+                                           :literal true
+                                           :as-text (-> (:result doc)
+                                                        (or (:error doc))
+                                                        pr-str
+                                                        pr-str))
                             :editor-data data
                             :range current-var-range})))

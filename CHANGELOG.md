@@ -4,6 +4,9 @@
 - Fixed nREPL code disconnecting when you send accents
 
 ## 0.5.3
+- Bugfixes on some edge cases
+- Allowing Pathom and EQL to use clj-kondo's static analysis for goto-var/etc
+- Don't return a promise when evaluating config file
 - Fixed parsing NS form when there are reader conditionals
 - Removed node APIs from renderer so that it'll work on VSCode
 - Adding custom tag `:div/clj` to render ANSI char codes
