@@ -18,7 +18,7 @@
                 [org.pinkgorilla/gorilla-renderable-ui "0.1.33"]
                 [etaoin "0.3.6"]]
 
- :jvm-opts ["-Xmx1G"]
+ :jvm-opts ["-Xmx800M"]
  :builds {:integration {:target :browser
                         :js-options {:js-provider :require}
                         :output-dir "target/integration"
