@@ -21,7 +21,7 @@
                           (:col opts) (assoc :column (:col opts))
                           (:row opts) (assoc :line (:row opts)))]
       (swap! pending assoc (str id) (assoc opts :callback callback))
-      (.write conn (bencode/encode full-op) "binary")
+      (.write conn (js/Buffer.from (bencode/encode full-op)) "binary")
       id))
 
   (break [_ _]

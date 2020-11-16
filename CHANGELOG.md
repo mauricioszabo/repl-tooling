@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 0.5.4
+- Fixed nREPL code disconnecting when you send accents
+
 ## 0.5.3
 - Fixed parsing NS form when there are reader conditionals
 - Removed node APIs from renderer so that it'll work on VSCode
