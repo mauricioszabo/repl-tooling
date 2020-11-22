@@ -2,6 +2,7 @@
 
 ## 0.5.5
 - Fixed nREPL code disconnecting when you send accents
+- Fixed some undetectable var definitions
 
 ## 0.5.3
 - Bugfixes on some edge cases

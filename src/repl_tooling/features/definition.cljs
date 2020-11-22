@@ -36,7 +36,7 @@
     (eval/eval clj-repl
                (str "(clojure.core/let [m '" meta "]"
                     "  (clojure.core/assoc m :file-name "
-                    "                      (or (clojure.core/some->> m"
+                    "                      (clojure.core/or (clojure.core/some->> m"
                     "                            :file"
                     "                            (.getResource (clojure.lang.RT/baseLoader))"
                     "                            .getPath)"
