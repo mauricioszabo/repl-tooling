@@ -62,7 +62,7 @@
    ::connect/output [{:repl/namespaces [:repl/namespace]}]}
 
   (p/let [f (-> ast :params :filter)
-          {:keys [result]} (eval/eval clj "(mapv ns-name (all-ns))")]
+          {:keys [result]} (eval/eval clj "(clojure.core/mapv clojure.core/ns-name (clojure.core/all-ns))")]
     {:repl/namespaces (cond->> (map (fn [n] {:repl/namespace n}) result)
                                f (filter (fn [n]
                                            (-> n :repl/namespace str
@@ -92,7 +92,7 @@
         :else {:cljs/required? false})
 
       (-> config :eval-mode (= :prefer-cljs))
-      {:cljs/required? cljc-file?})))
+      {:cljs/required? (or cljs-file? cljc-file?)})))
 
 (connect/defresolver repls-for-evaluation
   [{:keys [editor-state ast]} {:keys [:cljs/required?]}]
@@ -114,7 +114,7 @@
   {::connect/input #{:repl/namespace :repl/aux}
    ::connect/output [{:namespace/vars [:var/fqn]}]}
 
-  (p/let [{:keys [result]} (eval/eval aux (str "(ns-interns '" namespace ")"))]
+  (p/let [{:keys [result]} (eval/eval aux (str "(clojure.core/ns-interns '" namespace ")"))]
     {:namespace/vars (map (fn [v] {:var/fqn (symbol namespace v)})
                           (keys result))}))
 
@@ -148,12 +148,14 @@
   {::connect/input #{:var/fqn :cljs/required? :repl/aux :repl/clj}
    ::connect/output [:var/meta]}
 
+  ; (prn :REPL aux)
   (p/let [keys (-> ast :params :keys)
           res (-> aux
-                  (eval/eval (str "(meta #'" fqn ")"))
+                  (eval/eval (str "(clojure.core/meta #'" fqn ")"))
                   (p/catch (constantly nil)))
+          ; _ (prn :RES res)
           res (if (and required? (-> res :result nil?))
-                (eval/eval clj (str "(meta #'" fqn ")"))
+                (eval/eval clj (str "(clojure.core/meta #'" fqn ")"))
                 res)]
     {:var/meta (cond-> (:result res)
                        (coll? keys) (select-keys keys))}))
@@ -170,7 +172,7 @@
                 "                   fun #(clojure.core/some->> (% s) clojure.spec.alpha/describe)]"
                 " (clojure.core/when s"
                 "   (clojure.core/->> [:args :ret :fn]"
-                "      (clojure.core/map (juxt identity fun))"
+                "      (clojure.core/map (clojure.core/juxt clojure.core/identity fun))"
                 "      (clojure.core/filter clojure.core/second)"
                 "      (clojure.core/into {}))))"))]
     (when result {:var/spec result})))
