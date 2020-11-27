@@ -80,6 +80,12 @@
       (swap! fake/state assoc :filename "somefile.cljs")
       (check (pathom/eql {:editor-state (:editor-state @fake/state)}
                          [:repl/eval :repl/aux :repl/clj])
+             => cljs-repls)
+
+      (swap! config assoc :eval-mode :prefer-cljs)
+      (swap! fake/state assoc :filename "somefile.cljs")
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         [:repl/eval :repl/aux :repl/clj])
              => cljs-repls))
 
     (testing "getting current namespace when there's a NS form"
