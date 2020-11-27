@@ -3,6 +3,7 @@
 ## 0.5.5
 - Fixed nREPL code disconnecting when you send accents
 - Fixed some undetectable var definitions
+- Fixed ClojureScript REPL detection on `.cljs` when `:prefer-cljs` option is selected
 
 ## 0.5.3
 - Bugfixes on some edge cases
