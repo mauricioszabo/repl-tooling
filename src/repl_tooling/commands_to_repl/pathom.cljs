@@ -148,12 +148,10 @@
   {::connect/input #{:var/fqn :cljs/required? :repl/aux :repl/clj}
    ::connect/output [:var/meta]}
 
-  ; (prn :REPL aux)
   (p/let [keys (-> ast :params :keys)
           res (-> aux
                   (eval/eval (str "(clojure.core/meta #'" fqn ")"))
                   (p/catch (constantly nil)))
-          ; _ (prn :RES res)
           res (if (and required? (-> res :result nil?))
                 (eval/eval clj (str "(clojure.core/meta #'" fqn ")"))
                 res)]
