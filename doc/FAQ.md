@@ -64,7 +64,7 @@ UNREPL is a blob of Clojure code that you can send to the REPL. It'll make the S
 LSP does not support evaluation of arbitrary code. It is also not extensible, so it will not support things like "show schemas/specs for code", for example. Also, there are already similar projects that implement LSP for Clojure.
 
 ### What about Conjure?
-Conjure is in Clojure. The focus is to make the tooling work for ClojureScript, so it can target more editor implementations.
+Conjure is written in Clojure. The focus is to make the tooling work for ClojureScript, so it can target more editor implementations.
 
 ## Similar projects
 ### What about pink-gorilla/clojupyter/gorilla-notebook/Gorilla REPL?
@@ -76,7 +76,7 @@ These editors again suffer from the same problem as above: only work on Clojure,
 ## Implementations
 
 ### What Clojure implementations are supported?
-For now, Clojure, ClojureScript, ClojureCLR, Joker, Babashka, and Clojerl.
+For now, Clojure, ClojureScript, ClojureCLR, Joker, Babashka, Lumo, Plank, and Clojerl.
 
 ### Why ClojureScript implementation doesn't support X feature?
 There's a **big difference** from Clojure than other implementations: first, it does support UNREPL which makes scripting way easier. Second, that it's the most mature implementation. ClojureScript is also really mature, but it's incredibly different from Clojure that makes scripting over a CLJS REPL kinda difficult.
@@ -101,3 +101,17 @@ This library tries its best to bind the right `*test-out*`, but if you find some
 ```clojure
 (alter-var-root #'clojure.test/*test-out* (constantly *out*))
 ```
+
+### Output appearing on the REPL, but not on Chlorine
+When you evaluate code that runs on other threads, Clojure does not redirect that STDOUT to the socket. So Chlorine have now way of capturing that output. This is a limitation on the way the JVM works, so nothing to do here, unfortunately
+
+### When I evaluate multi-thread code, sometimes the result is wrong
+Please, be **absolutely sure** that you're realizing the whole sequence. For example, if you evaluate these commands:
+
+```clojure
+(def a (atom 0))
+(repeatedly 200
+  (fn [] (future (swap! a inc))))
+```
+
+The result **will not** be 200 on Clojure - because Chlorine sometimes do not evaluate the full lazy sequence. If you want to be sure that you're getting the right results, wrap `repeatedly` in a `doall` call. Also, please notice that using lazy sequences for side-effects without making sure that it's fully realized **is considered a bug** - do not do it in production, or you will have really hard to debug issues.
