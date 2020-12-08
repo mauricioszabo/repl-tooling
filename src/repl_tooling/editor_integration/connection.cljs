@@ -254,7 +254,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
    {:keys [notify] :as opts} :- s/Any]
   (p/catch
    (p/let [options (-> default-opts (merge opts) prepare-patch)
-           state (r/atom {:editor/callbacks options})
+           state (atom {:editor/callbacks options})
            callback (partial callback-fn state)
            [kind primary] (repls/connect-repl! :clj-eval host port callback)
            _ (eval/eval primary "1234")
