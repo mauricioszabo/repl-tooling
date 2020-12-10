@@ -5,10 +5,10 @@
                      (clojure.core/tagged-literal
                       'unrepl/browsable
                       [(if (clojure.core/= js/Function (clojure.core/type js-obj))
-                         (let [fn-name (clojure.core/-> js-obj .-name cljs.core/demunge)
-                               fn-name (if (clojure.core/empty? fn-name)
-                                         (clojure.core/pr-str js-obj)
-                                         fn-name)]
+                         (clojure.core/let [fn-name (clojure.core/-> js-obj .-name cljs.core/demunge)
+                                            fn-name (if (clojure.core/empty? fn-name)
+                                                      (clojure.core/pr-str js-obj)
+                                                      fn-name)]
                            (clojure.core/tagged-literal 'unrepl/bad-symbol
                                                           [nil
                                                            (clojure.core/str
