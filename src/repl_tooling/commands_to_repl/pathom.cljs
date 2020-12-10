@@ -175,6 +175,8 @@
                 "      (clojure.core/into {}))))"))]
     (when result {:var/spec result})))
 
+(def ^:private kondo-cache (atom {:cache nil :when 0}))
+
 (defn- run-kondo [dirs]
   (let [p (p/deferred)
         buffer (atom "")
@@ -188,13 +190,22 @@
     (. cp on "close" #(p/resolve! p @buffer))
     p))
 
+(defn- run-kondo-maybe [dirs]
+  (let [curr-time (int (new js/Date))
+        {:keys [when cache]} @kondo-cache]
+    (if (< (- curr-time 6000) when)
+      cache
+      (p/finally (run-kondo dirs)
+                 (fn [res]
+                   (reset! kondo-cache {:when (int (new js/Date)) :cache res}))))))
+
 (connect/defresolver analysis-from-kondo
   [{:keys [callbacks editor-state ast]} {:keys [editor/config]}]
   {::connect/input #{:editor/config}
    ::connect/output [:kondo/analysis]}
 
   (when-not editor-state
-    (p/let [kondo (run-kondo (:project-paths config))]
+    (p/let [kondo (run-kondo-maybe (:project-paths config))]
       {:kondo/analysis (.-analysis (.parse js/JSON kondo))})))
 
 (defn- get-from-ns-usages [analysis namespace ns-part]

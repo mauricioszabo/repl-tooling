@@ -23,7 +23,7 @@
   "Disconnect all REPLs. Indempotent."
   [state]
   (disconnect!)
-  (js/setTimeout #(reset! state nil) 100))
+  (reset! state nil))
 
 (defn eval-range [state {:keys [contents range] :as data} opts function]
   (let [[start] range

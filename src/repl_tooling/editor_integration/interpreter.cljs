@@ -172,7 +172,8 @@
                                       (str/join " " args))
                   nil)
          'prn (fn [& args]
-                (->> args (map pr-str)
+                (->> args
+                     (map pr-str)
                      (str/join " ")
                      (#(str % "\n"))
                      (cmds/run-callback! editor-state :on-stdout))
@@ -193,8 +194,8 @@
 (defn evaluate-code [{:keys [code bindings sci-state editor-state repl]
                       :or {sci-state (atom {})}}]
   (let [bindings (cond
-                   bindings bindings
-                   editor-state (default-bindings editor-state)
+                   editor-state (merge (default-bindings editor-state)
+                                       bindings)
                    :else promised-bindings)]
     (sci/eval-string code {:env sci-state
                            :classes {:allow :all}

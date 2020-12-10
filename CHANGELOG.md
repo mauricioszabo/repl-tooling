@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.5.6
+- Fixed issues with `prn`
+- Fixed issues with disconnect (sometimes it tries to run callbacks after disconnected)
+- Caching clj-kondo
+
 ## 0.5.5
 - Fixed nREPL code disconnecting when you send accents
 - Fixed some undetectable var definitions

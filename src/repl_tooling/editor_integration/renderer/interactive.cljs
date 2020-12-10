@@ -63,9 +63,7 @@
         html (fn [state]
                (try
                  (-> {:code code
-                      :bindings (assoc (bindings-for state fns repl)
-                                       'log (fn [& args] (apply js/console.log args)))
-
+                      :bindings (bindings-for state fns repl)
                       :editor-state editor-state}
                      int/evaluate-code
                      pinkie/tag-inject
