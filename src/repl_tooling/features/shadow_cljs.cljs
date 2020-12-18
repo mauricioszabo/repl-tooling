@@ -9,7 +9,8 @@
             [repl-tooling.editor-helpers :as helpers]))
 
 (defn- readfile [shadow-path]
-  (-> shadow-path readFileSync str edn/read-string
+  (->> shadow-path readFileSync str
+      (edn/read-string {:default tagged-literal})
       :builds keys))
 
 (defn cmd-for [build-id]
