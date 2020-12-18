@@ -42,16 +42,14 @@
   (when (existsSync config-file)
     (p/let [config (read-config-file config-file)
             sci-state (atom {})
-            bindings (int/default-bindings editor-state)
             _ (do (int/evaluate-code {:code config
-                                      :bindings bindings
                                       :sci-state sci-state
                                       :editor-state editor-state})
                 nil)
             vars (->> (sci/eval-string "(->> *ns* ns-publics keys)" {:env sci-state})
                       (map #(vector % (sci/eval-string (str %) {:env sci-state}))))]
       (->> vars
-           (filter (fn [[k v]] (and (fn? v) (not (contains? bindings k)))))
+           (filter (fn [[k v]] (fn? v)))
            (reduce (fn [acc [k fun]]
                      (assoc acc (-> k str keyword) {:name (name-for k)
                                                     :command #(catch-errors
