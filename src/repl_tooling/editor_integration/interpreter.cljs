@@ -162,28 +162,26 @@
                                   'p/let promised-let})
 
 (defn default-bindings [editor-state]
-  (assoc promised-bindings
-         'println (fn [& args]
-                    (cmds/run-callback! editor-state :on-stdout
-                                        (str (str/join " " args) "\n"))
-                    nil)
-         'print (fn [& args]
-                  (cmds/run-callback! editor-state :on-stdout
-                                      (str/join " " args))
-                  nil)
-         'prn (fn [& args]
-                (->> args
-                     (map pr-str)
-                     (str/join " ")
-                     (#(str % "\n"))
-                     (cmds/run-callback! editor-state :on-stdout))
+  (let [run-callback (:run-callback @editor-state)]
+    {'println (fn [& args]
+                (run-callback :on-stdout (str (str/join " " args) "\n"))
                 nil)
-         'log (fn [& args] (apply js/console.log args))
-         'pr (fn [& args]
-               (->> args (map pr-str)
-                    (str/join " ")
-                    (cmds/run-callback! editor-state :on-stdout))
-               nil)))
+     'print (fn [& args]
+              (run-callback :on-stdout (str/join " " args))
+              nil)
+     'prn (fn [& args]
+            (->> args
+                 (map pr-str)
+                 (str/join " ")
+                 (#(str % "\n"))
+                 (run-callback :on-stdout))
+            nil)
+     'log (fn [& args] (apply js/console.log args))
+     'pr (fn [& args]
+           (->> args (map pr-str)
+                (str/join " ")
+                (run-callback :on-stdout))
+           nil)}))
 
 (defn- readers-for [editor-state]
   {'repl-tooling.editor-helpers.Error helpers/map->Error
@@ -194,7 +192,8 @@
 (defn evaluate-code [{:keys [code bindings sci-state editor-state repl]
                       :or {sci-state (atom {})}}]
   (let [bindings (cond
-                   editor-state (merge (default-bindings editor-state)
+                   editor-state (merge promised-bindings
+                                       (default-bindings editor-state)
                                        bindings)
                    :else promised-bindings)]
     (sci/eval-string code {:env sci-state
