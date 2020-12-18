@@ -14,7 +14,7 @@
 
 (m/card-for-renderer!)
 (defn render [interactive-obj repl]
-  (let [obj (int/->Interactive interactive-obj repl {})]
+  (let [obj (int/->Interactive interactive-obj repl (atom {}))]
     (reset! state obj)
     (m/text-on-result)))
 
