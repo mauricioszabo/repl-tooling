@@ -161,7 +161,7 @@
                                   'p/catch #(.catch ^js %1 %2)
                                   'p/let promised-let})
 
-(defn default-bindings [editor-state]
+(defn debug-bindings [editor-state]
   (let [run-callback (:run-callback @editor-state)]
     {'println (fn [& args]
                 (run-callback :on-stdout (str (str/join " " args) "\n"))
@@ -193,7 +193,7 @@
                       :or {sci-state (atom {})}}]
   (let [bindings (cond
                    editor-state (merge promised-bindings
-                                       (default-bindings editor-state)
+                                       (debug-bindings editor-state)
                                        bindings)
                    :else promised-bindings)]
     (sci/eval-string code {:env sci-state
