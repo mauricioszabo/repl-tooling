@@ -4,6 +4,7 @@
 - Fixed issues with `prn`
 - Fixed issues with disconnect (sometimes it tries to run callbacks after disconnected)
 - Caching clj-kondo
+- Fixed an error parsing `shadow-cljs.edn` files (closes https://github.com/mauricioszabo/atom-chlorine/issues/226)
 
 ## 0.5.5
 - Fixed nREPL code disconnecting when you send accents

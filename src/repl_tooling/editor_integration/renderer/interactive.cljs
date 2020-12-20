@@ -1,6 +1,8 @@
 (ns repl-tooling.editor-integration.renderer.interactive
   (:require [reagent.core :as r]
+            [promesa.core :as p]
             [reagent.dom :as rdom]
+            [paprika.collection :as coll]
             [clojure.string :as str]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-integration.renderer.protocols :as proto]
@@ -46,11 +48,16 @@
       (fn [e] (run-evt-fun! e fun state repl args))
       (run-evt-fun! (first args) fun state repl []))))
 
-(defn- bindings-for [state fns repl]
-  (->> fns
-       (map (fn [[f-name f-body]] [(->> f-name name (str "?") symbol)
-                                   (prepare-fn f-body state repl)]))
-       (into {'?state @state})))
+(defn- bindings-for [editor-state state fns repl]
+  (let [binds (coll/map-values (fn [v] (fn [ & args]
+                                         (p/do! (apply v args))
+                                         nil))
+                               (int/debug-bindings editor-state))
+        binds (assoc binds '?state @state '?state-atom state)]
+    (->> fns
+         (map (fn [[f-name f-body]] [(->> f-name name (str "?") symbol)
+                                     (prepare-fn f-body state repl)]))
+         (into binds))))
 
 (defn- treat-error [hiccup]
   (let [d (. js/document createElement "div")]
@@ -63,7 +70,7 @@
         html (fn [state]
                (try
                  (-> {:code code
-                      :bindings (bindings-for state fns repl)
+                      :bindings (bindings-for editor-state state fns repl)
                       :editor-state editor-state}
                      int/evaluate-code
                      pinkie/tag-inject
