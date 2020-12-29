@@ -68,7 +68,7 @@ Conjure is written in Clojure. The focus is to make the tooling work for Clojure
 
 ## Similar projects
 ### What about pink-gorilla/clojupyter/gorilla-notebook/Gorilla REPL?
-These are great projects, really. But what I want to do is a layer where you can develop inside your editor of choice, connected to a REPL, without adding any dependency on your project. Almost all of these projects need you to add another Clojure dependency, so they'll just work on Clojure or need to be ported between implementations
+These are great projects, really. But what I want to do is a layer where you can develop inside your editor of choice, connected to a REPL, without adding any dependency on your project. Almost all of these projects need you to add another Clojure dependency, so they'll just work on Clojure or need to be ported between implementations.
 
 ### Have you seen that editor where you add it as a dependency on your project and...
 These editors again suffer from the same problem as above: only work on Clojure, or ClojureScript. REPL-Tooling compiles to Javascript, and so it is possible to use any editor that supports JS (Atom, VSCode, NeoVIM, Eclipse Theia/Che, GitPod, etc) or anyplace that have Node.JS if the editor does not.
@@ -115,3 +115,18 @@ Please, be **absolutely sure** that you're realizing the whole sequence. For exa
 ```
 
 The result **will not** be 200 on Clojure - because Chlorine sometimes do not evaluate the full lazy sequence. If you want to be sure that you're getting the right results, wrap `repeatedly` in a `doall` call. Also, please notice that using lazy sequences for side-effects without making sure that it's fully realized **is considered a bug** - do not do it in production, or you will have really hard to debug issues.
+
+### When I evaluate `*1`, the result is always `nil`
+Chlorine / Clover does not support `*1`, `*2`, `*3`, nor `*e`. The reason is simple: when you have a `ns` form on your editor, the tooling will detect it and evaluate `in-ns` with that namespace, so that you'll always be on the right namespace when evaluating. This also means that if your editor does have a filename, it'll also send that filename as a command.
+
+So, if you do have a filename and a namespace for (90% of the time you do), Chlorine will send:
+
+`(in-ns 'the.current.namespace)` <- this binds `*1`
+
+`(set-filename-and-row-cmd.....)` <- this re-binds `*1`
+
+`(your code here)` <- this re-binds `*1`
+
+As you can see, now the evaluation result is on `*1`, but when you issue another command, it'll re-bind `*1` two times, moving it to `*3` by the time it evaluates your code. So, effectively, `*3` works as `*1` and the others are just leaking abstractions - nothing to do here.
+
+As for `*e`, it _does work_ only in Clojure - but again, it works "by coincidence". Exceptions are not really "serializable" so what this package do is to wrap the exception into an EDN and send it over the wire - so `*e` is never really bound to anything.
