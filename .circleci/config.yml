@@ -76,8 +76,11 @@ jobs:
     steps:
       - attach_workspace:
           at: '.'
+      - run: apt-get update
+      - run: apt-get install -y tmux
       - run: dotnet tool install --global --version 1.10.0-alpha1 Clojure.Main
-      - run: /root/.dotnet/tools/Clojure.Main -e "(clojure.core.server/start-server {:name \"test\" :port 4004 :accept 'clojure.core.server/repl})(read)"
+      - run: tmux new-session -d
+      - run: tmux send-keys "/root/.dotnet/tools/Clojure.Main -e \"(clojure.core.server/start-server {:name \\\"test\\\" :port 4444 :accept 'clojure.core.server/repl})(read)\"" Enter
       - run: sleep 20; node target/fixture.js somefile.clj
 
 workflows:
