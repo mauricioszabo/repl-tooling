@@ -191,7 +191,7 @@
     p))
 
 (defn- run-kondo-maybe [dirs]
-  (let [curr-time (int (new js/Date))
+  (let [curr-time (long (new js/Date))
         {:keys [when cache]} @kondo-cache]
     (if (< (- curr-time 6000) when)
       cache
@@ -206,7 +206,7 @@
 
   (when-not editor-state
     (p/let [kondo (run-kondo-maybe (:project-paths config))]
-      {:kondo/analysis (.-analysis (.parse js/JSON kondo))})))
+      {:kondo/analysis (some-> (.parse js/JSON kondo) .-analysis)})))
 
 (defn- get-from-ns-usages [analysis namespace ns-part]
   (-> analysis
