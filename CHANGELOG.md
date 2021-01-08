@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 0.5.7
+- Removed CLJR fix for exceptions
+
 ## 0.5.6
 - Fixed issues with `prn`
 - Fixed issues with disconnect (sometimes it tries to run callbacks after disconnected)
