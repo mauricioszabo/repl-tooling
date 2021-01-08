@@ -72,17 +72,12 @@ jobs:
 
   clojureclr:
     docker:
-      - image: mono
+      - image: mcr.microsoft.com/dotnet/sdk:5.0
     steps:
       - attach_workspace:
           at: '.'
-      - run: apt-get update
-      - run: apt-get install -y npm nodejs wget unzip tmux
-      - run: wget https://master.dl.sourceforge.net/project/clojureclr/clojure-clr-1.9.0-Release%204.0.zip
-      - run: unzip clojure-*.zip
-      - run: tmux new-session -d
-      - run: tmux send-keys 'cd Release*; mono Clojure.Main.exe' Enter
-      - run: tmux send-keys "(do (require 'clojure.core.server) (clojure.core.server/start-server {:name \"socket-repl\" :port 4444 :accept 'clojure.main/repl :address \"localhost\"}))" Enter
+      - run: dotnet tool install --global --version 1.10.0-alpha1 Clojure.Main
+      - run: /root/.dotnet/tools/Clojure.Main -e "(clojure.core.server/start-server {:name \"test\" :port 4004 :accept 'clojure.core.server/repl})(read)"
       - run: sleep 20; node target/fixture.js somefile.clj
 
 workflows:
