@@ -7,7 +7,6 @@
             [repl-tooling.editor-integration.evaluation :as e-eval]
             [clojure.string :as str]
             [repl-tooling.editor-integration.commands :as cmds]
-            [clojure.core.async :as async]
             [com.wsscode.pathom3.interface.async.eql :as p.a.eql]
             [com.wsscode.pathom3.connect.operation :as pco]
             [com.wsscode.pathom3.connect.indexes :as pci]
@@ -54,10 +53,10 @@
      :editor/current-var-range range}))
 
 (pco/defresolver all-namespaces
-  [{:keys [ast]} {:keys [repl/clj]}]
+  [env {:keys [repl/clj]}]
   {::pco/output [{:repl/namespaces [:repl/namespace]}]}
 
-  (p/let [f (-> ast :params :filter)
+  (p/let [f (-> (pco/params env) :filter)
           {:keys [result]} (eval/eval clj "(clojure.core/mapv clojure.core/ns-name (clojure.core/all-ns))")]
     {:repl/namespaces (cond->> (map (fn [n] {:repl/namespace n}) result)
                         f (filter (fn [n]
@@ -133,10 +132,10 @@
     {:editor/config cfg}))
 
 (pco/defresolver meta-for-var
-  [{:keys [ast]} {:keys [var/fqn cljs/required? repl/aux repl/clj]}]
+  [env {:keys [var/fqn cljs/required? repl/aux repl/clj]}]
   {::pco/output [:var/meta]}
 
-  (p/let [keys (-> ast :params :keys)
+  (p/let [keys (-> (pco/params env) :keys)
           res  (-> aux
                    (eval/eval (str "(clojure.core/meta #'" fqn ")"))
                    (p/catch (constantly nil)))
