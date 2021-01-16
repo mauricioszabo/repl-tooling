@@ -1,0 +1,18 @@
+{:paths ["src" "test" "resources"]
+ :deps  {borkdude/sci                          {:mvn/version "0.1.1-alpha.7"}
+         check                                 {:mvn/version "0.2.0-SNAPSHOT"}
+         cider/orchard                         {:mvn/version "0.5.8"}
+         com.cognitect/transit-cljs            {:mvn/version "0.8.264"}
+         com.wsscode/pathom                    {:mvn/version "2.3.0-alpha17"}
+         com.wsscode/pathom3                   {:git/url "https://github.com/wilkerlucio/pathom3"
+                                                :sha     "81358cee7c9b75ef8395954e11ce827090445ee0"}
+         compliment                            {:mvn/version "0.4.0-SNAPSHOT"}
+         devcards                              {:mvn/version "0.2.5"}
+         etaoin                                {:mvn/version "0.3.6"}
+         funcool/promesa                       {:mvn/version "4.0.2"}
+         org.pinkgorilla/gorilla-renderable-ui {:mvn/version "0.1.33"}
+         org.rksm/suitable                     {:mvn/version "0.3.2"}
+         paprika                               {:mvn/version "0.1.3-SNAPSHOT"}
+         reagent                               {:mvn/version "0.10.0"}
+         thheller/shadow-cljs                  {:mvn/version "2.11.5"}
+         rewrite-cljs                          {:mvn/version "0.4.4"}}}

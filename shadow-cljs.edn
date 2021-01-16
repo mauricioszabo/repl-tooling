@@ -1,34 +1,34 @@
-{:source-paths ["src" "test" "resources"]
+{:deps        {:aliases [:local/pathom3]}
 
  :socket-repl {:port 2233}
- :nrepl {:port 3322}
+ :nrepl       {:port 3322}
 
- :dependencies [[check "0.2.0-SNAPSHOT"]
-                [com.cognitect/transit-cljs "0.8.264"]
-                [funcool/promesa "4.0.2"]
-                [paprika "0.1.3-SNAPSHOT"]
-                [borkdude/sci "0.1.1-alpha.7"]
-                [compliment "0.4.0-SNAPSHOT"]
-                [rewrite-cljs "0.4.4"]
-                [reagent "0.10.0"]
-                [devcards "0.2.5"]
-                [org.rksm/suitable "0.3.2"]
-                [cider/orchard "0.5.8"]
-                [com.wsscode/pathom "2.3.0-alpha17"]
-                [org.pinkgorilla/gorilla-renderable-ui "0.1.33"]
-                [etaoin "0.3.6"]]
+ ;:dependencies [[check "0.2.0-SNAPSHOT"]
+ ;               [com.cognitect/transit-cljs "0.8.264"]
+ ;               [funcool/promesa "4.0.2"]
+ ;               [paprika "0.1.3-SNAPSHOT"]
+ ;               [borkdude/sci "0.1.1-alpha.7"]
+ ;               [compliment "0.4.0-SNAPSHOT"]
+ ;               [rewrite-cljs "0.4.4"]
+ ;               [reagent "0.10.0"]
+ ;               [devcards "0.2.5"]
+ ;               [org.rksm/suitable "0.3.2"]
+ ;               [cider/orchard "0.5.8"]
+ ;               [com.wsscode/pathom "2.3.0-alpha17"]
+ ;               [org.pinkgorilla/gorilla-renderable-ui "0.1.33"]
+ ;               [etaoin "0.3.6"]]
 
- :jvm-opts ["-Xmx800M"]
- :builds {:integration {:target :browser
-                        :js-options {:js-provider :require}
-                        :output-dir "target/integration"
-                        :asset-path "target/integration"
-                        :modules {:main {:entries [repl-tooling.integration.ui]}}
-                        :compiler-options {:devcards true
-                                           :infer-externs :auto}}
-          :fixture {:target :node-script
-                    :output-to "target/fixture.js"
-                    :output-dir "target/fixture"
-                    :main repl-tooling.integration.fixture-app/main
-                    :compiler-options {:elide-asserts false
-                                       :optimizations :simple}}}}
+ :jvm-opts    ["-Xmx800M"]
+ :builds      {:integration {:target           :browser
+                             :js-options       {:js-provider :require}
+                             :output-dir       "target/integration"
+                             :asset-path       "target/integration"
+                             :modules          {:main {:entries [repl-tooling.integration.ui]}}
+                             :compiler-options {:devcards      true
+                                                :infer-externs :auto}}
+               :fixture     {:target           :node-script
+                             :output-to        "target/fixture.js"
+                             :output-dir       "target/fixture"
+                             :main             repl-tooling.integration.fixture-app/main
+                             :compiler-options {:elide-asserts false
+                                                :optimizations :simple}}}}
