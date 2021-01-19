@@ -6,6 +6,7 @@
          com.wsscode/pathom                    {:mvn/version "2.3.0-alpha17"}
          com.wsscode/pathom3                   {:git/url "https://github.com/wilkerlucio/pathom3"
                                                 :sha     "81358cee7c9b75ef8395954e11ce827090445ee0"}
+         binaryage/devtools                    {:mvn/version "1.0.0"}
          compliment                            {:mvn/version "0.4.0-SNAPSHOT"}
          devcards                              {:mvn/version "0.2.5"}
          etaoin                                {:mvn/version "0.3.6"}
