@@ -1,18 +1,16 @@
 (ns repl-tooling.commands-to-repl.pathom3
-  (:require [promesa.core :as p]
-            [schema.core :as s]
-            [repl-tooling.eval :as eval]
-            [repl-tooling.editor-integration.schemas :as schemas]
-            [repl-tooling.editor-helpers :as helpers]
-            [repl-tooling.editor-integration.evaluation :as e-eval]
+  (:require ["child_process" :refer [spawn]]
             [clojure.string :as str]
-            [repl-tooling.editor-integration.commands :as cmds]
-            [com.wsscode.pathom3.interface.async.eql :as p.a.eql]
-            [com.wsscode.pathom3.connect.operation :as pco]
             [com.wsscode.pathom3.connect.indexes :as pci]
-    ; FIXME: Remove this
-            [clojure.edn]
-            ["child_process" :refer [spawn]]))
+            [com.wsscode.pathom3.connect.operation :as pco]
+            [com.wsscode.pathom3.connect.planner :as pcp]
+            [com.wsscode.pathom3.interface.async.eql :as p.a.eql]
+            [com.wsscode.pathom3.plugin :as p.plugin]
+            [promesa.core :as p]
+            [repl-tooling.editor-helpers :as helpers]
+            [repl-tooling.editor-integration.schemas :as schemas]
+            [repl-tooling.eval :as eval]
+            [schema.core :as s]))
 
 (pco/defresolver editor-data [{:keys [callbacks]} _]
   {::pco/output [:editor/data]}
@@ -110,7 +108,7 @@
                        (keys result))}))
 
 (pco/defresolver fqn-var
-  [{:keys [repl/namespace editor/current-var editor/filename repl/aux]}]
+  [{:keys [repl/namespace editor/current-var repl/aux]}]
   {::pco/output [:var/fqn]}
 
   (p/let [{:keys [result]} (eval/eval aux (str "`" current-var)
@@ -264,15 +262,17 @@
                    ;; KONDO
                    analysis-from-kondo fqn-from-kondo meta-from-kondo])
 
+(defonce plan-cache* (atom {}))
+
 (def env
-  (pci/register my-resolvers))
+  (-> (pci/register my-resolvers)
+      (pcp/with-plan-cache plan-cache*)))
 
 (s/defn eql :- js/Promise
   "Queries the Pathom graph for the REPLs"
   [params :- {(s/optional-key :editor-state) schemas/EditorState
               (s/optional-key :callbacks)    s/Any}
    query]
-
   (let [params (cond-> params
                  (-> params :callbacks nil?)
                  (assoc :callbacks (-> params :editor-state deref :editor/callbacks)))]
