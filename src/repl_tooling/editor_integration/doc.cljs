@@ -4,8 +4,7 @@
             [repl-tooling.repl-client.clj-helper :refer [contents-for-fn]]
             [promesa.core :as p]
             [repl-tooling.eval :as eval]
-            [repl-tooling.editor-integration.evaluation :as e-eval]
-            [repl-tooling.commands-to-repl.pathom :as pathom]))
+            [repl-tooling.editor-integration.evaluation :as e-eval]))
 
 (defn- translate-to-doc [meta spec?]
   (str "-------------------------\n"
