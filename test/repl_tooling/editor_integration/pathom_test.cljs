@@ -1,6 +1,6 @@
 (ns repl-tooling.editor-integration.pathom-test
   (:require [devcards.core :as cards]
-            [repl-tooling.commands-to-repl.pathom :as pathom]
+            [repl-tooling.commands-to-repl.pathom3 :as pathom]
             [matcher-combinators.matchers :as m]
             [clojure.test]
             [promesa.core :as p]
@@ -9,19 +9,19 @@
             [repl-tooling.repl-client.clojure :as clj]
             [repl-tooling.repl-client.shadow-ws :as shadow-ws]))
 
-(def config (atom {:eval-mode :prefer-clj
+(def config (atom {:eval-mode     :prefer-clj
                    :project-paths [(. js/process cwd)]}))
 
 (def clj-repls {:repl/eval #(instance? clj/Evaluator %)
-                :repl/aux #(instance? clj/Evaluator %)
-                :repl/clj #(instance? clj/Evaluator %)})
+                :repl/aux  #(instance? clj/Evaluator %)
+                :repl/clj  #(instance? clj/Evaluator %)})
 (def cljs-repls {:repl/eval #(instance? shadow-ws/ShadowCLJS %)
-                 :repl/aux #(instance? shadow-ws/ShadowCLJS %)
-                 :repl/clj #(instance? clj/Evaluator %)})
+                 :repl/aux  #(instance? shadow-ws/ShadowCLJS %)
+                 :repl/clj  #(instance? clj/Evaluator %)})
 
 (cards/deftest pathom-resolver-with-repl
   (async-test "pathom resolvers" {:teardown (fake/disconnect!)
-                                  :timeout 16000}
+                                  :timeout  16000}
     (fake/connect! {:get-config #(deref config)})
 
     (testing "resolves editor data"
@@ -178,6 +178,29 @@
                     :filename (:filename @fake/state)
                     :range (:range @fake/state)})})
 
+(comment
+  (fake/connect! {:get-config #(deref config)})
+
+  (do
+    (swap! config assoc :eval-mode :clj)
+    (fake/type "(ns user)\n\n(let [a 1])")
+    (swap! fake/state assoc :range [[2 1] [2 1]])
+    (js/console.time "Run Pathom 3")
+    (p/let [resp   (pathom/eql {:editor-state (:editor-state @fake/state)} [:var/meta])
+            finish (com.wsscode.misc.time/now-ms)]
+      (js/console.timeEnd "Run Pathom 3")
+      (js/console.log "!! " resp)))
+
+  (do
+    (swap! config assoc :eval-mode :clj)
+    (fake/type "(ns user)\n\n(let [a 1])")
+    (swap! fake/state assoc :range [[2 1] [2 1]])
+    (js/console.time "Run Pathom 2")
+    (p/let [resp   (pathom-2/eql {:editor-state (:editor-state @fake/state)} [:var/meta])
+            finish (com.wsscode.misc.time/now-ms)]
+      (js/console.timeEnd "Run Pathom 2")
+      (js/console.log "!! " resp))))
+
 (cards/deftest pathom-resolver-without-repl
   (async-test "resolving with clj-kondo" {:timeout 8000}
     (testing "will get fqn from aliases"
@@ -196,13 +219,22 @@
       (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(private-fn )")
       (swap! fake/state assoc :range [[2 1] [2 1]])
       (check (pathom/eql {:callbacks callbacks} [:var/fqn])
-             => {:var/fqn 'repl-tooling.integration.fixture-app/private-fn}))
+        => {:var/fqn 'repl-tooling.integration.fixture-app/private-fn}))
 
     (testing "will get meta from Kondo's result"
       (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
       (swap! fake/state assoc :range [[2 1] [2 1]])
       (check (pathom/eql {:callbacks callbacks} [:var/meta])
-             => {:var/meta {:doc #"Connects to a clojure.*REPL"}}))))
+        => {:var/meta {:doc #"Connects to a clojure.*REPL"}}))))
+
+(comment
+  (do
+    (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(p/let [] )")
+    (swap! fake/state assoc :range [[2 1] [2 1]])
+    (p/let [resp (pathom/eql {:callbacks callbacks} [:var/fqn])]
+      (js/console.log "!! " resp)
+      (cljs.pprint/pprint (-> resp meta :com.wsscode.pathom3.connect.runner/run-stats)))
+    ))
 
 (cards/defcard-rg fake-editor
   fake/editor
