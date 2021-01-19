@@ -25,7 +25,8 @@
                              :asset-path       "target/integration"
                              :modules          {:main {:entries [repl-tooling.integration.ui]}}
                              :compiler-options {:devcards      true
-                                                :infer-externs :auto}}
+                                                :infer-externs :auto}
+                             :devtools {}}
                :fixture     {:target           :node-script
                              :output-to        "target/fixture.js"
                              :output-dir       "target/fixture"
