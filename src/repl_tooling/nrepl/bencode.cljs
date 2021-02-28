@@ -132,7 +132,7 @@ acc-bytes), until the total (bytes-expected) is fulfilled"
 
 (defn- decode-one [state]
   (let [fragment (:buffer @state)
-        f (first fragment)]
+        f (str (first fragment))]
     (cond
       (= "i" f)
       (remove-chars-and-continue state 1 #(parse-int % ""))
