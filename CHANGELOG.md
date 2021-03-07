@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 0.5.8
+- Removed error on ClojureScript, with experimental features, for Browser targets
+
 ## 0.5.7
 - Removed CLJR fix for exceptions
 
