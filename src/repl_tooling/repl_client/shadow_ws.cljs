@@ -36,7 +36,9 @@
         file (:filename opts "[EVAL]")
         build-id (:build-id @state)
         client-id (-> @state (get-in [:build->id build-id]) first)
-        blobbed-code (source/parse-command (str/replace blob #"__COMMAND__" code) true)
+        blobbed-code (if (:no-wrap opts)
+                       code
+                       (source/parse-command (str/replace blob #"__COMMAND__" code) true))
         prom (p/deferred)]
     (cond
       (:error blobbed-code)
@@ -112,7 +114,10 @@
       (send! ws {:op :tap-unsubscribe :to id}))
     (when-let [id (-> builds build-id first)]
       (send! ws {:op :runtime-print-sub :to id})
-      (send! ws {:op :tap-subscribe :to id}))))
+      (send! ws {:op :tap-subscribe :to id})
+      (send! ws {:op :cljs-eval
+                 :to id
+                 :input {:code "(require 'cljs.reader)" :ns 'shadow.user}}))))
 
 (defn- parse-clients! [state {:keys [clients]}]
   (let [build-id (:build-id @state)
