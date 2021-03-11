@@ -11,6 +11,6 @@
     "showdown": "^1.9.0"
   },
   "dependencies": {
-    "ansi_up": "^4.0.4"
+    "ansi_up": "^5.0.0"
   }
 }
