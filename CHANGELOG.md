@@ -1,7 +1,8 @@
 # CHANGELOG
 
 ## 0.5.8
-- Re-connecting to ClojureScript without experimental features on
+- Adding a "timeout" when you can't connect to CLJS, with an error with possible reasons
+- Fixed connecting to ClojureScript without experimental features on
 - Removed error on ClojureScript, with experimental features, for Browser targets
 
 ## 0.5.7
