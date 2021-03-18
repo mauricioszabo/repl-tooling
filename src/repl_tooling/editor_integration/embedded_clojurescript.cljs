@@ -11,6 +11,13 @@
           :access-denied (str "Shadow Socket-REPL was given an wrong token. "
                               "Please, be sure you have the Shadow-CLJS compiler "
                               "running and watching some build-id")
+          :timeout-runtime (str "Timeout trying to find runtime for Javascript, or "
+                                "runtime for Javascript not found. If you're connecting "
+                                "to a browser target, make sure that the browser is open, "
+                                "on the page you want, and that JS compiled by "
+                                "ClojureScript is loaded on the page. If it's not a "
+                                "browser, make sure that the app that runs the "
+                                "compiled Javascript is running")
           :no-worker "No worker for build"})
 
 (defn- notify! [notify params]
