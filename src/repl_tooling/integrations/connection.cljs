@@ -11,24 +11,21 @@
             ["fs" :refer [readFileSync existsSync]]
             ["path" :refer [join]]))
 
-(def blob (cljs-blob-contents))
+; (def blob (cljs-blob-contents))
 
-(defn- treat-result [id resolve ret]
+(defn- treat-result [id ret]
   (if (:error ret)
-    (do (resolve ret) (repls/disconnect! id))
-    (eval/evaluate ret
-                   "(/ 10 0)"
-                   {:ignore true}
-                   (fn [{:keys [result]}]
-                     (cond
-                       (= result "##Inf") (do
-                                            (eval/evaluate ret blob
-                                                           {:ignore true}
-                                                           identity)
-                                            (resolve ret))
-                       :else (do
-                               (resolve {:error :unknown})
-                               (repls/disconnect! id)))))))
+    (do
+      (repls/disconnect! id)
+      ret)
+    (let [success (p/let [{:keys [result]} (eval/eval ret "(/ 10 0)" {:ignore true})]
+                    (if (= result "##Inf")
+                      ret
+                      (do
+                        (repls/disconnect! id)
+                        {:error :unknown})))
+          delay (p/delay 4000 {:error :timeout-runtime})]
+      (p/race [success delay]))))
 
 (defn connect-self-hosted!
   "Given a host, port, and a clojure command, connects on a Clojure REPL,
@@ -49,7 +46,7 @@ runs the command to change it to CLJS, and returns an evaluator for CLJS."
       (p/let [repl-info @repl-info
               [_ clj-repl] repl-info
               self-hosted (clj-repl/self-host clj-repl code)]
-        (js/Promise. (fn [resolve] (treat-result identifier resolve self-hosted)))))))
+        (treat-result identifier self-hosted)))))
 
 (defn connect-shadow-ws!
   [{:keys [identifier build-id on-stdout on-stderr on-patch directories compile-error
