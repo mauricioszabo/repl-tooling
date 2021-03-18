@@ -3,7 +3,6 @@
             [repl-tooling.repl-client.clj-helper :as h]
             [repl-tooling.eval :as eval]
             [cljs.reader :as reader]
-            [promesa.core :as p]
             [clojure.string :as str]
             [clojure.walk :as walk]
             [repl-tooling.repl-client.source :as source]
