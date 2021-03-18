@@ -3,6 +3,7 @@
             [repl-tooling.repl-client.clj-helper :as h]
             [repl-tooling.eval :as eval]
             [cljs.reader :as reader]
+            [promesa.core :as p]
             [clojure.string :as str]
             [clojure.walk :as walk]
             [repl-tooling.repl-client.source :as source]
@@ -184,12 +185,16 @@
           conn (:conn state)
           code (source/wrap-command cljs-blob id command :default false)]
 
-      (if (:error code)
-        (let [output (:on-output state)]
-          (output code)
-          (callback code))
-        (eval-code {:evaluator self :id id :callback callback :conn conn :code code}
-                   opts))
+      (if (:no-wrap opts)
+        (do
+          (.write conn (str command "\n"))
+          (callback {:result "nil" :as-text "nil"}))
+        (if (:error code)
+          (let [output (:on-output state)]
+            (output code)
+            (callback code))
+          (eval-code {:evaluator self :id id :callback callback :conn conn :code code}
+                     opts)))
       id))
 
   (break [this repl]))
@@ -229,6 +234,11 @@
       :else
       (output-fn {:out out}))))
 
+(defn- make-requires! [cljs-repl resolve]
+  (eval/eval cljs-repl "(require 'clojure.string)" {:no-wrap true})
+  (eval/eval cljs-repl "(require 'cljs.reader)" {:no-wrap true})
+  (resolve cljs-repl))
+
 (defn self-host [clj-evaluator command]
   (let [pending (atom {})
         buffer (atom nil)
@@ -242,10 +252,10 @@
                                   (fn [res]
                                     (if (contains? res :error)
                                       (helpers/parse-result res)
-                                      (resolve cljs-repl))))
+                                      (make-requires! cljs-repl resolve))))
                    ; CLJS self-hosted REPL SHOULD never return, so just set a timeout
                    ; TODO: Sometimes it DOES return, I have no idea why...
-                   (js/setTimeout #(resolve cljs-repl) 500)))))
+                   (js/setTimeout #(make-requires! cljs-repl resolve) 500)))))
 
 (defn disable-limits! [aux]
   (if (instance? Evaluator aux)

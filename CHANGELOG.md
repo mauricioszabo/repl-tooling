@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 0.5.8
+- Re-connecting to ClojureScript without experimental features on
 - Removed error on ClojureScript, with experimental features, for Browser targets
 
 ## 0.5.7
