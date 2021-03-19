@@ -1,6 +1,6 @@
 (ns ___repl-tooling.__generic_printer_blob
   (:require [clojure.string :as str]
-            [cljs.reader]))
+            #?(:cljs [cljs.reader])))
 
 (defmulti serialize #(-> % type pr-str))
 
