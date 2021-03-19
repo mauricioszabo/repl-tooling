@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 0.5.10
+- Fix for nREPL, again
+
 ## 0.5.8
 - Adding a "timeout" when you can't connect to CLJS, with an error with possible reasons
 - Fixed connecting to ClojureScript without experimental features on
