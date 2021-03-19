@@ -18,8 +18,8 @@
     (do
       (repls/disconnect! id)
       ret)
-    (let [success (p/let [{:keys [result]} (eval/eval ret "(/ 10 0)" {:ignore true})]
-                    (if (= result "##Inf")
+    (let [success (p/let [{:keys [as-text]} (eval/eval ret "(/ 10 0)" {:ignore true})]
+                    (if (= as-text "##Inf")
                       ret
                       (do
                         (repls/disconnect! id)
