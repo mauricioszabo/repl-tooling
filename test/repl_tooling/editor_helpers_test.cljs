@@ -2,7 +2,9 @@
   (:require [clojure.test :refer [testing]]
             [devcards.core :as cards]
             [check.core :refer [check]]
-            [repl-tooling.editor-helpers :as helpers]))
+            [check.mocks :refer [mocking]]
+            [repl-tooling.editor-helpers :as helpers]
+            ["fs" :as fs]))
 
 (def simple-clj
   "(+ 1 2) (+ (3) 4)
@@ -150,3 +152,65 @@
 
   (testing "getting var on the end of cursor"
     (check (helpers/current-var " some-var " [0 9]) => [[[0 1] [0 8]] "some-var"])))
+
+(cards/deftest port-detection
+  (testing "don't return anything if there's no file"
+    (mocking
+     (fs/existsSync "/tmp/.socket-repl-port") => false
+     (fs/existsSync "/tmp/.shadow-cljs/socket-repl.port") => false
+     (fs/existsSync "/tmp/.nrepl-port") => false
+     ---
+     (check (helpers/get-possible-port ["/tmp"] true nil) => nil)))
+
+  (testing "return shadow-cljs port first"
+    (mocking
+     (fs/existsSync "/tmp/.socket-repl-port") => false
+     (fs/existsSync "/tmp2/.socket-repl-port") => true
+     (fs/readFileSync "/tmp2/.socket-repl-port") => "9999"
+     (fs/existsSync "/tmp/.shadow-cljs/socket-repl.port") => true
+     (fs/existsSync "/tmp/.nrepl-port") => true
+     ---
+     (check (helpers/get-possible-port ["/tmp" "/tmp2"] true nil) => 9999)))
+
+  (testing "return socket-repl port first"
+    (mocking
+     (fs/existsSync "/tmp/.socket-repl-port") => false
+     (fs/existsSync "/tmp2/.socket-repl-port") => true
+     (fs/readFileSync "/tmp2/.socket-repl-port") => "5555"
+     (fs/existsSync "/tmp/.shadow-cljs/socket-repl.port") => true
+     (fs/existsSync "/tmp/.nrepl-port") => true
+     ---
+     (check (helpers/get-possible-port ["/tmp" "/tmp2"] true nil) => 5555)))
+
+  (testing "return shadow-cljs socket repl port second"
+    (mocking
+     (fs/existsSync "/tmp/.socket-repl-port") => false
+     (fs/existsSync "/tmp2/.socket-repl-port") => false
+     (fs/existsSync "/tmp/.shadow-cljs/socket-repl.port") => "12112"
+     (fs/readFileSync "/tmp/.shadow-cljs/socket-repl.port") => "12112"
+     (fs/existsSync "/tmp/.nrepl-port") => true
+     ---
+     (check (helpers/get-possible-port ["/tmp" "/tmp2"] true nil) => 12112)))
+
+  (testing "return nREPL port if the config is active"
+    (mocking
+     (fs/existsSync "/tmp/.socket-repl-port") => false
+     (fs/existsSync "/tmp2/.socket-repl-port") => false
+     (fs/existsSync "/tmp/.shadow-cljs/socket-repl.port") => false
+     (fs/existsSync "/tmp2/.shadow-cljs/socket-repl.port") => false
+     (fs/existsSync "/tmp/.nrepl-port") => true
+     (fs/readFileSync "/tmp/.nrepl-port") => "1020"
+     ---
+     (check (helpers/get-possible-port ["/tmp" "/tmp2"] true nil) => 1020)
+     (check (helpers/get-possible-port ["/tmp" "/tmp2"] false nil) => nil)))
+
+  (testing "return the original port if one is passed"
+    (mocking
+     (fs/existsSync "/tmp/.socket-repl-port") => true
+     (fs/existsSync "/tmp2/.socket-repl-port") => true
+     (fs/existsSync "/tmp/.shadow-cljs/socket-repl.port") => true
+     (fs/existsSync "/tmp2/.shadow-cljs/socket-repl.port") => true
+     (fs/existsSync "/tmp/.nrepl-port") => true
+     (fs/existsSync "/tmp2/.nrepl-port") => true
+     ---
+     (check (helpers/get-possible-port ["/tmp" "/tmp2"] true 2910) => 2910))))

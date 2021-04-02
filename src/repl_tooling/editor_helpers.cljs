@@ -9,7 +9,9 @@
             [rewrite-clj.reader :as clj-reader]
             [rewrite-clj.parser :as parser]
             [repl-tooling.editor-integration.schemas :as schemas]
-            [schema.core :as s]))
+            [schema.core :as s]
+            ["fs" :as fs]
+            ["path" :as path]))
 
 (deftype LiteralRender [string]
   IPrintWithWriter
@@ -305,3 +307,17 @@ that the cursor is in row and col (0-based)"
     (->> tops (filter in-range?) first)))
 
 (def ^:dynamic *out-on-aux* false)
+
+(s/defn get-possible-port :- (s/maybe s/Int)
+  [project-paths :- [s/Str], detect-nrepl? :- s/Bool, typed-port :- (s/maybe s/Int)]
+  (if typed-port
+    typed-port
+    (let [files (cond-> [".socket-repl-port"
+                         (path/join ".shadow-cljs" "socket-repl.port")]
+                        detect-nrepl? (conj ".nrepl-port"))
+          paths (for [file files
+                      path project-paths
+                      :let [full-path (path/join path file)]
+                      :when (fs/existsSync full-path)]
+                  (-> full-path fs/readFileSync str js/parseInt))]
+      (first paths))))
