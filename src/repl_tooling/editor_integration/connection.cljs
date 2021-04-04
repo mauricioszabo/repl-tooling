@@ -264,10 +264,11 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                (p/let [[_ aux] (repls/connect-repl! :clj-aux host port (callback-aux callback))]
                  (prepare-generic primary aux host port state options kind)))
            nrepl? (instance? nrepl/Evaluator primary)]
-     (notify {:type :info :title (str (tr-kind kind)
-                                      (if nrepl? " nREPL" " socket REPL")
-                                      " Connected")})
-     state)
+     (do
+       (notify {:type :info :title (str (tr-kind kind)
+                                        (if nrepl? " nREPL" " socket REPL")
+                                        " Connected")})
+       state))
    #(connection-error! % notify)))
 
 (defn connect-callbacks!
