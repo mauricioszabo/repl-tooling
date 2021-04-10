@@ -11,8 +11,6 @@
             [clojure.core.async :as async]
             [com.wsscode.pathom.core :as pathom]
             [com.wsscode.pathom.connect :as connect]
-            ; FIXME: Remove this
-            [clojure.spec.alpha]
             ["child_process" :refer [spawn]]))
 
 (connect/defresolver editor-data [{:keys [callbacks]} _]
