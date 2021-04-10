@@ -2,6 +2,7 @@
   (:require [promesa.core :as p]
             [schema.core :as s]
             [repl-tooling.eval :as eval]
+            [clojure.set :as set]
             [repl-tooling.editor-integration.schemas :as schemas]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.editor-integration.evaluation :as e-eval]
@@ -11,7 +12,7 @@
             [com.wsscode.pathom.core :as pathom]
             [com.wsscode.pathom.connect :as connect]
             ; FIXME: Remove this
-            [clojure.edn]
+            [clojure.spec.alpha]
             ["child_process" :refer [spawn]]))
 
 (connect/defresolver editor-data [{:keys [callbacks]} _]
@@ -29,8 +30,7 @@
    :editor/range (:range data)})
 
 (connect/defresolver namespace-from-editor-data [_ {:editor/keys [contents range]}]
-  {::connect/input #{:editor/contents :editor/range}
-   ::connect/output [:editor/ns-range :editor/namespace]}
+  {::connect/output [:editor/ns-range :editor/namespace]}
 
   (if-let [[range ns] (helpers/ns-range-for contents (first range))]
     {:editor/ns-range range
@@ -39,8 +39,7 @@
 
 (connect/defresolver namespace-from-editor
   [_ {:keys [editor/namespace cljs/required?]}]
-  {::connect/input #{:editor/namespace :cljs/required?}
-   ::connect/output [:repl/namespace]}
+  {::connect/output [:repl/namespace]}
 
   (cond
     namespace {:repl/namespace (symbol namespace)}
@@ -49,17 +48,15 @@
 
 (connect/defresolver var-from-editor
   [_ {:editor/keys [contents range]}]
-  {::connect/input #{:editor/contents :editor/range}
-   ::connect/output [:editor/current-var :editor/current-var-range]}
+  {::connect/output [:editor/current-var :editor/current-var-range]}
 
   (when-let [[range curr-var] (helpers/current-var contents (first range))]
     {:editor/current-var curr-var
      :editor/current-var-range range}))
 
 (connect/defresolver all-namespaces
-  [{:keys [editor-state ast]} {:keys [:repl/clj]}]
-  {::connect/input #{:repl/clj}
-   ::connect/output [{:repl/namespaces [:repl/namespace]}]}
+  [{:keys [editor-state ast]} {:repl/keys [clj]}]
+  {::connect/output [{:repl/namespaces [:repl/namespace]}]}
 
   (p/let [f (-> ast :params :filter)
           {:keys [result]} (eval/eval clj "(clojure.core/mapv clojure.core/ns-name (clojure.core/all-ns))")]
@@ -262,26 +259,26 @@
                          (.-doc res) (assoc :doc (.-doc res))
                          (.-test res) (assoc :test (.-test res)))})))
 
-(def my-resolvers [;Editor resolvers
-                   editor-data separate-data
-                   namespace-from-editor-data namespace-from-editor var-from-editor
-                   get-config
+(def orig-resolvers [;Editor resolvers
+                     editor-data separate-data
+                     namespace-from-editor-data namespace-from-editor var-from-editor
+                     get-config
 
-                   ; Namespaces resolvers
-                   all-namespaces all-vars-in-ns
+                     ; Namespaces resolvers
+                     all-namespaces all-vars-in-ns
 
-                   ; REPLs resolvers
-                   need-cljs need-cljs-from-config
-                   ; repls-from-config repls-from-config+editor-data
-                   repls-for-evaluation
+                     ; REPLs resolvers
+                     need-cljs need-cljs-from-config
+                     ; repls-from-config repls-from-config+editor-data
+                     repls-for-evaluation
 
-                   ; Vars resolvers
-                   cljs-env fqn-var meta-for-var spec-for-var
+                     ; Vars resolvers
+                     cljs-env fqn-var meta-for-var spec-for-var
 
-                   ;; KONDO
-                   analysis-from-kondo fqn-from-kondo meta-from-kondo])
+                     ;; KONDO
+                     analysis-from-kondo fqn-from-kondo meta-from-kondo])
 
-(def parser
+(defn gen-parser [resolvers]
   (pathom/async-parser
     {::pathom/env {::pathom/reader [pathom/map-reader
                                     connect/async-reader2
@@ -289,9 +286,57 @@
                                     connect/index-reader
                                     pathom/env-placeholder-reader]
                    ::pathom/placeholder-prefixes #{">"}}
-     ::pathom/plugins [(connect/connect-plugin {::connect/register my-resolvers})
+     ::pathom/plugins [(connect/connect-plugin {::connect/register resolvers})
                        pathom/error-handler-plugin
                        pathom/trace-plugin]}))
+
+(def ^:private custom-resolvers (atom []))
+(def ^:private parser (atom (gen-parser orig-resolvers)))
+
+(defn reset-resolvers []
+  (reset! custom-resolvers [])
+  (reset! parser (gen-parser orig-resolvers)))
+
+(defn- rename-resolve-out [resolve-out]
+  (let [out-ns (namespace resolve-out)
+        out-name (name resolve-out)]
+    (keyword out-ns (str out-name "-rewrote"))))
+
+(defn- rename-resolvers-that-output [outputs]
+  (let [rewroted-map (zipmap outputs (map rename-resolve-out outputs))]
+    (for [resolver orig-resolvers
+          :let [resolver-out (::connect/output resolver)
+                new-out (mapv #(cond-> % (rewroted-map %) rewroted-map)
+                              resolver-out)
+                fun (::connect/resolve resolver)]]
+      (assoc resolver
+             ::connect/output new-out
+             ::connect/resolve (fn [ & args]
+                                 (p/let [res (apply fun args)]
+                                   (set/rename-keys res rewroted-map)))))))
+
+(defn- gen-resolver [inputs outputs fun]
+  {::connect/syn (gensym "custom-resolver-")
+   ::connect/resolve fun
+   ::connect/output (vec outputs)
+   ::connect/input (set inputs)})
+
+(defn add-resolver [{:keys [inputs outputs]} fun]
+  (swap! custom-resolvers conj (gen-resolver inputs outputs (fn [_ input] (fun input))))
+  (reset! parser (gen-parser (concat orig-resolvers @custom-resolvers))))
+
+(defn compose-resolver [{:keys [inputs outputs]} fun]
+  (let [resolvers (rename-resolvers-that-output outputs)
+        renamed (map rename-resolve-out outputs)
+        inputs (into inputs renamed)
+        fun (fn [_ input]
+              (-> input
+                  (set/rename-keys (zipmap renamed outputs))
+                  fun))]
+    (swap! custom-resolvers conj (gen-resolver inputs outputs fun))
+    (reset! parser (gen-parser (concat resolvers @custom-resolvers)))))
+
+(set/rename-keys {:foo 10 :bar 20} (into {} [[:bar :lol]]))
 
 (s/defn eql :- js/Promise
   "Queries the Pathom graph for the REPLs"
@@ -305,7 +350,7 @@
                        (assoc :callbacks (-> params :editor-state deref :editor/callbacks)))]
     (async/go
       (try
-        (p/resolve! p (async/<! (parser params query)))
+        (p/resolve! p (async/<! (@parser params query)))
        (catch :default e
          (p/reject! p e))))
     p))

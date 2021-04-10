@@ -179,30 +179,52 @@
                     :range (:range @fake/state)})})
 
 (cards/deftest pathom-resolver-without-repl
-  (async-test "resolving with clj-kondo" {:timeout 8000}
-    (testing "will get fqn from aliases"
-      (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(p/let [] )")
-      (swap! fake/state assoc :range [[2 1] [2 1]])
-      (check (pathom/eql {:callbacks callbacks} [:var/fqn])
-             => {:var/fqn 'promesa.core/let}))
+  (async-test "resolving with clj-kondo" {:timeout 18000
+                                          :teardown (pathom/reset-resolvers)}
+    ; (testing "will get fqn from aliases"
+    ;   (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(p/let [] )")
+    ;   (swap! fake/state assoc :range [[2 1] [2 1]])
+    ;   (check (pathom/eql {:callbacks callbacks} [:var/fqn])
+    ;          => {:var/fqn 'promesa.core/let}))
+    ;
+    ; (testing "will get fqn from refers"
+    ;   (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(replace-first )")
+    ;   (swap! fake/state assoc :range [[2 1] [2 1]])
+    ;   (check (pathom/eql {:callbacks callbacks} [:var/fqn])
+    ;          => {:var/fqn 'clojure.string/replace-first}))
+    ;
+    ; (testing "will get fqn from definitions in the same NS"
+    ;   (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(private-fn )")
+    ;   (swap! fake/state assoc :range [[2 1] [2 1]])
+    ;   (check (pathom/eql {:callbacks callbacks} [:var/fqn])
+    ;          => {:var/fqn 'repl-tooling.integration.fixture-app/private-fn}))
+    ;
+    ; (testing "will get meta from Kondo's result"
+    ;   (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
+    ;   (swap! fake/state assoc :range [[2 1] [2 1]])
+    ;   (check (pathom/eql {:callbacks callbacks} [:var/meta])
+    ;          => {:var/meta {:doc #"Connects to a clojure.*REPL"}}))
 
-    (testing "will get fqn from refers"
-      (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(replace-first )")
-      (swap! fake/state assoc :range [[2 1] [2 1]])
-      (check (pathom/eql {:callbacks callbacks} [:var/fqn])
-             => {:var/fqn 'clojure.string/replace-first}))
+    (testing "customizing resolves"
+      (testing "will add a new resolver with our code"
+        (pathom/add-resolver {:outputs [:var/meta] :inputs [:editor/current-var]}
+                             (fn [{:editor/keys [current-var]}]
+                               {:var/meta {:doc current-var}}))
+        (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(lol! [] )")
+        (swap! fake/state assoc :range [[2 1] [2 1]])
+        (check (pathom/eql {:callbacks callbacks} [:var/meta])
+               => {:var/meta {:doc "lol!"}}))
 
-    (testing "will get fqn from definitions in the same NS"
-      (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(private-fn )")
-      (swap! fake/state assoc :range [[2 1] [2 1]])
-      (check (pathom/eql {:callbacks callbacks} [:var/fqn])
-             => {:var/fqn 'repl-tooling.integration.fixture-app/private-fn}))
-
-    (testing "will get meta from Kondo's result"
-      (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
-      (swap! fake/state assoc :range [[2 1] [2 1]])
-      (check (pathom/eql {:callbacks callbacks} [:var/meta])
-             => {:var/meta {:doc #"Connects to a clojure.*REPL"}}))))
+      (testing "will compose original resolver, and add our customization code"
+        (pathom/reset-resolvers)
+        (pathom/compose-resolver {:outputs [:var/meta] :inputs [:var/fqn]}
+                                 (fn [{:var/keys [fqn meta]}]
+                                   {:var/meta (assoc meta :original-var fqn)}))
+        (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
+        (swap! fake/state assoc :range [[2 1] [2 1]])
+        (check (pathom/eql {:callbacks callbacks} [:var/meta])
+               => {:var/meta {:doc #"Connects to a clojure.*REPL"
+                              :original-var 'repl-tooling.editor-integration.connection/connect!}})))))
 
 (cards/defcard-rg fake-editor
   fake/editor
