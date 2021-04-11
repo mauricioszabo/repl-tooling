@@ -9,6 +9,7 @@
             [reagent.dom :as rdom]
             [repl-tooling.editor-integration.interpreter :as int]
             [repl-tooling.editor-integration.renderer :as render]
+            [repl-tooling.commands-to-repl.pathom :as pathom]
             ["path" :refer [dirname join]]
             ["fs" :refer [watch readFile existsSync]]
             ["ansi_up" :default Ansi]))
@@ -101,6 +102,7 @@
              nil)))
 
 (defn- reg-commands [editor-state cmds-from-tooling config-file]
+  (pathom/reset-resolvers)
   (p/let [cmds-from-config (fns-or-check-errors editor-state config-file)
           commands (merge cmds-from-tooling cmds-from-config)]
     (swap! editor-state assoc :editor/commands commands)

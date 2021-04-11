@@ -285,7 +285,7 @@
                                     pathom/env-placeholder-reader]
                    ::pathom/placeholder-prefixes #{">"}}
      ::pathom/plugins [(connect/connect-plugin {::connect/register resolvers})
-                       pathom/error-handler-plugin
+                       ; pathom/error-handler-plugin
                        pathom/trace-plugin]}))
 
 (def ^:private custom-resolvers (atom []))
@@ -333,8 +333,6 @@
                   fun))]
     (swap! custom-resolvers conj (gen-resolver inputs outputs fun))
     (reset! parser (gen-parser (concat resolvers @custom-resolvers)))))
-
-(set/rename-keys {:foo 10 :bar 20} (into {} [[:bar :lol]]))
 
 (s/defn eql :- js/Promise
   "Queries the Pathom graph for the REPLs"
