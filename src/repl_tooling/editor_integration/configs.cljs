@@ -47,7 +47,9 @@
                                       :editor-state editor-state})
                 nil)
             vars (->> (sci/eval-string "(->> *ns* ns-publics keys)" {:env sci-state})
-                      (map #(vector % (sci/eval-string (str %) {:env sci-state}))))]
+                      (map #(vector % (sci/eval-string (str %) {:env sci-state})))
+                      (remove (comp '#{println print prn log pr} first)))]
+      (prn :VARS vars)
       (->> vars
            (filter (fn [[k v]] (fn? v)))
            (reduce (fn [acc [k fun]]
