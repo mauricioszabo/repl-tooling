@@ -337,22 +337,31 @@
     (swap! custom-resolvers conj (gen-resolver inputs outputs fun))
     (reset! parser (gen-parser (concat resolvers @custom-resolvers)))))
 
-(s/defn eql :- js/Promise
+(defn eql
   "Queries the Pathom graph for the REPLs"
-  [params :- {(s/optional-key :editor-state) schemas/EditorState
-              (s/optional-key :callbacks) s/Any}
-   query]
-  (let [p (p/deferred)
-        params (cond-> params
+  ([params query] (eql params nil query))
+  ([params seed query]
+   (let [p (p/deferred)
+         params (cond-> params
 
-                       (-> params :callbacks nil?)
-                       (assoc :callbacks (-> params :editor-state deref :editor/callbacks)))]
-    (async/go
-      (try
-        (p/resolve! p (async/<! (@parser params query)))
-       (catch :default e
-         (p/reject! p e))))
-    p))
+                        seed
+                        (assoc ::pathom/entity (atom seed))
+
+                        (-> params :callbacks nil?)
+                        (assoc :callbacks (-> params :editor-state deref :editor/callbacks)))]
+     (async/go
+       (try
+         (let [result (async/<! (@parser params query))
+               invalid-val? #{::pathom/reader-error ::pathom/not-found}]
+           (p/resolve! p (reduce (fn [sofar [k v]]
+                                   (cond-> sofar
+                                           (invalid-val? v)
+                                           (dissoc k)))
+                                 result
+                                 result)))
+         (catch :default e
+           (p/reject! p e))))
+     p)))
 
 #_
 (eql {:editor-state (:tooling-state @chlorine.state/state)}
