@@ -11,6 +11,7 @@
             [clojure.core.async :as async]
             [com.wsscode.pathom.core :as pathom]
             [com.wsscode.pathom.connect :as connect]
+            [repl-tooling.features.definition :as def]
             ["child_process" :refer [spawn]]))
 
 (connect/defresolver editor-data [{:keys [callbacks]} _]
@@ -122,7 +123,8 @@
   (p/let [{:keys [result]} (eval/eval aux (str "`" current-var)
                                       {:namespace (str namespace)
                                        :ignore true})]
-    {:var/fqn result}))
+    (when (symbol? result)
+      {:var/fqn result})))
 
 (connect/defresolver cljs-env [{:keys [editor-state]} {:keys [repl/clj]}]
   {::connect/input #{:repl/clj}
@@ -267,11 +269,12 @@
 
                      ; REPLs resolvers
                      need-cljs need-cljs-from-config
+
                      ; repls-from-config repls-from-config+editor-data
                      repls-for-evaluation
 
                      ; Vars resolvers
-                     cljs-env fqn-var meta-for-var spec-for-var
+                     cljs-env fqn-var meta-for-var spec-for-var def/resolver
 
                      ;; KONDO
                      analysis-from-kondo fqn-from-kondo meta-from-kondo])
@@ -285,7 +288,7 @@
                                     pathom/env-placeholder-reader]
                    ::pathom/placeholder-prefixes #{">"}}
      ::pathom/plugins [(connect/connect-plugin {::connect/register resolvers})
-                       ; pathom/error-handler-plugin
+                       pathom/error-handler-plugin
                        pathom/trace-plugin]}))
 
 (def ^:private custom-resolvers (atom []))
