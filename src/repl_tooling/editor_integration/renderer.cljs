@@ -283,6 +283,7 @@
 
 (defn- trace-link [var file row editor-state cache-exists?]
   (let [{:keys [open-editor notify]} (:editor/callbacks @editor-state)
+        {:keys [eql]} (:editor/features @editor-state)
         aux-repl (:clj/aux @editor-state)]
     [:a.file {:href "#"
               :on-click (fn [e]
@@ -291,15 +292,18 @@
                           (if cache-exists?
                             (open-editor {:file-name file :line (dec row)})
                             (p/let [exists? (cmds/run-callback! editor-state
-                                                                :file-exists file)]
+                                                                :file-exists file)
+                                    fq-var (delay (str/replace var #"(.*?/.*?)/.*" "$1"))]
                               (if exists?
                                 (open-editor {:file-name file :line (dec row)})
-                                (.. (definition/find-var-definition
-                                      aux-repl
-                                      aux-repl
-                                      "user"
-                                      (re-find #"^.*?/[^/]+" var))
-                                    (then #(open-editor (assoc % :line (dec row))))
+                                (.. (eql {:editor/current-var @fq-var
+                                          :repl/namespace 'user}
+                                         [:definition/info])
+                                    (then (fn [{:definition/keys [info]}]
+                                            (if (nil? info)
+                                              (notify {:type :error
+                                                       :title "Can't find file to go"})
+                                              (open-editor (assoc info :line (dec row))))))
                                     (catch #(notify {:type :error
                                                      :title "Can't find file to go"})))))))}
      " (" file ":" row ")"]))
