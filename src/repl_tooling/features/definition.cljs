@@ -2,6 +2,8 @@
   (:require [clojure.string :as str]
             [repl-tooling.eval :as eval]
             [promesa.core :as p]
+            [com.wsscode.pathom.connect :as connect]
+            [repl-tooling.template :as template]
             ["fs" :as fs]
             ["os" :refer [platform]]))
 
@@ -85,3 +87,14 @@
     (cond-> (dissoc result :file)
             (:file-name result) (update :file-name norm-result)
             (:column result) (update :column dec))))
+
+(connect/defresolver resolver [{:repl/keys [aux clj]
+                                :var/keys [meta]
+                                :editor/keys [namespace]}]
+  {::connect/output [:definition/info]}
+
+  (p/let [meta (select-keys meta [:file :line :column])
+          result (resolve-possible-path clj meta)]
+    {:definition/info (cond-> (dissoc result :file)
+                              (:file-name result) (update :file-name norm-result)
+                              (:column result) (update :column dec))}))
