@@ -75,10 +75,11 @@
 (connect/defresolver resolver [{:repl/keys [aux clj]
                                 :var/keys [meta]
                                 :editor/keys [namespace]}]
-  {::connect/output [:definition/info]}
+  {::connect/output [:definition/info :definition/line]}
 
   (p/let [meta (select-keys meta [:file :line :column])
           result (resolve-possible-path clj meta)]
-    {:definition/info (cond-> (dissoc result :file)
+    {:definition/line (:line result)
+     :definition/info (cond-> (dissoc result :file)
                               (:file-name result) (update :file-name norm-result)
                               (:column result) (update :column dec))}))

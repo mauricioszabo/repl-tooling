@@ -56,11 +56,11 @@
                                    col (assoc :col col))]
              (e-eval/eval-with-promise state code eval-opts)))
    :result-for-renderer #(renderer/parse-result (:result %) (:repl %) state)
-   :go-to-var-definition #(definition/goto-var (assoc % :state state))
+   :go-to-var-definition #(definition/goto-definition state %)
    :get-full-var-name #(cmds/fqn-for-var state)
    :get-code #(e-eval/get-code state %)
    :repl-for #(e-eval/repl-for state %1 %2)
-   :eql #(pathom/eql {:editor-state state} %)})
+   :eql (partial pathom/eql {:editor-state state})})
 
 (defn- file-exists? [file]
   (js/Promise. (fn [resolve] (exists file resolve))))
