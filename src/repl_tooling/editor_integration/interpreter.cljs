@@ -11,6 +11,7 @@
             [pinkgorilla.ui.jsrender :as jsrender]
             [reagent.core :as r]
             [reagent.dom :as rdom]
+            [repl-tooling.commands-to-repl.pathom :as pathom]
             ["path" :refer [dirname join]]
             ["fs" :refer [watch readFile existsSync]]
             ["ansi_up" :default Ansi]))
@@ -67,7 +68,9 @@
                        (update res :text str))
      'eval-and-render #(cmds/run-feature! state :evaluate-and-render %)
      'eval-interactive #(interactive-eval state %)
-     'eval (partial cmds/run-feature! state :eval)}))
+     'eval (partial cmds/run-feature! state :eval)
+     'add-resolver pathom/add-resolver
+     'compose-resolver pathom/compose-resolver}))
 
 (defn- norm-reagent-fn [fun]
   (fn [ & args]

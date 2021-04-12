@@ -21,10 +21,10 @@
 (defn doc-for-var [state]
   (p/let [id (gensym "doc-for-var")
           {:keys [run-feature run-callback]} @state
-          {:keys [:editor/current-var-range :editor/data]} (run-feature
-                                                            :eql
-                                                            [:editor/data
-                                                             :editor/current-var-range])
+          {:editor/keys [current-var-range data]} (run-feature
+                                                   :eql
+                                                   [:editor/data
+                                                    :editor/current-var-range])
           _ (run-callback :on-start-eval {:id id
                                           :editor-data data
                                           :range current-var-range})
