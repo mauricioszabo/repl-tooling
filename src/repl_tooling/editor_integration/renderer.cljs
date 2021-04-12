@@ -6,6 +6,7 @@
             [repl-tooling.editor-integration.renderer.protocols :as proto]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.features.definition :as definition]
+            [repl-tooling.editor-integration.definition :as def]
             [repl-tooling.editor-integration.renderer.interactive :as int]
             [repl-tooling.editor-integration.commands :as cmds]
             ["source-map" :refer [SourceMapConsumer]]))
@@ -296,16 +297,10 @@
                                     fq-var (delay (str/replace var #"(.*?/.*?)/.*" "$1"))]
                               (if exists?
                                 (open-editor {:file-name file :line (dec row)})
-                                (.. (eql {:editor/current-var @fq-var
-                                          :repl/namespace 'user}
-                                         [:definition/info])
-                                    (then (fn [{:definition/keys [info]}]
-                                            (if (nil? info)
-                                              (notify {:type :error
-                                                       :title "Can't find file to go"})
-                                              (open-editor (assoc info :line (dec row))))))
-                                    (catch #(notify {:type :error
-                                                     :title "Can't find file to go"})))))))}
+                                (def/goto-definition editor-state
+                                  {:editor/current-var @fq-var
+                                   :definition/line (dec row)
+                                   :repl/namespace 'user})))))}
      " (" file ":" row ")"]))
 
 (defn- prepare-source-map [editor-state js-filename]
