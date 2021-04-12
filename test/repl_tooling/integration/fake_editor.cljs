@@ -5,9 +5,10 @@
             [promesa.core :as p]
             [reagent.core :as r]
             [clojure.core.async :as async]
+            [repl-tooling.editor-integration.commands :as cmds]
             [repl-tooling.editor-integration.renderer :as render]
             [repl-tooling.editor-integration.connection :as conn]
-            [repl-tooling.commands-to-repl.all-cmds :as cmds]))
+            [repl-tooling.commands-to-repl.all-cmds :as all-cmds]))
 
 (defn wait-for [f]
   (async/go
@@ -50,6 +51,9 @@
   (if-let [cmd (get-in @state [:commands command :command])]
     (cmd)
     (prn "Command not found" command)))
+
+(defn run-feature! [feature & args]
+  (apply cmds/run-feature! (:editor-state @state) feature args))
 
 (defn evaluate []
   (let [lines (-> @state :code str/split-lines)]
@@ -113,7 +117,7 @@
                       :features (:editor/features @res)
                       :stdout "" :stderr "")))))))
 
-(defn disconnect! [] (cmds/disconnect!))
+(defn disconnect! [] (all-cmds/disconnect!))
 
 (defn editor [state]
   [:div
