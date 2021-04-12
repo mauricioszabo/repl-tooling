@@ -72,22 +72,6 @@
           (and (re-find #"^win\d+" (platform)))
           (str/replace-first #"^/" "")))
 
-(defn find-var-definition [cljs-repl clj-aux ns-name symbol-name]
-  (p/let [cmd (str "(clojure.core/->> `" symbol-name " "
-                   "clojure.core/resolve "
-                   "clojure.core/meta "
-                   "clojure.core/vec "
-                   "(clojure.core/into {})"
-                   ")")
-          meta (eval/eval cljs-repl cmd {:namespace ns-name :ignore true})
-          meta (select-keys (:result meta)
-                            [:file :line :column])
-          result (resolve-possible-path clj-aux meta)]
-
-    (cond-> (dissoc result :file)
-            (:file-name result) (update :file-name norm-result)
-            (:column result) (update :column dec))))
-
 (connect/defresolver resolver [{:repl/keys [aux clj]
                                 :var/keys [meta]
                                 :editor/keys [namespace]}]
