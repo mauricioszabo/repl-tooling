@@ -1,11 +1,5 @@
 (ns repl-tooling.editor-integration.definition
-  (:require [repl-tooling.editor-integration.evaluation :as e-eval]
-            [repl-tooling.features.definition :as def]
-            [repl-tooling.editor-helpers :as helpers]
-            [repl-tooling.editor-integration.commands :as cmds]
-            [promesa.core :as p]
-            [clojure.string :as str]
-            ["os" :refer [platform]]))
+  (:require [promesa.core :as p]))
 
 (defn goto-current-var [state]
   (let [{:keys [run-callback]} @state
