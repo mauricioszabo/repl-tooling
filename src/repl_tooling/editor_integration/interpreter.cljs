@@ -60,6 +60,7 @@
                                            (assoc (first args)
                                                   :repl curr-repl))
                         (apply cmds/run-feature! state cmd args))))
+     'eql (partial pathom/eql {:editor-state state})
      'get-top-block #(cmds/run-feature! state :get-code :top-block)
      'get-block #(cmds/run-feature! state :get-code :block)
      'get-var #(cmds/run-feature! state :get-code :var)
