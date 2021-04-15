@@ -68,6 +68,14 @@
         ((-> @custom-commands :e-block :command))
         (check (await! (editor/change-result)) => "(\n0\n \n1\n \n2\n)"))
 
+      (testing "UNREPL reader tags (IncompleteStr)"
+        (change-config-file "(defn long-str []
+                              (p/let [res (editor/eval {:text (pr-str (apply str (range 2000)))})]
+                               (prn (str \"a-\" (:result res)))))")
+        (await! reg)
+        ((-> @custom-commands :long-str :command))
+        (check (await! (editor/change-stdout)) => #"a-01234567891011.*"))
+
       (testing "checking for errors"
         (editor/type "(range 4)")
         (change-config-file "(defn error [] (throw (ex-info \"Some-error\" {})))")

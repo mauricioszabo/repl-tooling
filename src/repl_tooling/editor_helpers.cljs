@@ -30,6 +30,9 @@
   (concat-with [_ other]))
 
 (deftype IncompleteStr [string]
+  Object
+  (toString [this] (str (only-str this) "..."))
+
   IPrintWithWriter
   (-pr-writer [_ writer opts]
     (-write writer (pr-str (str (first string) "..."))))
