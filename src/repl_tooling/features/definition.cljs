@@ -73,8 +73,7 @@
           (str/replace-first #"^/" "")))
 
 (connect/defresolver resolver [{:repl/keys [aux clj]
-                                :var/keys [meta]
-                                :editor/keys [namespace]}]
+                                :var/keys [meta]}]
   {::connect/output [:definition/info :definition/line]}
 
   (p/let [meta (select-keys meta [:file :line :column])
