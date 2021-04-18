@@ -154,11 +154,12 @@
                                    :contents string?}}))
 
     (testing "getting var definition from local locations"
+      (swap! config assoc :eval-mode :cljs)
       (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
       (swap! fake/state assoc :range [[2 1] [2 1]])
       (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:definition/info])
-             => {:definition/info {:file-name #"clojure.*jar!/clojure/core.clj"
-                                   :line number?}}))
+             => {:definition/info {:file-name #"editor_integration/connection.cljs"
+                                   :line 215}}))
 
     (testing "getting full qualified vars in all namespaces"
       (swap! config assoc :eval-mode :cljs)
