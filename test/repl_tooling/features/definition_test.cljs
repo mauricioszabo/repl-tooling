@@ -24,36 +24,55 @@
     (fake/run-feature! :eval
                        {:text "(require '[repl-tooling.features.definition-helper :reload :all])"})
 
+    (testing "getting var definition from core locations"
+      (swap! fake/state assoc :range [[2 1] [2 1]] :code "(ns user)\n\n(prn 1 2)")
+      (check (fake/run-feature! :eql
+                                {:editor-state (:editor-state @fake/state)}
+                                [:definition/file-name :definition/line :definition/info])
+             => {:definition/file-name #"clojure.*jar!/clojure/core.clj"
+                 :definition/line number?
+                 :definition/info {:file/contents string?}}))
+
     (testing "finds symbols inside jars, and get file's contents"
       (swap! fake/state assoc :range [[2 1] [2 1]] :code "(ns user)\n\n(prn 1 2)")
-      (check (fake/run-feature! :eql [:definition/info])
-             => {:definition/info {:line number? :file-name string? :contents string?}}))
+      (check (fake/run-feature! :eql [:definition/info
+                                      :definition/file-name
+                                      :definition/line])
+             => {:definition/line number?
+                 :definition/file-name string?
+                 :definition/info {:file/contents string?}}))
 
     (testing "finds symbols inside other namespaces, and gets file"
       (swap! fake/state assoc :range [[2 1] [2 1]]
              :code "(ns repl-tooling.features.definition-helper)\n\nc/some-function")
-      (check (fake/run-feature! :eql [:definition/info])
-             => {:definition/info
-                  {:line number?
-                   :file-name #"repl_tooling/features/definition_child\.clj"}})
+      (check (fake/run-feature! :eql [:definition/file-name :definition/line])
+             => {:definition/line number?
+                 :definition/file-name #"repl_tooling/features/definition_child\.clj"})
 
       (fake/type "(ns repl-tooling.features.definition-helper)\n\nother-var")
-      (check (fake/run-feature! :eql [:definition/info])
-             => {:definition/info
-                  {:line 7
-                   :file-name #"repl_tooling/features/definition_child\.clj"}}))
+      (check (fake/run-feature! :eql [:definition/file-name :definition/line])
+             => {:definition/line 7
+                 :definition/file-name #"repl_tooling/features/definition_child\.clj"}))
 
     (testing "finds symbols inside same namespace, and gets file"
       (fake/type "(ns repl-tooling.features.definition-helper)\n\nsome-function")
-      (check (fake/run-feature! :eql [:definition/info])
-             => {:definition/info
-                  {:line 3
-                   :file-name #"repl_tooling/features/definition_helper\.clj"}}))
+      (check (fake/run-feature! :eql [:definition/file-name :definition/line])
+             => {:definition/line 3
+                 :definition/file-name #"repl_tooling/features/definition_helper\.clj"}))
 
     (swap! config assoc :eval-mode :cljs)
     (testing "getting definition on current NS for ClojureScript"
       (fake/type "(ns repl-tooling.integration.fixture-app)\n\nlocal-fn")
-      (check (fake/run-feature! :eql [:definition/info])
-             => {:definition/info
-                 {:line 9
-                  :file-name #"test/repl_tooling/integration/fixture_app\.cljs"}}))))
+      (check (fake/run-feature! :eql [:definition/file-name :definition/line])
+             => {:definition/line 9
+                 :definition/file-name #"test/repl_tooling/integration/fixture_app\.cljs"}))
+
+    (testing "getting path of stacktrace"
+      (fake/type "(ns repl-tooling.integration.fixture-app)\n\nlocal-fn")
+      (check (fake/run-feature! :eql
+                                {:ex/function-name "clojure.core/fn/eval1234"
+                                 :ex/filename "core.clj"
+                                 :ex/line 9}
+                                [:definition/file-name :definition/line])
+             => {:definition/line 8
+                 :definition/file-name #"clojure.*jar!/clojure/core.clj"}))))

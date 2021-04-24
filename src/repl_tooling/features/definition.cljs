@@ -20,7 +20,7 @@
   (when (string? file-name)
     (if (re-find #"\.jar!/" file-name)
       (p/let [{:keys [result]} (eval/eval repl (cmd-for-read-jar file-name))]
-        {:file-name file-name :line (dec line) :contents result})
+        {:file-name file-name :line (dec line) :file/contents result})
       {:file-name file-name :line (dec line)})))
 
 (defn- full-file-position [meta]
@@ -72,13 +72,35 @@
           (and (re-find #"^win\d+" (platform)))
           (str/replace-first #"^/" "")))
 
-(connect/defresolver resolver [{:repl/keys [aux clj]
+(connect/defresolver resolver [{:repl/keys [clj]
                                 :var/keys [meta]}]
-  {::connect/output [:definition/info :definition/line]}
+  {::connect/output [:definition/info :definition/file-name :definition/line]}
 
   (p/let [meta (select-keys meta [:file :line :column])
           result (resolve-possible-path clj meta)]
     {:definition/line (:line result)
-     :definition/info (cond-> (dissoc result :file)
+     :definition/file-name (:file-name result)
+     :definition/info (cond-> (dissoc result :file :file-name :line)
                               (:file-name result) (update :file-name norm-result)
                               (:column result) (update :column dec))}))
+
+(connect/defresolver resolver-for-stacktrace [{:repl/keys [clj]
+                                               :ex/keys [function-name filename line]}]
+  {::connect/output [:var/meta :definition/line]}
+  (p/let [ns-name (-> function-name (str/split #"/") first)
+          code (template/template `(let [n# (find-ns 'namespace-sym)]
+                                     (->> n#
+                                          ns-interns
+                                          (some (fn [[_# res#]]
+                                                  (let [meta# (meta res#)
+                                                        file# (-> meta# :file str)]
+                                                    (and (clojure.string/ends-with?
+                                                          file# file-name)
+                                                         meta#))))))
+                                  {:namespace-sym (symbol ns-name)
+                                   :file-name filename})
+          {:keys [result]} (eval/eval clj code)]
+     {:var/meta result
+      :definition/line (dec line)}))
+
+(def resolvers [resolver resolver-for-stacktrace])
