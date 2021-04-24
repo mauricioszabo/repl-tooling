@@ -9,7 +9,9 @@
       (when (nil? callback) (throw (ex-info "Didn't find function on editor-state"
                                             {:available (-> @state key keys)
                                              :required cmd})))
-      (let [schemas (-> schemas/EditorState :schema key cmd :input-schemas first)]
+      (let [schemas (->> schemas/EditorState :schema key cmd :input-schemas
+                         (filter #(-> % count (= (count args))))
+                         first)]
         (s/validate schemas args)))
     (let [res (apply callback args)]
       (when (.-DEBUG js/goog)
