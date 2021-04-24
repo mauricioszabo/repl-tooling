@@ -148,10 +148,11 @@
                              :ret any?}}))
 
     (testing "getting var definition from core locations"
-      (check (pathom/eql {:editor-state (:editor-state @fake/state)} [:definition/info])
-             => {:definition/info {:file-name #"clojure.*jar!/clojure/core.clj"
-                                   :line number?
-                                   :contents string?}}))
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         [:definition/file-name :definition/line :definition/contents])
+             => {:definition/file-name #"clojure.*jar!/clojure/core.clj"
+                 :definition/line number?
+                 :definition/info {:file/contents string?}}))
 
     (testing "getting var definition from local locations"
       (swap! config assoc :eval-mode :cljs)
