@@ -26,10 +26,10 @@
 (def Pos [(s/one s/Num 'row) (s/one s/Num 'col)])
 (def Range [(s/one Pos 'start) (s/one Pos 'end)])
 
-(def EditorData {:contents s/Str
-                 :filename (s/maybe s/Str)
-                 :range Range
-                 s/Any s/Any})
+(def EditorData (s/maybe {:contents s/Str
+                          :filename (s/maybe s/Str)
+                          :range Range
+                          s/Any s/Any}))
 
 (def EvalData {:id s/Symbol
                :editor-data EditorData
@@ -119,7 +119,7 @@
                      :get-full-var-name (s/=> js/Promise)
                      :get-code (s/=> js/Promise PossibleRanges)
                      :repl-for (s/=> s/Any s/Str (s/enum true false :always nil))
-                     :eql (s/=> s/Any s/Any)})
+                     :eql (s/=>* s/Any [s/Any] [{s/Keyword s/Any} s/Any])})
 
 (def EditorState (s/atom {:editor/callbacks Callbacks
                           :editor/features EditorFeatures
