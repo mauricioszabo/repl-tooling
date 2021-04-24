@@ -18,7 +18,7 @@
   {::connect/output [:editor/data]}
 
   (p/let [data ((:editor-data callbacks))]
-    {:editor/data data}))
+    (when data {:editor/data data})))
 
 (connect/defresolver separate-data [_ {:editor/keys [data]}]
   {::connect/input #{:editor/data}
@@ -77,7 +77,8 @@
   {::connect/input #{:editor/config :editor/filename}
    ::connect/output [:cljs/required?]}
 
-  (let [cljs-file? (str/ends-with? filename ".cljs")
+  (let [filename (str filename)
+        cljs-file? (str/ends-with? filename ".cljs")
         cljc-file? (or (str/ends-with? filename ".cljc")
                        (str/ends-with? filename ".cljx"))]
     (cond
@@ -90,20 +91,22 @@
       (-> config :eval-mode (= :prefer-cljs))
       {:cljs/required? (or cljs-file? cljc-file?)})))
 
+(connect/defresolver repl-for-clj [{:keys [editor-state]} _]
+  {::connect/output [:repl/clj]}
+  (when-let [clj-aux (some-> editor-state deref :clj/aux)]
+    {:repl/clj clj-aux}))
+
 (connect/defresolver repls-for-evaluation
-  [{:keys [editor-state ast]} {:keys [:cljs/required?]}]
-  {::connect/input #{:cljs/required?}
-   ::connect/output [:repl/eval :repl/aux :repl/clj]}
+  [{:keys [editor-state]} {:keys [:cljs/required?]}]
+  {::connect/output [:repl/eval :repl/aux]}
 
   (when-let [clj-aux (some-> editor-state deref :clj/aux)]
     (if required?
       (when-let [cljs (:cljs/repl @editor-state)]
         {:repl/eval cljs
-         :repl/aux cljs
-         :repl/clj clj-aux})
+         :repl/aux cljs})
       {:repl/eval (:clj/repl @editor-state)
-       :repl/aux clj-aux
-       :repl/clj clj-aux})))
+       :repl/aux clj-aux})))
 
 (connect/defresolver all-vars-in-ns
   [_ {:keys [repl/namespace repl/aux]}]
@@ -259,25 +262,27 @@
                          (.-doc res) (assoc :doc (.-doc res))
                          (.-test res) (assoc :test (.-test res)))})))
 
-(def orig-resolvers [;Editor resolvers
-                     editor-data separate-data
-                     namespace-from-editor-data namespace-from-editor var-from-editor
-                     get-config
+(def orig-resolvers (concat [;Editor resolvers
+                             editor-data separate-data
+                             namespace-from-editor-data namespace-from-editor var-from-editor
+                             get-config
 
-                     ; Namespaces resolvers
-                     all-namespaces all-vars-in-ns
+                             ; Namespaces resolvers
+                             all-namespaces all-vars-in-ns
 
-                     ; REPLs resolvers
-                     need-cljs need-cljs-from-config
+                             ; REPLs resolvers
+                             need-cljs need-cljs-from-config
 
-                     ; repls-from-config repls-from-config+editor-data
-                     repls-for-evaluation
+                             ; repls-from-config repls-from-config+editor-data
+                             repls-for-evaluation repl-for-clj
 
-                     ; Vars resolvers
-                     cljs-env fqn-var meta-for-var spec-for-var def/resolver
+                             ; Vars resolvers
+                             cljs-env fqn-var meta-for-var spec-for-var
 
-                     ;; KONDO
-                     analysis-from-kondo fqn-from-kondo meta-from-kondo])
+                             ;; KONDO
+                             analysis-from-kondo fqn-from-kondo meta-from-kondo]
+
+                            def/resolvers))
 
 (defn gen-parser [resolvers]
   (pathom/async-parser
@@ -286,7 +291,8 @@
                                     connect/open-ident-reader
                                     connect/index-reader
                                     pathom/env-placeholder-reader]
-                   ::pathom/placeholder-prefixes #{">"}}
+                   ::pathom/placeholder-prefixes #{">"}
+                   ::pathom/process-error (fn [env err] (def a [env err]) err)}
      ::pathom/plugins [(connect/connect-plugin {::connect/register resolvers})
                        pathom/error-handler-plugin
                        pathom/trace-plugin]}))
