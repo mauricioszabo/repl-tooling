@@ -100,7 +100,7 @@
          :definition/row 0}))))
 
 (connect/defresolver resolver-for-stacktrace [{:repl/keys [clj]
-                                               :ex/keys [function-name filename line]}]
+                                               :ex/keys [function-name filename row]}]
   {::connect/output [:var/meta :definition/row]}
   (p/let [ns-name (-> function-name (str/split #"/") first)
           code (template/template `(let [n# (find-ns 'namespace-sym)]
@@ -116,6 +116,6 @@
                                    :file-name filename})
           {:keys [result]} (eval/eval clj code)]
     {:var/meta result
-     :definition/row (dec line)}))
+     :definition/row (dec row)}))
 
 (def resolvers [resolver resolver-for-ns-only resolver-for-stacktrace])

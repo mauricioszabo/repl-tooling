@@ -79,7 +79,7 @@
       (check (fake/run-feature! :eql
                                 {:ex/function-name "clojure.core/fn/eval1234"
                                  :ex/filename "core.clj"
-                                 :ex/line 9}
+                                 :ex/row 9}
                                 [:definition/file-name :definition/row])
              => {:definition/row 8
                  :definition/file-name #"clojure.*jar!/clojure/core.clj"}))))
