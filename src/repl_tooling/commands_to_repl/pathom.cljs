@@ -155,8 +155,8 @@
           res (if (and required? (-> res :result nil?))
                 (eval/eval clj (str "(clojure.core/meta #'" fqn ")"))
                 res)]
-    {:var/meta (cond-> (:result res)
-                       (coll? keys) (select-keys keys))}))
+    (when-let [var-meta (:result res)]
+      {:var/meta (cond-> var-meta (coll? keys) (select-keys keys))})))
 
 (connect/defresolver spec-for-var
   [{:keys [ast]} {:keys [var/fqn repl/aux]}]

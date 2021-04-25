@@ -72,8 +72,7 @@
           (and (re-find #"^win\d+" (platform)))
           (str/replace-first #"^/" "")))
 
-(connect/defresolver resolver [{:repl/keys [clj]
-                                :var/keys [meta]}]
+(connect/defresolver resolver [{:keys [:repl/clj :var/meta]}]
   {::connect/output [:definition/info :definition/file-name :definition/line]}
 
   (p/let [meta (select-keys meta [:file :line :column])
@@ -83,6 +82,21 @@
      :definition/info (cond-> (dissoc result :file :file-name :line)
                               (:file-name result) (update :file-name norm-result)
                               (:column result) (update :column dec))}))
+
+(connect/defresolver resolver-for-ns-only [{:keys [:repl/clj :var/fqn :repl/namespace]}]
+  {::connect/output [:var/meta :definition/line]}
+
+  (when (= fqn namespace)
+    (p/let [code (template/template `(->> (find-ns 'namespace-sym)
+                                          ns-interns
+                                          first
+                                          second
+                                          meta)
+                                  {:namespace-sym namespace})
+            {:keys [result]} (eval/eval clj code)]
+      (when result
+        {:var/meta result
+         :definition/line 0}))))
 
 (connect/defresolver resolver-for-stacktrace [{:repl/keys [clj]
                                                :ex/keys [function-name filename line]}]
@@ -103,4 +117,4 @@
      {:var/meta result
       :definition/line (dec line)}))
 
-(def resolvers [resolver resolver-for-stacktrace])
+(def resolvers [resolver resolver-for-ns-only resolver-for-stacktrace])

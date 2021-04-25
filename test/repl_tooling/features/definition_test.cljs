@@ -33,6 +33,13 @@
                  :definition/line number?
                  :definition/info {:file/contents string?}}))
 
+    (testing "finds definition of namespace"
+      (swap! fake/state assoc :range [[0 4] [0 4]]
+             :code "(ns repl-tooling.features.definition-helper)")
+      (check (fake/run-feature! :eql [:definition/file-name :definition/line])
+             => {:definition/line 0
+                 :definition/file-name #"repl_tooling/features/definition_helper\.clj"}))
+
     (testing "finds symbols inside jars, and get file's contents"
       (swap! fake/state assoc :range [[2 1] [2 1]] :code "(ns user)\n\n(prn 1 2)")
       (check (fake/run-feature! :eql [:definition/info
