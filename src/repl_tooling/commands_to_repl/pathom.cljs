@@ -156,7 +156,8 @@
                 (eval/eval clj (str "(clojure.core/meta #'" fqn ")"))
                 res)]
     (when-let [var-meta (:result res)]
-      {:var/meta (cond-> var-meta (coll? keys) (select-keys keys))})))
+      (when-not (and required? (-> var-meta :ns (= 'js)))
+        {:var/meta (cond-> var-meta (coll? keys) (select-keys keys))}))))
 
 (connect/defresolver spec-for-var
   [{:keys [ast]} {:keys [var/fqn repl/aux]}]
