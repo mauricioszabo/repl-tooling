@@ -95,7 +95,6 @@
                                              meta)
                                   {:namespace-sym fqn})
             {:keys [result]} (eval/eval clj code)]
-      (prn :ns-only result)
       (when result
         {:var/meta result
          :definition/row 0}))))
