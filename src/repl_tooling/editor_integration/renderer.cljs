@@ -293,14 +293,13 @@
                           (if cache-exists?
                             (open-editor {:file-name file :line (dec row)})
                             (p/let [exists? (cmds/run-callback! editor-state
-                                                                :file-exists file)
-                                    fq-var (delay (str/replace var #"(.*?/.*?)/.*" "$1"))]
+                                                                :file-exists file)]
                               (if exists?
                                 (open-editor {:file-name file :line (dec row)})
                                 (def/goto-definition editor-state
-                                  {:editor/current-var @fq-var
-                                   :definition/line (dec row)
-                                   :repl/namespace 'user})))))}
+                                  {:ex/function-name var
+                                   :ex/filename file
+                                   :ex/row row})))))}
      " (" file ":" row ")"]))
 
 (defn- prepare-source-map [editor-state js-filename]
