@@ -149,9 +149,9 @@
 
     (testing "getting var definition from core locations"
       (check (pathom/eql {:editor-state (:editor-state @fake/state)}
-                         [:definition/file-name :definition/line :definition/info])
+                         [:definition/file-name :definition/row :definition/info])
              => {:definition/file-name #"clojure.*jar!/clojure/core.clj"
-                 :definition/line number?
+                 :definition/row number?
                  :definition/info {:file/contents string?}}))
 
     (testing "getting var definition from local locations"
@@ -159,9 +159,9 @@
       (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
       (swap! fake/state assoc :range [[2 1] [2 1]])
       (check (pathom/eql {:editor-state (:editor-state @fake/state)}
-                         [:definition/file-name :definition/line])
+                         [:definition/file-name :definition/row])
              => {:definition/file-name #"editor_integration/connection.cljs"
-                 :definition/line 215}))
+                 :definition/row 215}))
 
     (testing "getting full qualified vars in all namespaces"
       (swap! config assoc :eval-mode :cljs)

@@ -73,34 +73,36 @@
           (str/replace-first #"^/" "")))
 
 (connect/defresolver resolver [{:keys [:repl/clj :var/meta]}]
-  {::connect/output [:definition/info :definition/file-name :definition/line]}
+  {::connect/output [:definition/info :definition/file-name :definition/row]}
 
   (p/let [meta (select-keys meta [:file :line :column])
           result (resolve-possible-path clj meta)]
-    {:definition/line (:line result)
+    {:definition/row (:line result)
      :definition/file-name (:file-name result)
-     :definition/info (cond-> (dissoc result :file :file-name :line)
-                              (:file-name result) (update :file-name norm-result)
-                              (:column result) (update :column dec))}))
+     :definition/info (cond-> (select-keys result [:file/contents])
 
-(connect/defresolver resolver-for-ns-only [{:keys [:repl/clj :var/fqn :repl/namespace]}]
-  {::connect/output [:var/meta :definition/line]}
+                              (:column result)
+                              (assoc :definition/col (-> result :column dec)))}))
 
-  (when (= fqn namespace)
-    (p/let [code (template/template `(->> (find-ns 'namespace-sym)
-                                          ns-interns
-                                          first
-                                          second
-                                          meta)
-                                  {:namespace-sym namespace})
+(connect/defresolver resolver-for-ns-only [{:keys [:repl/clj :var/fqn]}]
+  {::connect/output [:var/meta :definition/row]}
+
+  (when (-> fqn namespace nil?)
+    (p/let [code (template/template `(some-> (find-ns 'namespace-sym)
+                                             ns-interns
+                                             first
+                                             second
+                                             meta)
+                                  {:namespace-sym fqn})
             {:keys [result]} (eval/eval clj code)]
+      (prn :ns-only result)
       (when result
         {:var/meta result
-         :definition/line 0}))))
+         :definition/row 0}))))
 
 (connect/defresolver resolver-for-stacktrace [{:repl/keys [clj]
                                                :ex/keys [function-name filename line]}]
-  {::connect/output [:var/meta :definition/line]}
+  {::connect/output [:var/meta :definition/row]}
   (p/let [ns-name (-> function-name (str/split #"/") first)
           code (template/template `(let [n# (find-ns 'namespace-sym)]
                                      (->> n#
@@ -114,7 +116,7 @@
                                   {:namespace-sym (symbol ns-name)
                                    :file-name filename})
           {:keys [result]} (eval/eval clj code)]
-     {:var/meta result
-      :definition/line (dec line)}))
+    {:var/meta result
+     :definition/row (dec line)}))
 
 (def resolvers [resolver resolver-for-ns-only resolver-for-stacktrace])
