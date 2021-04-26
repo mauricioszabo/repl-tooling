@@ -6,6 +6,7 @@
             [repl-tooling.editor-integration.renderer.protocols :as proto]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.features.definition :as definition]
+            [repl-tooling.editor-integration.definition :as def]
             [repl-tooling.editor-integration.renderer.interactive :as int]
             [repl-tooling.editor-integration.commands :as cmds]
             ["source-map" :refer [SourceMapConsumer]]))
@@ -283,6 +284,7 @@
 
 (defn- trace-link [var file row editor-state cache-exists?]
   (let [{:keys [open-editor notify]} (:editor/callbacks @editor-state)
+        {:keys [eql]} (:editor/features @editor-state)
         aux-repl (:clj/aux @editor-state)]
     [:a.file {:href "#"
               :on-click (fn [e]
@@ -294,14 +296,10 @@
                                                                 :file-exists file)]
                               (if exists?
                                 (open-editor {:file-name file :line (dec row)})
-                                (.. (definition/find-var-definition
-                                      aux-repl
-                                      aux-repl
-                                      "user"
-                                      (re-find #"^.*?/[^/]+" var))
-                                    (then #(open-editor (assoc % :line (dec row))))
-                                    (catch #(notify {:type :error
-                                                     :title "Can't find file to go"})))))))}
+                                (def/goto-definition editor-state
+                                  {:ex/function-name var
+                                   :ex/filename file
+                                   :ex/row row})))))}
      " (" file ":" row ")"]))
 
 (defn- prepare-source-map [editor-state js-filename]

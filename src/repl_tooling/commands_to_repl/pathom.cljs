@@ -11,13 +11,14 @@
             [clojure.core.async :as async]
             [com.wsscode.pathom.core :as pathom]
             [com.wsscode.pathom.connect :as connect]
+            [repl-tooling.features.definition :as def]
             ["child_process" :refer [spawn]]))
 
 (connect/defresolver editor-data [{:keys [callbacks]} _]
   {::connect/output [:editor/data]}
 
   (p/let [data ((:editor-data callbacks))]
-    {:editor/data data}))
+    (when data {:editor/data data})))
 
 (connect/defresolver separate-data [_ {:editor/keys [data]}]
   {::connect/input #{:editor/data}
@@ -76,7 +77,8 @@
   {::connect/input #{:editor/config :editor/filename}
    ::connect/output [:cljs/required?]}
 
-  (let [cljs-file? (str/ends-with? filename ".cljs")
+  (let [filename (str filename)
+        cljs-file? (str/ends-with? filename ".cljs")
         cljc-file? (or (str/ends-with? filename ".cljc")
                        (str/ends-with? filename ".cljx"))]
     (cond
@@ -89,20 +91,22 @@
       (-> config :eval-mode (= :prefer-cljs))
       {:cljs/required? (or cljs-file? cljc-file?)})))
 
+(connect/defresolver repl-for-clj [{:keys [editor-state]} _]
+  {::connect/output [:repl/clj]}
+  (when-let [clj-aux (some-> editor-state deref :clj/aux)]
+    {:repl/clj clj-aux}))
+
 (connect/defresolver repls-for-evaluation
-  [{:keys [editor-state ast]} {:keys [:cljs/required?]}]
-  {::connect/input #{:cljs/required?}
-   ::connect/output [:repl/eval :repl/aux :repl/clj]}
+  [{:keys [editor-state]} {:keys [:cljs/required?]}]
+  {::connect/output [:repl/eval :repl/aux]}
 
   (when-let [clj-aux (some-> editor-state deref :clj/aux)]
     (if required?
       (when-let [cljs (:cljs/repl @editor-state)]
         {:repl/eval cljs
-         :repl/aux cljs
-         :repl/clj clj-aux})
+         :repl/aux cljs})
       {:repl/eval (:clj/repl @editor-state)
-       :repl/aux clj-aux
-       :repl/clj clj-aux})))
+       :repl/aux clj-aux})))
 
 (connect/defresolver all-vars-in-ns
   [_ {:keys [repl/namespace repl/aux]}]
@@ -122,7 +126,8 @@
   (p/let [{:keys [result]} (eval/eval aux (str "`" current-var)
                                       {:namespace (str namespace)
                                        :ignore true})]
-    {:var/fqn result}))
+    (when (symbol? result)
+      {:var/fqn result})))
 
 (connect/defresolver cljs-env [{:keys [editor-state]} {:keys [repl/clj]}]
   {::connect/input #{:repl/clj}
@@ -150,8 +155,9 @@
           res (if (and required? (-> res :result nil?))
                 (eval/eval clj (str "(clojure.core/meta #'" fqn ")"))
                 res)]
-    {:var/meta (cond-> (:result res)
-                       (coll? keys) (select-keys keys))}))
+    (when-let [var-meta (:result res)]
+      (when-not (and required? (-> var-meta :ns (= 'js)))
+        {:var/meta (cond-> var-meta (coll? keys) (select-keys keys))}))))
 
 (connect/defresolver spec-for-var
   [{:keys [ast]} {:keys [var/fqn repl/aux]}]
@@ -257,24 +263,27 @@
                          (.-doc res) (assoc :doc (.-doc res))
                          (.-test res) (assoc :test (.-test res)))})))
 
-(def orig-resolvers [;Editor resolvers
-                     editor-data separate-data
-                     namespace-from-editor-data namespace-from-editor var-from-editor
-                     get-config
+(def orig-resolvers (concat [;Editor resolvers
+                             editor-data separate-data
+                             namespace-from-editor-data namespace-from-editor var-from-editor
+                             get-config
 
-                     ; Namespaces resolvers
-                     all-namespaces all-vars-in-ns
+                             ; Namespaces resolvers
+                             all-namespaces all-vars-in-ns
 
-                     ; REPLs resolvers
-                     need-cljs need-cljs-from-config
-                     ; repls-from-config repls-from-config+editor-data
-                     repls-for-evaluation
+                             ; REPLs resolvers
+                             need-cljs need-cljs-from-config
 
-                     ; Vars resolvers
-                     cljs-env fqn-var meta-for-var spec-for-var
+                             ; repls-from-config repls-from-config+editor-data
+                             repls-for-evaluation repl-for-clj
 
-                     ;; KONDO
-                     analysis-from-kondo fqn-from-kondo meta-from-kondo])
+                             ; Vars resolvers
+                             cljs-env fqn-var meta-for-var spec-for-var
+
+                             ;; KONDO
+                             analysis-from-kondo fqn-from-kondo meta-from-kondo]
+
+                            def/resolvers))
 
 (defn gen-parser [resolvers]
   (pathom/async-parser
@@ -283,9 +292,10 @@
                                     connect/open-ident-reader
                                     connect/index-reader
                                     pathom/env-placeholder-reader]
-                   ::pathom/placeholder-prefixes #{">"}}
+                   ::pathom/placeholder-prefixes #{">"}
+                   ::pathom/process-error (fn [env err] (def a [env err]) err)}
      ::pathom/plugins [(connect/connect-plugin {::connect/register resolvers})
-                       ; pathom/error-handler-plugin
+                       pathom/error-handler-plugin
                        pathom/trace-plugin]}))
 
 (def ^:private custom-resolvers (atom []))
@@ -334,22 +344,31 @@
     (swap! custom-resolvers conj (gen-resolver inputs outputs fun))
     (reset! parser (gen-parser (concat resolvers @custom-resolvers)))))
 
-(s/defn eql :- js/Promise
+(defn eql
   "Queries the Pathom graph for the REPLs"
-  [params :- {(s/optional-key :editor-state) schemas/EditorState
-              (s/optional-key :callbacks) s/Any}
-   query]
-  (let [p (p/deferred)
-        params (cond-> params
+  ([params query] (eql params nil query))
+  ([params seed query]
+   (let [p (p/deferred)
+         params (cond-> params
 
-                       (-> params :callbacks nil?)
-                       (assoc :callbacks (-> params :editor-state deref :editor/callbacks)))]
-    (async/go
-      (try
-        (p/resolve! p (async/<! (@parser params query)))
-       (catch :default e
-         (p/reject! p e))))
-    p))
+                        seed
+                        (assoc ::pathom/entity (atom seed))
+
+                        (-> params :callbacks nil?)
+                        (assoc :callbacks (-> params :editor-state deref :editor/callbacks)))]
+     (async/go
+       (try
+         (let [result (async/<! (@parser params query))
+               invalid-val? #{::pathom/reader-error ::pathom/not-found}]
+           (p/resolve! p (reduce (fn [sofar [k v]]
+                                   (cond-> sofar
+                                           (invalid-val? v)
+                                           (dissoc k)))
+                                 result
+                                 result)))
+         (catch :default e
+           (p/reject! p e))))
+     p)))
 
 #_
 (eql {:editor-state (:tooling-state @chlorine.state/state)}

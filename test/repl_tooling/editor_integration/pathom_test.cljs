@@ -147,6 +147,22 @@
                                         :body (* any?))
                              :ret any?}}))
 
+    (testing "getting var definition from core locations"
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         [:definition/file-name :definition/row :definition/info])
+             => {:definition/file-name #"clojure.*jar!/clojure/core.clj"
+                 :definition/row number?
+                 :definition/info {:file/contents string?}}))
+
+    (testing "getting var definition from local locations"
+      (swap! config assoc :eval-mode :cljs)
+      (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql {:editor-state (:editor-state @fake/state)}
+                         [:definition/file-name :definition/row])
+             => {:definition/file-name #"editor_integration/connection.cljs"
+                 :definition/row 215}))
+
     (testing "getting full qualified vars in all namespaces"
       (swap! config assoc :eval-mode :cljs)
       (check (pathom/eql {:editor-state (:editor-state @fake/state)}
@@ -181,29 +197,29 @@
 (cards/deftest pathom-resolver-without-repl
   (async-test "resolving with clj-kondo" {:timeout 18000
                                           :teardown (pathom/reset-resolvers)}
-    ; (testing "will get fqn from aliases"
-    ;   (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(p/let [] )")
-    ;   (swap! fake/state assoc :range [[2 1] [2 1]])
-    ;   (check (pathom/eql {:callbacks callbacks} [:var/fqn])
-    ;          => {:var/fqn 'promesa.core/let}))
-    ;
-    ; (testing "will get fqn from refers"
-    ;   (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(replace-first )")
-    ;   (swap! fake/state assoc :range [[2 1] [2 1]])
-    ;   (check (pathom/eql {:callbacks callbacks} [:var/fqn])
-    ;          => {:var/fqn 'clojure.string/replace-first}))
-    ;
-    ; (testing "will get fqn from definitions in the same NS"
-    ;   (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(private-fn )")
-    ;   (swap! fake/state assoc :range [[2 1] [2 1]])
-    ;   (check (pathom/eql {:callbacks callbacks} [:var/fqn])
-    ;          => {:var/fqn 'repl-tooling.integration.fixture-app/private-fn}))
-    ;
-    ; (testing "will get meta from Kondo's result"
-    ;   (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
-    ;   (swap! fake/state assoc :range [[2 1] [2 1]])
-    ;   (check (pathom/eql {:callbacks callbacks} [:var/meta])
-    ;          => {:var/meta {:doc #"Connects to a clojure.*REPL"}}))
+    (testing "will get fqn from aliases"
+      (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(p/let [] )")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql {:callbacks callbacks} [:var/fqn])
+             => {:var/fqn 'promesa.core/let}))
+
+    (testing "will get fqn from refers"
+      (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(replace-first )")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql {:callbacks callbacks} [:var/fqn])
+             => {:var/fqn 'clojure.string/replace-first}))
+
+    (testing "will get fqn from definitions in the same NS"
+      (fake/type "(ns repl-tooling.integration.fixture-app)\n\n(private-fn )")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql {:callbacks callbacks} [:var/fqn])
+             => {:var/fqn 'repl-tooling.integration.fixture-app/private-fn}))
+
+    (testing "will get meta from Kondo's result"
+      (fake/type "(ns repl-tooling.editor-integration.connection)\n\n(connect! [] )")
+      (swap! fake/state assoc :range [[2 1] [2 1]])
+      (check (pathom/eql {:callbacks callbacks} [:var/meta])
+             => {:var/meta {:doc #"Connects to a clojure.*REPL"}}))
 
     (testing "customizing resolves"
       (testing "will add a new resolver with our code"

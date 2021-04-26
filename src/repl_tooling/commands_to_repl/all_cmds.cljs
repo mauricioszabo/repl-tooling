@@ -85,9 +85,7 @@
                               (loaders/load-file data @state))}
       :go-to-var-definition {:name "Goto VAR definition"
                              :description "Goes to definition of the current variable"
-                             ; :command #(p/let [data (editor-data)]
-                             ;             (definition/goto-current-var data state))
-                             :command #(definition/goto-current-var' state)}}
+                             :command #(definition/goto-current-var state)}}
 
      config-file
      (assoc :open-config {:name "Open Config File"
@@ -124,7 +122,7 @@
                     :command #(doc/doc-for-var state-ish)}
       :go-to-var-definition {:name "Goto VAR definition"
                              :description "Goes to definition of the current variable"
-                             :command #(definition/goto-current-var' state-ish)}})))
+                             :command #(definition/goto-current-var state-ish)}})))
 
      ; config-file
      ; (assoc :open-config {:name "Open Config File"

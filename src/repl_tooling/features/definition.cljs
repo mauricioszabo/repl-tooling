@@ -2,6 +2,8 @@
   (:require [clojure.string :as str]
             [repl-tooling.eval :as eval]
             [promesa.core :as p]
+            [com.wsscode.pathom.connect :as connect]
+            [repl-tooling.template :as template]
             ["fs" :as fs]
             ["os" :refer [platform]]))
 
@@ -18,7 +20,7 @@
   (when (string? file-name)
     (if (re-find #"\.jar!/" file-name)
       (p/let [{:keys [result]} (eval/eval repl (cmd-for-read-jar file-name))]
-        {:file-name file-name :line (dec line) :contents result})
+        {:file-name file-name :line (dec line) :file/contents result})
       {:file-name file-name :line (dec line)})))
 
 (defn- full-file-position [meta]
@@ -70,18 +72,50 @@
           (and (re-find #"^win\d+" (platform)))
           (str/replace-first #"^/" "")))
 
-(defn find-var-definition [cljs-repl clj-aux ns-name symbol-name]
-  (p/let [cmd (str "(clojure.core/->> `" symbol-name " "
-                   "clojure.core/resolve "
-                   "clojure.core/meta "
-                   "clojure.core/vec "
-                   "(clojure.core/into {})"
-                   ")")
-          meta (eval/eval cljs-repl cmd {:namespace ns-name :ignore true})
-          meta (select-keys (:result meta)
-                            [:file :line :column])
-          result (resolve-possible-path clj-aux meta)]
+(connect/defresolver resolver [{:keys [:repl/clj :var/meta]}]
+  {::connect/output [:definition/info :definition/file-name :definition/row]}
 
-    (cond-> (dissoc result :file)
-            (:file-name result) (update :file-name norm-result)
-            (:column result) (update :column dec))))
+  (p/let [meta (select-keys meta [:file :line :column])
+          result (resolve-possible-path clj meta)]
+    {:definition/row (:line result)
+     :definition/file-name (:file-name result)
+     :definition/info (cond-> (select-keys result [:file/contents])
+
+                              (:column result)
+                              (assoc :definition/col (-> result :column dec)))}))
+
+(connect/defresolver resolver-for-ns-only [{:keys [:repl/clj :var/fqn]}]
+  {::connect/output [:var/meta :definition/row]}
+
+  (when (-> fqn namespace nil?)
+    (p/let [code (template/template `(some-> (find-ns 'namespace-sym)
+                                             ns-interns
+                                             first
+                                             second
+                                             meta)
+                                  {:namespace-sym fqn})
+            {:keys [result]} (eval/eval clj code)]
+      (when result
+        {:var/meta result
+         :definition/row 0}))))
+
+(connect/defresolver resolver-for-stacktrace [{:repl/keys [clj]
+                                               :ex/keys [function-name filename row]}]
+  {::connect/output [:var/meta :definition/row]}
+  (p/let [ns-name (-> function-name (str/split #"/") first)
+          code (template/template `(let [n# (find-ns 'namespace-sym)]
+                                     (->> n#
+                                          ns-interns
+                                          (some (fn [[_# res#]]
+                                                  (let [meta# (meta res#)
+                                                        file# (-> meta# :file str)]
+                                                    (and (clojure.string/ends-with?
+                                                          file# file-name)
+                                                         meta#))))))
+                                  {:namespace-sym (symbol ns-name)
+                                   :file-name filename})
+          {:keys [result]} (eval/eval clj code)]
+    {:var/meta result
+     :definition/row (dec row)}))
+
+(def resolvers [resolver resolver-for-ns-only resolver-for-stacktrace])
