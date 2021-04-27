@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.5.13
+- Goto var definition is now on Pathom
+- Goto var from stacktrace is also on Pathom
+- Customizable resolvers from config
+
 ## 0.5.10
 - Fix for nREPL, again
 
