@@ -353,13 +353,14 @@
                                         (open-editor {:file-name file
                                                       :line (dec row)
                                                       :column (dec col)})
-                                        (.. (definition/resolve-possible-path
-                                              aux-repl {:file file :line row})
-                                            (then #(open-editor (assoc %
-                                                                       :line (dec row)
-                                                                       :column (dec col))))
-                                            (catch #(notify {:type :error
-                                                             :title "Can't find file to go"}))))))}
+                                        ; FIXME - This may be possible now...
+                                        ; (.. (definition/resolve-possible-path
+                                        ;       aux-repl {:file file :line row})
+                                        ;     (then #(open-editor (assoc %
+                                        ;                                :line (dec row)
+                                        ;                                :column (dec col))))
+                                        (notify {:type :error
+                                                 :title "Can't find file to go"}))))}
 
                file ":" row ":" col]
               ")"]
