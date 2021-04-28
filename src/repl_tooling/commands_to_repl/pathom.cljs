@@ -176,7 +176,7 @@
                 "      (clojure.core/into {}))))"))]
     (when result {:var/spec result})))
 
-(def ^:private kondo-cache (atom {:cache nil :when 0}))
+(defonce ^:private kondo-cache (atom {:cache nil :when 0}))
 
 (defn- run-kondo [dirs]
   (let [p (p/deferred)
@@ -351,7 +351,7 @@
    (let [p (p/deferred)
          params (cond-> params
 
-                        seed
+                        (not-empty seed)
                         (assoc ::pathom/entity (atom seed))
 
                         (-> params :callbacks nil?)
@@ -367,10 +367,21 @@
                                  result
                                  result)))
          (catch :default e
+           (when js/goog.DEBUG
+             (prn :RESOLVER-ERROR e))
            (p/reject! p e))))
      p)))
 
 #_
-(eql {:editor-state (:tooling-state @chlorine.state/state)}
-     '[{(:repl/namespaces {:filter "repl-tooling.integration."})
-        [:repl/namespace {:namespace/vars [:var/fqn]}]}])
+{:html '[:p/ml (str "#direction: right\n#stroke: #55544E\n" (str/join "\n" ?state))]
+ :state (for [resolver orig-resolvers
+              :let [norm #(-> %
+                              pr-str
+                              (clojure.string/replace #"\[" "(")
+                              (clojure.string/replace #"\]" ")"))
+                    sym (str "[" (pr-str (:com.wsscode.pathom.connect/sym resolver)) "]")
+                    inputs (map #(str "[<usecase>" (norm %) "] -> " sym)
+                                (:com.wsscode.pathom.connect/input resolver))
+                    outputs (map #(str sym " -> [<usecase>" (norm %) "]")
+                                 (:com.wsscode.pathom.connect/output resolver))]]
+          (clojure.string/join "\n" (concat inputs outputs)))}
