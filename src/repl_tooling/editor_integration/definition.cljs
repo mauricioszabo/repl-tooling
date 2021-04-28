@@ -4,17 +4,20 @@
 (defn goto-definition [state resolver-opts]
   (let [{:keys [run-callback]} @state
         {:keys [eql]} (:editor/features @state)]
-    (-> (eql resolver-opts [:definition/file-name :definition/info :definition/row])
-        (p/then (fn [{:definition/keys [info file-name row]}]
+    (-> (eql resolver-opts [:definition/file-name
+                            :definition/file-contents
+                            :definition/row
+                            :definition/col])
+        (p/then (fn [{:definition/keys [file-contents col file-name row]}]
                   (if file-name
                     (run-callback :open-editor
                                   (cond-> {:file-name file-name, :line row}
 
-                                          (:file/contents info)
-                                          (assoc :contents (:file/contents info))
+                                          file-contents
+                                          (assoc :contents file-contents)
 
-                                          (:definition/row info)
-                                          (assoc :column (:definition/col info))))
+                                          col
+                                          (assoc :column col)))
 
                     (run-callback :notify
                                   {:type :error
