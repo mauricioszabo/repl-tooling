@@ -282,7 +282,7 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                              #(renderer/parse-result (:result %)
                                                      (:repl %)
                                                      state-ish)
-                             :eql #(pathom/eql {:callbacks options} %)}
+                             :eql (partial pathom/eql {:callbacks options})}
            :run-callback (partial commands/run-callback! callback-cmds)
            :run-feature (partial commands/run-feature! callback-cmds))
     ((:register-commands options) (cmds/static-commands state-ish))
