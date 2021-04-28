@@ -7,82 +7,69 @@
             ["fs" :as fs]
             ["os" :refer [platform]]))
 
-(defn- cmd-for-read-jar [jar-file-name]
-  `(~'clojure.core/let [[jar# path#] (~'clojure.string/split ~jar-file-name #"!/" 2)
-                        jar# (~'clojure.string/replace-first jar# #"file:" "")
-                        jar-file# (java.util.jar.JarFile. jar#)
-                        ba# (java.io.ByteArrayOutputStream.)
-                        is# (.getInputStream jar-file# (.getJarEntry jar-file# path#))]
-     (~'clojure.java.io/copy is# ba#)
-     (java.lang.String. (.toByteArray ba#))))
-
-(defn- wrap-contents [repl {:keys [file-name line]}]
-  (when (string? file-name)
-    (if (re-find #"\.jar!/" file-name)
-      (p/let [{:keys [result]} (eval/eval repl (cmd-for-read-jar file-name))]
-        {:file-name file-name :line (dec line) :file/contents result})
-      {:file-name file-name :line (dec line)})))
-
-(defn- full-file-position [meta]
-  (js/Promise.
-   (fn [resolve]
-     (fs/exists (:file meta) #(if %
-                                (resolve (assoc meta
-                                                :file-name (:file meta)
-                                                :line (-> meta :line dec)))
-                                (resolve nil))))))
-
-(defn- classpath-meta->positions [clj-repl meta]
-  (p/do!
-    (eval/eval clj-repl "(clojure.core/require 'clojure.java.io)")
-    (eval/eval clj-repl
-               (str "(clojure.core/let [m '" meta "]"
-                    "  (clojure.core/assoc m :file-name "
-                    "                      (clojure.core/or (clojure.core/some->> m"
-                    "                            :file"
-                    "                            (.getResource (clojure.lang.RT/baseLoader))"
-                    "                            .getPath)"
-                    "                          (:file m))))"))))
-(defn- from-classpath [clj-aux meta]
-  (p/catch
-   (p/let [pos (classpath-meta->positions clj-aux meta)]
-     (wrap-contents clj-aux (:result pos)))
-   (constantly nil)))
-
-(defn- from-clr [clj-repl meta]
-  (p/catch
-   (p/let [from-repl (eval/eval clj-repl
-                                (str "(clojure.core/let [m '" meta "]"
-                                     "  (clojure.core/some->> m"
-                                     "    :file"
-                                     "    (clojure.lang.RT/FindFile)"
-                                     "    str))"))]
-     {:file-name (:result from-repl) :line (-> meta :line dec)})
-   (constantly nil)))
-
-(defn resolve-possible-path [repl meta]
-  ; FIXME: use REPL detection here
-  (p/let [with-contents (full-file-position meta)
-          with-contents (or with-contents (from-classpath repl meta))
-          with-contents (or with-contents (from-clr repl meta))]
-    (or with-contents (throw "Error"))))
-
 (defn- norm-result [file-name]
   (cond-> file-name
           (and (re-find #"^win\d+" (platform)))
           (str/replace-first #"^/" "")))
 
-(connect/defresolver resolver [{:keys [:repl/clj :var/meta]}]
-  {::connect/output [:definition/info :definition/file-name :definition/row]}
+(defn- read-jar [clj jar-file-name]
+  (let [[jar path] (str/split jar-file-name #"!/" 2)
+        jar (clojure.string/replace-first jar #"file:" "")
+        template
+        `(let [jar-file# (java.util.jar.JarFile. jar)
+               ba# (java.io.ByteArrayOutputStream.)
+               is# (.getInputStream jar-file# (.getJarEntry jar-file# path))]
+           (clojure.java.io/copy is# ba#)
+           (java.lang.String. (.toByteArray ba#)))
+        code (template/template template {:jar jar :path path})]
+    (eval/eval clj code)))
 
-  (p/let [meta (select-keys meta [:file :line :column])
-          result (resolve-possible-path clj meta)]
-    {:definition/row (:line result)
-     :definition/file-name (:file-name result)
-     :definition/info (cond-> (select-keys result [:file/contents])
+(defn- classpath->full-position [clj meta]
+  (p/let [code (template/template `(do
+                                     (require 'clojure.java.io)
+                                     (some->> file
+                                              (.getResource (clojure.lang.RT/baseLoader))
+                                              .getPath))
+                                  {:file (:file meta)})
+          {:keys [result]} (eval/eval clj code)]
+    result))
 
-                              (:column result)
-                              (assoc :definition/col (-> result :column dec)))}))
+(connect/defresolver file-from-classpath [{:keys [:repl/clj :var/meta]}]
+  {::connect/output [:definition/file-contents :definition/file-name]}
+  (p/let [file-name (classpath->full-position clj meta)
+          file-name (norm-result file-name)]
+    (when (string? file-name)
+      (if (re-find #"\.jar!/" file-name)
+        (p/let [{:keys [result]} (read-jar clj file-name)]
+          {:definition/file-name file-name :definition/file-contents result})
+        {:definition/file-name file-name}))))
+
+(connect/defresolver file-from-clr [{:keys [:repl/clj :var/meta]}]
+  {::connect/output [:definition/file-name]}
+  (p/let [code (template/template `(some-> file
+                                           clojure.lang.RT/FindFile
+                                           str)
+                                  {:file (:file meta)})
+          {:keys [result]} (eval/eval clj code)]
+    (when result
+      {:definition/file-name (norm-result result)}))
+  (constantly nil))
+
+(defn- fs-exists? [file]
+  (new js/Promise (fn [resolve] (fs/exists file resolve))))
+
+(connect/defresolver existing-filename [{:keys [:var/meta]}]
+  {::connect/output [:definition/file-name]}
+
+  (p/then (fs-exists? (:file meta))
+          #(when % {:definition/file-name (-> meta :file norm-result)})))
+
+(connect/defresolver position-resolver [{:keys [:var/meta]}]
+  {::connect/output [:definition/row :definition/col]}
+
+  (when-let [line (:line meta)]
+    (cond-> {:definition/row (-> meta :line dec)}
+            (:column meta) (assoc :definition/col (-> meta :column dec)))))
 
 (connect/defresolver resolver-for-ns-only [{:keys [:repl/clj :var/fqn]}]
   {::connect/output [:var/meta :definition/row]}
@@ -118,4 +105,5 @@
     {:var/meta result
      :definition/row (dec row)}))
 
-(def resolvers [resolver resolver-for-ns-only resolver-for-stacktrace])
+(def resolvers [position-resolver existing-filename file-from-clr file-from-classpath
+                resolver-for-ns-only resolver-for-stacktrace])
