@@ -176,7 +176,7 @@
                 "      (clojure.core/into {}))))"))]
     (when result {:var/spec result})))
 
-(def ^:private kondo-cache (atom {:cache nil :when 0}))
+(defonce ^:private kondo-cache (atom {:cache nil :when 0}))
 
 (defn- run-kondo [dirs]
   (let [p (p/deferred)
@@ -351,7 +351,7 @@
    (let [p (p/deferred)
          params (cond-> params
 
-                        seed
+                        (not-empty seed)
                         (assoc ::pathom/entity (atom seed))
 
                         (-> params :callbacks nil?)
@@ -367,10 +367,22 @@
                                  result
                                  result)))
          (catch :default e
+           (when js/goog.DEBUG
+             (prn :RESOLVER-ERROR e))
            (p/reject! p e))))
      p)))
 
 #_
-(eql {:editor-state (:tooling-state @chlorine.state/state)}
-     '[{(:repl/namespaces {:filter "repl-tooling.integration."})
-        [:repl/namespace {:namespace/vars [:var/fqn]}]}])
+{:html '[:div/viz (str "digraph G { \n" (str/join "\n" ?state) "\n}")]
+ :state (for [resolver orig-resolvers
+              :let [norm #(-> %
+                              pr-str
+                              pr-str)
+                    sym (-> resolver :com.wsscode.pathom.connect/sym pr-str pr-str)
+                    inputs (map #(str (norm %) " -> " sym)
+                                (:com.wsscode.pathom.connect/input resolver))
+                    outputs (map #(str sym " -> " (norm %))
+                                 (:com.wsscode.pathom.connect/output resolver))]]
+          (clojure.string/join "\n" (concat [(str sym " [shape=box href=" sym "]")]
+                                            inputs
+                                            outputs)))}
