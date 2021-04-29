@@ -373,15 +373,16 @@
      p)))
 
 #_
-{:html '[:p/ml (str "#direction: right\n#stroke: #55544E\n" (str/join "\n" ?state))]
+{:html '[:div/viz (str "digraph G { \n" (str/join "\n" ?state) "\n}")]
  :state (for [resolver orig-resolvers
               :let [norm #(-> %
                               pr-str
-                              (clojure.string/replace #"\[" "(")
-                              (clojure.string/replace #"\]" ")"))
-                    sym (str "[" (pr-str (:com.wsscode.pathom.connect/sym resolver)) "]")
-                    inputs (map #(str "[<usecase>" (norm %) "] -> " sym)
+                              pr-str)
+                    sym (-> resolver :com.wsscode.pathom.connect/sym pr-str pr-str)
+                    inputs (map #(str (norm %) " -> " sym)
                                 (:com.wsscode.pathom.connect/input resolver))
-                    outputs (map #(str sym " -> [<usecase>" (norm %) "]")
+                    outputs (map #(str sym " -> " (norm %))
                                  (:com.wsscode.pathom.connect/output resolver))]]
-          (clojure.string/join "\n" (concat inputs outputs)))}
+          (clojure.string/join "\n" (concat [(str sym " [shape=box href=" sym "]")]
+                                            inputs
+                                            outputs)))}
