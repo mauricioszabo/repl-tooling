@@ -35,34 +35,34 @@
     result))
 
 (connect/defresolver file-from-classpath [{:keys [:repl/clj :var/meta]}]
-  {::connect/output [:definition/file-contents :definition/file-name]}
+  {::connect/output [:definition/file-contents :definition/filename]}
   (p/let [file-name (classpath->full-position clj meta)
           file-name (norm-result file-name)]
     (when (string? file-name)
       (if (re-find #"\.jar!/" file-name)
         (p/let [{:keys [result]} (read-jar clj file-name)]
-          {:definition/file-name file-name :definition/file-contents result})
-        {:definition/file-name file-name}))))
+          {:definition/filename file-name :definition/file-contents result})
+        {:definition/filename file-name}))))
 
 (connect/defresolver file-from-clr [{:keys [:repl/clj :var/meta]}]
-  {::connect/output [:definition/file-name]}
+  {::connect/output [:definition/filename]}
   (p/let [code (template/template `(some-> file
                                            clojure.lang.RT/FindFile
                                            str)
                                   {:file (:file meta)})
           {:keys [result]} (eval/eval clj code)]
     (when result
-      {:definition/file-name (norm-result result)}))
+      {:definition/filename (norm-result result)}))
   (constantly nil))
 
 (defn- fs-exists? [file]
   (new js/Promise (fn [resolve] (fs/exists file resolve))))
 
 (connect/defresolver existing-filename [{:keys [:var/meta]}]
-  {::connect/output [:definition/file-name]}
+  {::connect/output [:definition/filename]}
 
   (p/then (fs-exists? (:file meta))
-          #(when % {:definition/file-name (-> meta :file norm-result)})))
+          #(when % {:definition/filename (-> meta :file norm-result)})))
 
 (connect/defresolver position-resolver [{:keys [:var/meta]}]
   {::connect/output [:definition/row :definition/col]}
