@@ -60,7 +60,7 @@
    :get-full-var-name #(cmds/fqn-for-var state)
    :get-code #(e-eval/get-code state %)
    :repl-for #(e-eval/repl-for state %1 %2)
-   :eql (partial pathom/eql {:editor-state state})})
+   :eql (pathom/eql-from-state state)})
 
 (defn- file-exists? [file]
   (js/Promise. (fn [resolve] (exists file resolve))))
@@ -282,7 +282,8 @@ to autocomplete/etc, :clj/repl will be used to evaluate code."
                              #(renderer/parse-result (:result %)
                                                      (:repl %)
                                                      state-ish)
-                             :eql (partial pathom/eql {:callbacks options})}
+                             ;; FIXME: Re-add pathom without REPL
+                             :eql (constantly nil)} ;(partial pathom/eql {:callbacks options})}
            :run-callback (partial commands/run-callback! callback-cmds)
            :run-feature (partial commands/run-feature! callback-cmds))
     ((:register-commands options) (cmds/static-commands state-ish))
