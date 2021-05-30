@@ -144,10 +144,17 @@
 
 (def text-in-range helpers/text-in-range)
 (def top-levels helpers/top-blocks)
-(def ns-range-for helpers/ns-range-for)
 (def current-var helpers/current-var)
 (def block-for helpers/block-for)
-(def top-block-for helpers/top-block-for)
+
+(defn top-block-for [text position]
+  (let [tops (helpers/top-blocks text)]
+    (helpers/top-block-for tops position)))
+
+(defn ns-range-for [text position]
+  (let [tops (helpers/top-blocks text)]
+    (helpers/ns-range-for tops position)))
+
 (def ^:dynamic *out-on-aux* false)
 
 (s/defn get-possible-port :- (s/maybe s/Int)
