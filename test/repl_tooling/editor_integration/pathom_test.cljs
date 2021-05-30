@@ -35,7 +35,3 @@
         (check (fake/run-feature! :eql [:var/meta])
                => {:var/meta {:doc #"concatenation"
                               :original-var 'clojure.core/str}})))))
-;
-; (cards/defcard-rg fake-editor
-;   fake/editor
-;   fake/state)
