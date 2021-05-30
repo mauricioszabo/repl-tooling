@@ -4,12 +4,25 @@
             [duck-repled.repl-protocol :as duck-repl]
             [repl-tooling.eval :as eval]))
 
-(defn reset-resolvers [ & args])
-(defn add-resolver [ & args])
-(defn compose-resolver [ & args])
-
 (def ^:private global-eql (atom nil))
 (def ^:private global-resolvers (atom nil))
+(def ^:private orig-resolvers (atom nil))
+
+(defn reset-resolvers []
+  (reset! global-resolvers @orig-resolvers)
+  (reset! global-eql (duck/gen-eql @orig-resolvers)))
+
+(defn add-resolver [config fun]
+  (let [old @global-resolvers
+        new (duck/add-resolver old config fun)]
+    (reset! global-resolvers new)
+    (reset! global-eql (duck/gen-eql new))))
+
+(defn compose-resolver [config fun]
+  (let [old @global-resolvers
+        new (duck/compose-resolver old config fun)]
+    (reset! global-resolvers new)
+    (reset! global-eql (duck/gen-eql new))))
 
 #_@global-resolvers
 
@@ -40,6 +53,7 @@
                                       :outputs [:editor/data :config/eval-as
                                                 :config/project-paths :config/repl-kind]}
                                      resolver)]
+    (reset! orig-resolvers resolvers)
     (reset! global-resolvers resolvers)
     (reset! global-eql (duck/gen-eql resolvers))
     (fn eql

@@ -41,6 +41,13 @@
                         :range [[0 0] [0 0]]
                         :eval-result (r/atom nil)}))
 
+(defn- reset-state! []
+  (swap! state merge {:code ""
+                      :stdout nil
+                      :stderr nil
+                      :range [[0 0] [0 0]]
+                      :eval-result (r/atom nil)}))
+
 (defn- res [result]
   (p/let [parse (-> @state :features :result-for-renderer)
           res (parse result)]
@@ -91,6 +98,7 @@
 (defn connect!
   ([] (connect! {}))
   ([additional-callbacks]
+   (reset-state!)
    (if (-> @state :repls :eval)
      (.resolve js/Promise @state)
      (.
