@@ -52,7 +52,7 @@
       (swap! fake/state assoc :range [[2 1] [2 1]]
              :code "(ns repl-tooling.features.definition-helper)\n\nc/some-function")
       (check (fake/run-feature! :eql [:definition/filename :definition/row])
-             => {:definition/row 0
+             => {:definition/row 2
                  :definition/filename #"repl_tooling/features/definition_child\.clj"})
 
       (fake/type "(ns repl-tooling.features.definition-helper)\n\nother-var")
@@ -66,19 +66,27 @@
              => {:definition/row 3
                  :definition/filename #"repl_tooling/features/definition_helper\.clj"}))
 
-    (swap! config assoc :eval-mode :cljs)
-    (testing "getting definition on current NS for ClojureScript"
-      (fake/type "(ns repl-tooling.integration.fixture-app)\n\nlocal-fn")
-      (check (fake/run-feature! :eql [:definition/filename :definition/row])
-             => {:definition/row 9
-                 :definition/filename #"test/repl_tooling/integration/fixture_app\.cljs"}))
-
     (testing "getting path of stacktrace"
-      (fake/type "(ns repl-tooling.integration.fixture-app)\n\nlocal-fn")
+      (fake/type "")
+      (p/let [a (fake/run-feature! :eql
+                                {:ex/function-name "clojure.core/fn/eval1234"
+                                 :ex/filename "core.clj"
+                                 :ex/row 9}
+                                [:definition/filename
+                                  :var/meta
+                                  :definition/row])]
+        (tap> a))
       (check (fake/run-feature! :eql
                                 {:ex/function-name "clojure.core/fn/eval1234"
                                  :ex/filename "core.clj"
                                  :ex/row 9}
                                 [:definition/filename :definition/row])
              => {:definition/row 9
-                 :definition/filename #"clojure.*jar!/clojure/core.clj"}))))
+                 :definition/filename #"clojure.*jar!/clojure/core.clj"}))
+
+    (swap! config assoc :eval-mode :cljs)
+    (testing "getting definition on current NS for ClojureScript"
+      (fake/type "(ns repl-tooling.integration.fixture-app)\n\nlocal-fn")
+      (check (fake/run-feature! :eql [:definition/filename :definition/row])
+             => {:definition/row 9
+                 :definition/filename #"test/repl_tooling/integration/fixture_app\.cljs"}))))
