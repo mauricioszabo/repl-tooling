@@ -43,6 +43,7 @@
 
 (defn- reset-state! []
   (swap! state merge {:code ""
+                      :filename "file.clj"
                       :stdout nil
                       :stderr nil
                       :range [[0 0] [0 0]]
@@ -87,6 +88,11 @@
   (let [old (txt-for-selector "#result")]
     (wait-for #(and (not= old (txt-for-selector "#result"))
                     (txt-for-selector "#result")))))
+
+(defn change-result-p []
+  (let [old (txt-for-selector "#result")]
+    (wait-for-p #(and (not= old (txt-for-selector "#result"))
+                      (txt-for-selector "#result")))))
 
 (defn handle-disconnect []
   (reset! (:eval-result @state) nil)
@@ -133,18 +139,24 @@
    [:p [:b "Hostname: "] [:input {:type "text" :value (:host @state)
                                   :on-change #(->> % .-target .-value (swap! state assoc :host))}]
        [:b " Port: "] [:input {:type "text" :value (:port @state)
-                               :on-change #(->> % .-target .-value int (swap! state assoc :port))}]]
+                               :on-change #(->> % .-target .-value int (swap! state assoc :port))}]
+       [:b " Filename: "] [:input {:type "text" :value (:filename @state)
+                                   :on-change #(->> % .-target .-value (swap! state assoc :filename))}]]
    [:textarea {:style {:width "100%" :height "100px"}
                :value (:code @state)
                :on-change #(->> % .-target .-value (swap! state assoc :code))}]
+   [:p
+    (when (-> @state :repls :eval)
+      (for [[command] (:commands @state)]
+        [:button {:on-click #(run-command! command)} (pr-str command)]))]
    [:p
     (if (-> @state :repls :eval)
       [:span
        [:button {:on-click evaluate}
         "Evaluate"] " "
        [:button {:on-click disconnect!} "Disconnect!"]]
-      [:button {:on-click #(connect!)} "Connect!"])]
-   [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]
+      [:button {:on-click #(connect!)} "Connect!"])
+    [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]]
    [:div
     (when-let [res @(:eval-result @state)]
       [:div
