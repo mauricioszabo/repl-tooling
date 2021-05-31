@@ -15,7 +15,6 @@
             [repl-tooling.repl-client.textual-representation-test]
             [repl-tooling.integration.clojurescript-ui]
             [repl-tooling.repl-client.evaluation-test]
-            [repl-tooling.features.definition-test]
             [repl-tooling.features.autocomplete-test]
             [repl-tooling.features.shadow-cljs-test]
             [repl-tooling.editor-integration.autocomplete-test]
