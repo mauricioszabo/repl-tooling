@@ -128,7 +128,7 @@ TBD
 
 A new feature on plug-ins is the ability to customize resolvers. Currently, there's little to no documentation on the resolver's fields, formats, or schemas, but the idea is that, in the future, every command that powers the editor will get its information on a resolver from Pathom.
 
-Currently, `go to var definition` is configured by the resolver that outputs `:definition/file-name`, `definition/row` and `:definition/info`. File name is just the filename where a specific element is defined, row is the 0-based row (so first line is `0`), and `info` can contain `:definition/col` (that's the 0-based column) and `:file/contents`. If `:file/contents` is present, a new read-only editor will be opened with JUST that content - nothing else (and row/col will be applied accordingly).
+Currently, `go to var definition` is configured by the resolver that outputs `:definition/filename`, `definition/row` and `:definition/info`. File name is just the filename where a specific element is defined, row is the 0-based row (so first line is `0`), and `info` can contain `:definition/col` (that's the 0-based column) and `:file/contents`. If `:file/contents` is present, a new read-only editor will be opened with JUST that content - nothing else (and row/col will be applied accordingly).
 
 There are two ways to define new resolvers: `editor/compose-resolver` and `editor/add-resolver`. Both expect two parameters: the first one is a map containing `:inputs` and `:outputs`, that are vectors containing which elements are expected as input and output, and a function (that will receive a single parameter - a map with every input). If you return something, you have to return a map with the outputs - if you don't, the resolver will "fail" and another one will be tried.
 
@@ -152,14 +152,14 @@ There are two ways to define new resolvers: `editor/compose-resolver` and `edito
 
 (editor/add-resolver
  {:inputs [:editor/current-var]
-  :outputs [:definition/file-name :definition/row :definition/info]}
+  :outputs [:definition/filename :definition/row :definition/info]}
  (fn [{:editor/keys [current-var]}]
    (when (str/starts-with? current-var ":")
      (p/let [result (get-resolver-for-keyword current-var)
              sym (:com.wsscode.pathom.connect/sym result)
              info (editor/eql {:var/fqn sym :editor/current-var ""}
-                              [:definition/file-name :definition/row])]
-       (when (:definition/file-name info)
+                              [:definition/filename :definition/row])]
+       (when (:definition/filename info)
          (assoc info :definition/info {}))))))
 ```
 
