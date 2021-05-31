@@ -31,6 +31,23 @@
       (fake/run-command! :info-for-var)
       (check (fake/change-result-p) => #"toUpperCase"))))
 
+(cards/deftest doc-for-var
+  (async-test "documentation for var" {:teardown (fake/disconnect!)
+                                       :timeout 16000}
+    (fake/connect!)
+    (testing "doc for Clojure"
+      (fake/type "str")
+      (fake/run-command! :doc-for-var)
+      (check (fake/change-result-p) => #"concatenation"))
+
+    (testing "doc for ClojureScript"
+      (fake/run-command! :connect-embedded)
+      (p/delay 1000)
+      (swap! fake/state assoc :filename "file.cljs")
+      (fake/type "str\n(ns repl-tooling.integration.fixture-app)")
+      (fake/run-command! :doc-for-var)
+      (check (fake/change-result-p) => #"concatenation"))))
+
 (cards/defcard-rg fake-editor
   fake/editor
   fake/state)
