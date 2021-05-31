@@ -26,12 +26,14 @@
 
 #_@global-resolvers
 
+(defrecord REPL [evaluator]
+  duck-repl/Evaluator
+  (-evaluate [_ command options]
+    (eval/eval evaluator command options)))
+
 (defn- adapt-repl [evaluator]
   (if evaluator
-    (reify
-      duck-repl/Evaluator
-      (-evaluate [_ command options]
-        (eval/eval evaluator command options)))
+    (->REPL evaluator)
     :com.wsscode.pathom3.connect.operation/unknown-value))
 
 (defn- resolvers-from-state [editor-state]
@@ -41,11 +43,11 @@
           not-found :com.wsscode.pathom3.connect.operation/unknown-value]
     {:editor/data (or editor-data not-found)
      :config/eval-as (:eval-mode config)
-     :config/project-paths (:project-paths config)
+     :config/project-paths (vec (:project-paths config))
      ; FIXME: Get the right REPL
      :repl/evaluators {:clj (adapt-repl (:clj/aux @editor-state))
                        :cljs (adapt-repl (:cljs/repl @editor-state))}
-     :config/repl-kind :clj}))
+     :config/repl-kind (-> @editor-state :repl/info :kind)}))
 
 (defn eql-from-state [editor-state]
   (let [resolver #(resolvers-from-state editor-state)
