@@ -2,11 +2,12 @@
   (:require [promesa.core :as p]
             [duck-repled.core :as duck]
             [duck-repled.repl-protocol :as duck-repl]
-            [repl-tooling.eval :as eval]))
+            [repl-tooling.eval :as eval]
+            [com.wsscode.pathom3.connect.operation :as connect]))
 
-(def ^:private global-eql (atom nil))
-(def ^:private global-resolvers (atom nil))
-(def ^:private orig-resolvers (atom nil))
+(defonce ^:private global-eql (atom nil))
+(defonce ^:private global-resolvers (atom nil))
+(defonce ^:private orig-resolvers (atom nil))
 
 (defn reset-resolvers []
   (reset! global-resolvers @orig-resolvers)
@@ -49,15 +50,75 @@
                        :cljs (adapt-repl (:cljs/repl @editor-state))}
      :config/repl-kind (-> @editor-state :repl/info :kind)}))
 
+(def ^:private doc-part
+  '(when-let [text (:doc ?state)]
+     [:<>
+      [:div.space]
+      (if (:markdown? ?state)
+        [:div/md text]
+        [:div.pre text])]))
+
+(def ^:private spec-part
+  '(when-let [spec (:spec ?state)]
+     [:<>
+      [:div.space]
+      [:div.pre
+       (cond-> "Spec:\n"
+               (:args spec) (str "  args: " (pr-str (:args spec)) "\n")
+               (:ret spec) (str "  ret: " (pr-str (:ret spec)) "\n")
+               (:fn spec) (str "  fn: " (pr-str (:fn spec))))]]))
+
+(def ^:private markdown-check
+  '(when (:doc ?state)
+     [:<>
+      [:div.space]
+      [:label [:input {:type :checkbox
+                       :checked (:markdown? ?state)
+                       :on-click (fn [e]
+                                   (swap! ?state-atom update :markdown? not))}]
+       " Use markdown"]]))
+
+(def ^:private var-contents
+  '(when (empty? (:arglists ?state))
+     [:div.rows
+      [:div.space]
+      (if (contains? ?state :var-value)
+        [:div/clj (:var-value ?state)]
+        [:div [:a {:href "#"
+                   :on-click (?get-contents (->> ?state :fqn eval))}
+               "Get contents of var"]])]))
+
+(defn- improved-doc-for-var [{:var/keys [fqn meta spec]}]
+  {:render/doc
+   {:html [:div.rows
+           '[:div.title (-> ?state :fqn str)]
+           '(when-let [args (seq (:arglists ?state))]
+              (map (fn [a] [:li {:key a} (pr-str a)]) args))
+
+           '(cond-> [:div.cols]
+                    (:macro ?state) (conj [:i "macro"])
+                    (:private ?state) (conj [:i "private"]))
+           doc-part
+           spec-part
+           markdown-check
+           var-contents]
+    :state (assoc meta :markdown? true :fqn fqn :spec spec)
+    :fns {:get-contents '(fn [_ state fqn]
+                           (assoc state :var-value fqn))}}})
+
 (defn eql-from-state [editor-state]
   (let [resolver #(resolvers-from-state editor-state)
         resolvers (duck/add-resolver {:inputs []
                                       :outputs [:editor/data :config/eval-as
                                                 :config/project-paths :config/repl-kind]}
-                                     resolver)]
+                                     resolver)
+        resolvers (duck/add-resolver resolvers
+                                     {:inputs [:var/fqn :var/meta (connect/? :var/spec)]
+                                      :outputs [:render/doc]}
+                                     improved-doc-for-var)]
     (reset! orig-resolvers resolvers)
     (reset! global-resolvers resolvers)
     (reset! global-eql (duck/gen-eql resolvers))
     (fn eql
-      ([query] (@global-eql {} query))
-      ([seed query] (@global-eql seed query)))))
+      ([query] (@global-eql query))
+      ([seed query] (@global-eql (or seed {}) query)))))
