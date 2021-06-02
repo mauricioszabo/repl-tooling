@@ -27,15 +27,14 @@
           _ (run-callback :on-start-eval {:id id
                                           :editor-data data
                                           :range current-range})
-          res (run-feature :eql seed [:var/doc])
-          doc (if-let [doc (:var/doc res)]
-                {:result (helpers/LiteralRender. doc)}
+          res (run-feature :eql seed [:render/doc])
+          doc (if-let [doc (:render/doc res)]
+                {:result (helpers/Interactive. doc)}
                 {:error (helpers/LiteralRender. "Can't find doc for this variable")})]
     (run-callback :on-eval {:id id
                             :repl nil
                             :result (assoc doc
                                            :parsed? true
-                                           :literal true
                                            :as-text (-> (:result doc)
                                                         (or (:error doc))
                                                         pr-str
