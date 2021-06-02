@@ -196,9 +196,10 @@
 (defn evaluate-code [{:keys [code bindings sci-state editor-state repl]
                       :or {sci-state (atom {})}}]
   (let [bindings (cond
-                   editor-state (merge promised-bindings
-                                       (debug-bindings editor-state)
-                                       bindings)
+                   editor-state (-> promised-bindings
+                                    (assoc 'eql (-> @editor-state :editor/feature :eql))
+                                    (merge (debug-bindings editor-state)
+                                           bindings))
                    :else promised-bindings)]
     (sci/eval-string code {:env sci-state
                            :classes {:allow :all}

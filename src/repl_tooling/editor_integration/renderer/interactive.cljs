@@ -73,6 +73,7 @@
         binds (assoc binds
                      '?state @state
                      '?state-atom state
+                     'eql eql
                      'eval #(tagged-literal 'tooling/eval %))]
     (->> fns
          (map (fn [[f-name f-body]] [(->> f-name name (str "?") symbol)
