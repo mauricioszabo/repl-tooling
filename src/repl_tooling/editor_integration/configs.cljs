@@ -137,15 +137,6 @@
                    body)]
     (apply vector :div body)))
 
-{:html [:div/md "**Documentation for `str`**
-
-I'm _quite sure_ this will work fine
-
-```
-One
-Two
-```"]}
-
 (defn register-custom-tags! [editor-state]
   (pinkie/register-tag :div/ansi ansi-tag)
   (pinkie/register-tag :div/clj #(clojure-renderer editor-state %))
