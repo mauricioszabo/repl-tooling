@@ -4,12 +4,14 @@
             [clojure.string :as str]
             [repl-tooling.editor-integration.commands :as cmds]
             [repl-tooling.editor-helpers :as helpers]
+            [repl-tooling.repl-client.clj-helper :refer [contents-for-fn]]
             [repl-tooling.ui.pinkie :as pinkie]
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [repl-tooling.editor-integration.interpreter :as int]
             [repl-tooling.editor-integration.renderer :as render]
             [repl-tooling.commands-to-repl.pathom :as pathom]
+            ["commonmark" :refer [Parser HtmlRenderer]]
             ["path" :refer [dirname join]]
             ["fs" :refer [watch readFile existsSync]]
             ["ansi_up" :default Ansi]))
@@ -123,9 +125,31 @@
         parsed-ratom (render/parse-result fake-res nil editor-state)]
     [render/view-for-result parsed-ratom]))
 
+(defn- markdown-tag [ & body]
+  (let [parser (new Parser)
+        render (new HtmlRenderer)
+        body (mapv (fn [elem]
+                     (if (string? elem)
+                       [:div.rows {:dangerouslySetInnerHTML
+                                   #js {:__html
+                                        (->> elem (.parse parser) (.render render))}}]
+                       elem))
+                   body)]
+    (apply vector :div body)))
+
+{:html [:div/md "**Documentation for `str`**
+
+I'm _quite sure_ this will work fine
+
+```
+One
+Two
+```"]}
+
 (defn register-custom-tags! [editor-state]
   (pinkie/register-tag :div/ansi ansi-tag)
-  (pinkie/register-tag :div/clj #(clojure-renderer editor-state %)))
+  (pinkie/register-tag :div/clj #(clojure-renderer editor-state %))
+  (pinkie/register-tag :div/md markdown-tag))
 
 (defn prepare-commands [editor-state cmds-from-tooling]
   (register-custom-tags! editor-state)
