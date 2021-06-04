@@ -7,6 +7,7 @@
                  [paprika "0.1.3"]
                  [borkdude/sci "0.1.1-alpha.7"]
                  [com.wsscode/pathom "2.3.1"]
-                 [org.pinkgorilla/gorilla-renderable-ui "0.1.33"]]
+                 [org.pinkgorilla/gorilla-renderable-ui "0.1.33"]
+                 [link.szabo.mauricio/duck-repled "0.1.1-SNAPSHOT"]]
 
   :source-paths ["src"])

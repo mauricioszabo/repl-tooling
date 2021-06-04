@@ -17,7 +17,7 @@
                 [com.wsscode/pathom "2.3.1"]
                 [org.pinkgorilla/gorilla-renderable-ui "0.1.33"]
                 [etaoin "0.3.6"]
-                [link.szabo.mauricio/duck-repled "0.1.0-SNAPSHOT"]]
+                [link.szabo.mauricio/duck-repled "0.1.1-SNAPSHOT"]]
 
  :jvm-opts ["-Xmx800M"]
  :builds {:integration {:target :browser
