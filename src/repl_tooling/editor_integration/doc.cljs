@@ -21,7 +21,7 @@
 (defn doc-for-var [state]
   (p/let [id (gensym "doc-for-var")
           {:keys [run-feature run-callback]} @state
-          seed (run-feature :eql [:editor/data :editor/current-var])
+          seed (run-feature :eql [:editor/data :text/current-var])
           {:editor/keys [current-var data]} seed
           current-range (:text/range current-var (:range data))
           _ (run-callback :on-start-eval {:id id

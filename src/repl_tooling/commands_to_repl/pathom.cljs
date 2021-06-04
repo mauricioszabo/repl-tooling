@@ -8,6 +8,16 @@
 (defonce ^:private global-eql (atom nil))
 (defonce ^:private global-resolvers (atom nil))
 (defonce ^:private orig-resolvers (atom nil))
+(ns repl-tooling.commands-to-repl.pathom
+  (:require [promesa.core :as p]
+            [duck-repled.core :as duck]
+            [duck-repled.repl-protocol :as duck-repl]
+            [repl-tooling.eval :as eval]
+            [com.wsscode.pathom3.connect.operation :as connect]))
+
+(defonce ^:private global-eql (atom nil))
+(defonce ^:private global-resolvers (atom nil))
+(defonce ^:private orig-resolvers (atom nil))
 
 (defn reset-resolvers []
   (reset! global-resolvers @orig-resolvers)
@@ -79,14 +89,34 @@
        " Use markdown"]]))
 
 (def ^:private var-contents
-  '(when (empty? (:arglists ?state))
+  '(if (empty? (:arglists ?state))
      [:div.rows
       [:div.space]
       (if (contains? ?state :var-value)
         [:div/clj (:var-value ?state)]
         [:div [:a {:href "#"
                    :on-click (?get-contents (->> ?state :fqn eval))}
-               "Get contents of var"]])]))
+               "Get contents of var"]])]
+     [:div.rows
+      [:div.space]
+      (if (contains? ?state :var-value)
+        [:div/md (str "```\n" (:var-value ?state) "\n```")]
+        [:div [:a {:href "#"
+                   :on-click (fn [_]
+                               (p/let [info (eql [:text/current-var
+                                                  :definition/row :definition/col
+                                                   :definition/filename
+                                                   {:definition/contents [{:text/top-block [:text/contents]}]}])]
+                                 (if-let [contents (:definition/contents info)]
+                                   (->> contents :text/top-block :text/contents
+                                        (swap! ?state-atom assoc :var-value))
+                                   (p/let [pos [(:definition/row info) (:definition/col info)]
+                                           info (eql {:file/filename (:definition/filename info)}
+                                                     [{(list :file/contents {:range [pos pos]})
+                                                       [{:text/top-block [:text/contents]}]}])]
+                                     (->> info :file/contents :text/top-block :text/contents
+                                          (swap! ?state-atom assoc :var-value))))))}
+               "Get source"]])]))
 
 (defn- improved-doc-for-var [{:var/keys [fqn meta spec]}]
   {:render/doc
@@ -103,8 +133,8 @@
            markdown-check
            var-contents]
     :state (assoc meta :markdown? true :fqn fqn :spec spec)
-    :fns {:get-contents '(fn [_ state fqn]
-                           (assoc state :var-value fqn))}}})
+    :fns {:get-contents '(fn [_ state value]
+                           (assoc state :var-value value))}}})
 
 (defn eql-from-state [editor-state]
   (let [resolver #(resolvers-from-state editor-state)
