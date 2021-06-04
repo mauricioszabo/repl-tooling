@@ -7,11 +7,10 @@
             [repl-tooling.editor-integration.commands :as cmds]
             [repl-tooling.editor-helpers :as helpers]
             [sci.impl.namespaces :as sci-ns]
-            [repl-tooling.ui.pinkie :as pinkie]
-            [pinkgorilla.ui.jsrender :as jsrender]
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [repl-tooling.commands-to-repl.pathom :as pathom]
+            [repl-tooling.editor-integration.renderer.pinkie :as r-pinkie]
             ["path" :refer [dirname join]]
             ["fs" :refer [watch readFile existsSync]]
             ["ansi_up" :default Ansi]))
@@ -73,35 +72,6 @@
      'add-resolver pathom/add-resolver
      'compose-resolver pathom/compose-resolver}))
 
-(defn- norm-reagent-fn [fun]
-  (fn [ & args]
-    (let [empty (js/Object.)
-          state (r/atom empty)
-          render (fn [ state & args]
-                   (if (= empty @state)
-                     (do
-                       (p/let [res (apply fun args)]
-                         (reset! state res))
-                       [:div.repl-tooling.icon.loading])
-                     @state))]
-      (apply vector render state args))))
-
-(defn- norm-pinkie-fn [fun]
-  (fn [ & args]
-    [jsrender/render-js
-     {:f (fn [dom args]
-           (let [div (.createElement js/document "div")
-                 upd (fn [elem]
-                       (try (.removeChild dom div) (catch :default _))
-                       (.appendChild dom elem))
-                 elem (apply fun (js->clj args))]
-             (.. div -classList (add "repl-tooling" "icon" "loading"))
-             (.appendChild dom div)
-             (if (instance? js/Promise elem)
-               (.then elem upd)
-               (upd elem))))
-      :data args}]))
-
 (defn- render-ns [editor-state]
   {'js-require #(-> @editor-state
                     :editor/callbacks
@@ -118,7 +88,7 @@
    'set-attr (fn [^js e attr value]
               (.setAttribute e attr value))
    'register-reagent #(if (and (keyword? %1) (namespace %1) (fn? %2))
-                        (pinkie/register-tag %1 (norm-reagent-fn %2))
+                        (r-pinkie/register-reagent %1 %2)
                         (cmds/run-callback!
                          editor-state
                          :notify
@@ -127,7 +97,7 @@
                           :text (str "First argument needs to be a namespaced keyword, "
                                      "and second argument needs to be a reagent fn")}))
    'register-tag #(if (and (keyword? %1) (namespace %1) (fn? %2))
-                    (pinkie/register-tag %1 (norm-pinkie-fn %2))
+                    (r-pinkie/register-tag %1 %2)
                     (cmds/run-callback!
                      editor-state
                      :notify
