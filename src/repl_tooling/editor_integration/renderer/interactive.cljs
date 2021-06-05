@@ -46,27 +46,14 @@
     (p/then res (fn [response]
                   (reset! state (-> response :repl/result :result))))))
 
-;; TODO: Migrate this to a better place!
-(defn- prepare-new-eql [editor-state]
-  (let [eql (-> @editor-state :editor/features :eql)
-        cached-result (eql [:editor/data :config/repl-kind
-                            :config/eval-as :config/project-paths
-                            :repl/evaluators])]
-    (fn q
-      ([query] (q {} query))
-      ([seed query]
-       (p/let [original-seed cached-result]
-         (eql (merge original-seed seed) query))))))
-
 (defn- prepare-fn [eql fun state repl]
   (fn [ & args]
     (if (-> args first edn?)
       (fn [e] (run-evt-fun! eql e fun state repl args))
       (run-evt-fun! eql (first args) fun state repl []))))
 
-(defn- bindings-for [editor-state state fns repl]
-  (let [eql (prepare-new-eql editor-state)
-        binds (coll/map-values (fn [v] (fn [ & args]
+(defn- bindings-for [editor-state eql state fns repl]
+  (let [binds (coll/map-values (fn [v] (fn [ & args]
                                          (p/do! (apply v args))
                                          nil))
                                (int/debug-bindings editor-state))
@@ -85,13 +72,26 @@
     (rdom/render hiccup d)
     hiccup))
 
+;; TODO: Migrate this to a better place!
+(defn- prepare-new-eql [editor-state]
+  (let [eql (-> @editor-state :editor/features :eql)
+        cached-result (eql [:editor/data :config/repl-kind
+                            :config/eval-as :config/project-paths
+                            :repl/evaluators])]
+    (fn q
+      ([query] (q {} query))
+      ([seed query]
+       (p/let [original-seed cached-result]
+         (eql (merge original-seed seed) query))))))
+
 (defn- render-interactive [{:keys [state html fns] :as edn} repl editor-state]
   (let [state (r/atom state)
         code (pr-str html)
+        eql (prepare-new-eql editor-state)
         html (fn [state]
                (try
                  (-> {:code code
-                      :bindings (bindings-for editor-state state fns repl)
+                      :bindings (bindings-for editor-state eql state fns repl)
                       :editor-state editor-state}
                      int/evaluate-code
                      pinkie/tag-inject
