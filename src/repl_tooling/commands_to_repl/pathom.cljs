@@ -8,32 +8,22 @@
 (defonce ^:private global-eql (atom nil))
 (defonce ^:private global-resolvers (atom nil))
 (defonce ^:private orig-resolvers (atom nil))
-(ns repl-tooling.commands-to-repl.pathom
-  (:require [promesa.core :as p]
-            [duck-repled.core :as duck]
-            [duck-repled.repl-protocol :as duck-repl]
-            [repl-tooling.eval :as eval]
-            [com.wsscode.pathom3.connect.operation :as connect]))
-
-(defonce ^:private global-eql (atom nil))
-(defonce ^:private global-resolvers (atom nil))
-(defonce ^:private orig-resolvers (atom nil))
 
 (defn reset-resolvers []
   (reset! global-resolvers @orig-resolvers)
-  (reset! global-eql (duck/gen-eql @orig-resolvers)))
+  (reset! global-eql (duck/gen-eql {:resolvers @orig-resolvers})))
 
 (defn add-resolver [config fun]
   (let [old @global-resolvers
         new (duck/add-resolver old config fun)]
     (reset! global-resolvers new)
-    (reset! global-eql (duck/gen-eql new))))
+    (reset! global-eql (duck/gen-eql {:resolvers new}))))
 
 (defn compose-resolver [config fun]
   (let [old @global-resolvers
         new (duck/compose-resolver old config fun)]
     (reset! global-resolvers new)
-    (reset! global-eql (duck/gen-eql new))))
+    (reset! global-eql (duck/gen-eql {:resolvers new}))))
 
 #_@global-resolvers
 
@@ -103,14 +93,16 @@
         [:div/md (str "```\n" (:var-value ?state) "\n```")]
         [:div [:a {:href "#"
                    :on-click (fn [_]
-                               (p/let [info (eql [:text/current-var
-                                                  :definition/row :definition/col
-                                                   :definition/filename
-                                                   {:definition/contents [{:text/top-block [:text/contents]}]}])]
-                                 (if-let [contents (:definition/contents info)]
+                               (p/let [info (eql [{:editor/contents
+                                                   [:text/current-var
+                                                    :definition/row :definition/col
+                                                    :definition/filename
+                                                    {:definition/contents [{:text/top-block [:text/contents]}]}]}])]
+                                 (if-let [contents (-> info :editor/contents :definition/contents)]
                                    (->> contents :text/top-block :text/contents
                                         (swap! ?state-atom assoc :var-value))
-                                   (p/let [pos [(:definition/row info) (:definition/col info)]
+                                   (p/let [info (:editor/contents info)
+                                           pos [(:definition/row info) (:definition/col info)]
                                            info (eql {:file/filename (:definition/filename info)}
                                                      [{(list :file/contents {:range [pos pos]})
                                                        [{:text/top-block [:text/contents]}]}])]
@@ -148,7 +140,41 @@
                                      improved-doc-for-var)]
     (reset! orig-resolvers resolvers)
     (reset! global-resolvers resolvers)
-    (reset! global-eql (duck/gen-eql resolvers))
+    (reset! global-eql (duck/gen-eql {:resolvers resolvers}))
     (fn eql
       ([query] (@global-eql query))
       ([seed query] (@global-eql (or seed {}) query)))))
+;
+; {:html '[:div/viz (str "digraph G { \n" (str/join "\n" ?state) "\n}")]
+;  :state}
+;
+{:html '[:div/viz (str "digraph G { \n" (str/join "\n" ?state) "\n}")]
+ :state
+ (for [resolver @global-resolvers
+       :let [resolver (:config resolver)
+             norm #(-> % pr-str pr-str)
+             join (fn [one two dir]
+                    (if (= :first dir)
+                      (str (norm one) " -> " (norm two))
+                      (str (norm two) " -> " (norm one))))
+             separate (fn separate [e other dir]
+                        (cond
+                          (list? e) (str (join (first e) other dir) " [style=\"dashed\"]")
+                          (map? e) (->> (for [[k vs] e
+                                              ; :let [vs (cons other vs)]
+                                              v vs]
+                                          (separate k v :first))
+                                        (concat (map #(join other % :first) (keys e)))
+                                        (clojure.string/join "\n"))
+                          :else (join e other dir)))
+             sym (-> resolver :com.wsscode.pathom3.connect.operation/op-name)
+             inputs (->> resolver
+                         :com.wsscode.pathom3.connect.operation/input
+                         (map #(separate % sym :first)))
+             outputs (->> resolver
+                          :com.wsscode.pathom3.connect.operation/output
+                          (map #(separate % sym :second)))]
+        elem (concat [(str (norm sym) " [shape=box href=" (norm sym) "]")]
+                     inputs
+                     outputs)]
+      elem)}
