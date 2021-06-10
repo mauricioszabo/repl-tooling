@@ -145,11 +145,13 @@
    [:textarea {:style {:width "100%" :height "100px"}
                :value (:code @state)
                :on-change #(->> % .-target .-value (swap! state assoc :code))}]
-   [:p
+   [:div
     (when (-> @state :repls :eval)
       (for [[command] (:commands @state)]
-        [:button {:on-click #(run-command! command)} (pr-str command)]))]
-   [:p
+        [:button {:key command
+                  :on-click #(run-command! command)}
+         (pr-str command)]))]
+   [:div
     (if (-> @state :repls :eval)
       [:span
        [:button {:on-click evaluate}
