@@ -56,6 +56,7 @@
       (do
         (println "\n\n        RETRYING..." (inc tries) " time(s)")
         (api/refresh @cards)
+        (future (shell/sh "node" "target/fixture.js"))
         (recur (inc tries)))
       @fails)))
 
