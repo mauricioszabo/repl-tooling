@@ -20,8 +20,8 @@
     (testing "customizing resolves"
       (testing "will add a new resolver with our code"
         (fake/type "some-symbol")
-        (pathom/add-resolver {:outputs [:var/meta] :inputs [:editor/current-var]}
-                             (fn [{:editor/keys [current-var]}]
+        (pathom/add-resolver {:outputs [:var/meta] :inputs [:text/current-var]}
+                             (fn [{:text/keys [current-var]}]
                                {:var/meta {:doc (:text/contents current-var)}}))
         (check (fake/run-feature! :eql [:var/meta])
                => {:var/meta {:doc "some-symbol"}}))
