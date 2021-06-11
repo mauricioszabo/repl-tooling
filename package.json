@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "ansi_up": "^4.0.4",
-    "commonmark": "^0.29.3"
+    "commonmark": "^0.29.3",
+    "highlight.js": "^11.0.1"
   }
 }
