@@ -1,10 +1,9 @@
 (ns repl-tooling.target-eval-test
-  (:require [check.core :refer [check]]
-            [clojure.test :refer [deftest run-tests]]
+  (:require [check.async :refer [check async-test testing]]
+            [clojure.test :refer [deftest run-all-tests]]
+            [matcher-combinators.matchers :as m]
             [repl-tooling.editor-integration.connection :as connection]
-            [repl-tooling.features.promised-test :refer [promised-test testing]]
-            [promesa.core :as p]
-            [clojure.edn :as edn]))
+            [promesa.core :as p]))
 
 (def filename (atom "foo.cljs"))
 (def state (atom nil))
@@ -42,8 +41,8 @@
     p))
 
 (deftest evaluation-test
-  (promised-test {:teardown #(connection/disconnect!)
-                  :timeout 10000}
+  (async-test "evaluates code" {:teardown #(connection/disconnect!)
+                                :timeout 10000}
     (testing "connects to a REPL"
       (p/let [c (connect!)]
         (check @c => {:editor/commands {:evaluate-top-block {:name "Evaluate Top Block"
@@ -64,7 +63,7 @@
 
     (testing "evaluates regexp"
       (p/let [res (evaluate! "#\"foo\"")]
-        (check (-> res :result :result) =expect=> #"foo")))
+        (check res => {:result {:result regexp?}})))
 
     (testing "evaluates keywords and symbols"
       (p/let [res (evaluate! "(keyword \"foo\")")]
@@ -89,7 +88,7 @@
 
 (defn run [file-name]
   (reset! filename file-name)
-  (p/catch (p/let [res (run-tests)
+  (p/catch (p/let [res (run-all-tests #"repl-tooling.target-eval-test")
                    {:keys [fail error]} (:report-counters res)]
              (if (and fail error)
                (.exit js/process (+ fail error))
