@@ -132,6 +132,7 @@
 (defn- prepare-cljs [primary host port state options]
   (swap! state merge {:cljs/repl primary
                       :repl/info {:host host :port port :kind :cljs :kind-name (tr-kind :cljs)}})
+  (eval/eval primary "(set! lumo.repl/*pprint-results* false)" {:ignore true})
   (swap-state! state options :cljs))
 
 (defn- prepare-joker [primary host port state options]
