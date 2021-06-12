@@ -1,6 +1,6 @@
 (ns repl-tooling.target-eval-test
   (:require [check.async :refer [check async-test testing]]
-            [clojure.test :refer [deftest run-tests]]
+            [clojure.test :refer [deftest run-tests] :as test]
             [matcher-combinators.matchers :as m]
             [repl-tooling.editor-integration.connection :as connection]
             [promesa.core :as p]))
@@ -86,13 +86,15 @@
       (p/let [res (evaluate! "(throw (ex-info \"Foo\" {}))")]
         (check res => {:result {:error {:message "Foo"}}})))))
 
+(defmethod test/report [::test/default :summary] [{:keys [test pass fail error]}]
+  (println "Ran" test "tests containing" (+ pass fail error) "assertions.")
+  (println pass "passed," fail "failures," error "errors.")
+  (if (= 0 fail error)
+    (js/process.exit 0)
+    (js/process.exit 1)))
+
 (defn run [file-name]
   (reset! filename file-name)
-  (p/catch (p/let [res (run-tests)
-                   {:keys [fail error]} (:report-counters res)]
-             (if (and fail error)
-               (.exit js/process (+ fail error))
-               (.exit js/process 1)))
-           #(.exit js/process 1)))
+  (run-tests))
 
 #_(reset! filename "foo.clj")
