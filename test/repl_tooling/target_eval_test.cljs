@@ -1,6 +1,6 @@
 (ns repl-tooling.target-eval-test
   (:require [check.async :refer [check async-test testing]]
-            [clojure.test :refer [deftest run-all-tests]]
+            [clojure.test :refer [deftest run-tests]]
             [matcher-combinators.matchers :as m]
             [repl-tooling.editor-integration.connection :as connection]
             [promesa.core :as p]))
@@ -88,7 +88,7 @@
 
 (defn run [file-name]
   (reset! filename file-name)
-  (p/catch (p/let [res (run-all-tests #"repl-tooling.target-eval-test")
+  (p/catch (p/let [res (run-tests)
                    {:keys [fail error]} (:report-counters res)]
              (if (and fail error)
                (.exit js/process (+ fail error))
