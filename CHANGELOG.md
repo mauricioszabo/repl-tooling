@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.6.0
+- Migrated most of Pathom code to a new project called Duck-REPLed
+- Disabled clj-kondo statistics for now
+- Fixed stacktraces in Clojerl
+- Fixed Lumo REPL
+
 ## 0.5.13
 - Goto var definition is now on Pathom
 - Goto var from stacktrace is also on Pathom
