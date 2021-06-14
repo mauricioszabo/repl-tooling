@@ -169,7 +169,7 @@ REPL available"
       (cmds/run-callback! state :notify
                           {:type :error
                            :title "Source for Var not supported for ClojureScript"})
-      (-> (evaluate "(require 'clojure.repl)")
+      (-> (evaluate "(clojure.core/require 'clojure.repl)")
           (p/then #(evaluate (str "(clojure.repl/source " current-var ")")))
           (p/catch #(cmds/run-callback!
                      state :notify {:type :error
