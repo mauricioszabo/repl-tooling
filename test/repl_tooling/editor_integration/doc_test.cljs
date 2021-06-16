@@ -42,6 +42,11 @@
       (fake/click-link "Get source")
       (check (fake/change-result-p) => #"StringBuilder"))
 
+    (testing "source for var in Clojure"
+      (fake/clear-results!)
+      (fake/run-command! :source-for-var)
+      (check (fake/change-stdout-p) => #"StringBuilder"))
+
     (testing "doc for ClojureScript"
       (fake/run-command! :connect-embedded)
       (p/delay 1000)
@@ -50,7 +55,12 @@
       (fake/run-command! :doc-for-var)
       (check (fake/change-result-p) => #"concatenation")
       (fake/click-link "Get source")
-      (check (fake/change-result-p) => #"StringBuffer"))))
+      (check (fake/change-result-p) => #"StringBuffer"))
+
+    (testing "source for var in ClojureScript"
+      (fake/clear-results!)
+      (fake/run-command! :source-for-var)
+      (check (fake/change-stdout-p) => #"StringBuffer"))))
 
 (cards/defcard-rg fake-editor
   fake/editor
