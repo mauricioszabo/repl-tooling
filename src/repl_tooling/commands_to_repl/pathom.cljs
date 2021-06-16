@@ -92,7 +92,9 @@
       (if (contains? ?state :var-value)
         [:div/md (str "```\n" (:var-value ?state) "\n```")]
         [:div [:a {:href "#"
-                   :on-click (fn [_]
+                   :on-click (fn [evt]
+                               (.preventDefault evt)
+                               (.stopPropagation evt)
                                (p/let [info (eql [{:editor/contents
                                                    [{:text/current-var [:definition/source]}]}])]
                                  (swap! ?state-atom
