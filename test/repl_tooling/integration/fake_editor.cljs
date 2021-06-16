@@ -52,8 +52,7 @@
 (defn- res [result]
   (p/let [parse (-> @state :features :result-for-renderer)
           res (parse result)]
-    (reset! (:eval-result @state) res)
-    (swap! state update :stdout (fn [e] (str e "=> " (-> result :result :as-text) "\n")))))
+    (reset! (:eval-result @state) res)))
 
 (defn run-command! [command]
   (if-let [cmd (get-in @state [:commands command :command])]
