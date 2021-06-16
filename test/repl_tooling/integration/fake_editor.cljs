@@ -174,3 +174,14 @@
      [:div
       [:h5 "STDERR"]
       [:pre out]])])
+
+(defn click-link [link-text]
+  (p/let [find-link
+          (fn []
+            (->> "div.result a"
+                 (.querySelectorAll js/document)
+                 (filter #(->> % .-innerText (re-find (re-pattern link-text))))
+                 first))
+
+          link (wait-for-p find-link)]
+    (.click link)))

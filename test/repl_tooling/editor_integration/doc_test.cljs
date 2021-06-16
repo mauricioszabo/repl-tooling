@@ -38,7 +38,9 @@
     (testing "doc for Clojure"
       (fake/type "str")
       (fake/run-command! :doc-for-var)
-      (check (fake/change-result-p) => #"concatenation"))
+      (check (fake/change-result-p) => #"concatenation")
+      (fake/click-link "Get source")
+      (check (fake/change-result-p) => #"StringBuilder"))
 
     (testing "doc for ClojureScript"
       (fake/run-command! :connect-embedded)
@@ -46,7 +48,9 @@
       (swap! fake/state assoc :filename "file.cljs")
       (fake/type "str\n(ns repl-tooling.integration.fixture-app)")
       (fake/run-command! :doc-for-var)
-      (check (fake/change-result-p) => #"concatenation"))))
+      (check (fake/change-result-p) => #"concatenation")
+      (fake/click-link "Get source")
+      (check (fake/change-result-p) => #"StringBuffer"))))
 
 (cards/defcard-rg fake-editor
   fake/editor
