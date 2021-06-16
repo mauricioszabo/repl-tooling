@@ -164,7 +164,7 @@
       [:div
        [:h5 "RESULT"]
        [:pre
-        [:div {:id "result" :class "result"}
+        [:div {:id "result" :class "result repl-tooling"}
          (render/view-for-result res)]]])]
    (when-let [out (:stdout @state)]
      [:div
