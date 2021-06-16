@@ -10,6 +10,7 @@
             [rewrite-clj.parser :as parser]
             [repl-tooling.editor-integration.schemas :as schemas]
             [duck-repled.editor-helpers :as helpers]
+            [promesa.core :as p]
             [schema.core :as s]
             ["fs" :as fs]
             ["path" :as path]))
@@ -156,6 +157,12 @@
     (helpers/ns-range-for tops position)))
 
 (def ^:dynamic *out-on-aux* false)
+
+(defn with-out [fun]
+  (set! *out-on-aux* true)
+  (let [p (p/do! (fun))]
+    (p/finally p #(set! *out-on-aux* false))
+    p))
 
 (s/defn get-possible-port :- (s/maybe s/Int)
   [project-paths :- [s/Str], detect-nrepl? :- s/Bool, typed-port :- (s/maybe s/Int)]
