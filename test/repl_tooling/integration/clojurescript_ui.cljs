@@ -6,9 +6,9 @@
             [repl-tooling.editor-integration.renderer :as render]
             [repl-tooling.integration.fake-editor :as fake
              :refer [change-stdout txt-for-selector type-and-eval change-result]]
-            [clojure.test :refer [async testing is]]
-            [check.core :refer [check]]
-            [check.async-old :refer [async-test await!]]
+            [clojure.test :refer [is]]
+            [check.async :refer [async-test check testing]]
+            [promesa.core :as p]
             [clojure.core.async :as async]
             [devcards.core :as cards]))
 
@@ -23,21 +23,19 @@
 
 (cards/deftest repl-evaluation
   (async-test "ClojureScript REPL evaluation" {:teardown (fake/disconnect!)
-                                               :timeout 7000}
-    (await! (fake/connect! {:notify prn}))
+                                               :timeout 8000}
+    (fake/connect! {:notify prn})
     (swap! fake/state assoc :filename "foo.cljs")
     (fake/run-command! :connect-embedded)
-    (await! (async/timeout 1000))
+    (p/delay 1000)
 
     (testing "evaluation works for nil"
       (fake/type-and-eval "nil")
-      (await! (fake/change-stdout))
-      (check (fake/txt-for-selector "#result") => "nil"))
+      (check (fake/change-result-p) => "nil"))
 
     (testing "evaluation works, but doesn't print something on STDOUT"
       (fake/type-and-eval "(/ 10 0)")
-      (await! (fake/change-stdout))
-      (check (fake/txt-for-selector "#result") => "##Inf")
+      (check (fake/change-result-p) => "##Inf")
       (is (not (re-find #"=>" (fake/txt-for-selector "#stdout")))))
 
     (testing "evaluate blocks"
@@ -45,36 +43,33 @@
              :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
              :range [[3 3] [3 3]])
       (fake/run-command! :evaluate-block)
-      (await! (fake/change-stdout))
-      (check (fake/txt-for-selector "#result") => "7"))
+      (check (fake/change-result-p) => "7"))
 
     (testing "evaluate top blocks"
       (swap! fake/state assoc
              :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
              :range [[3 3] [3 3]])
       (fake/run-command! :evaluate-top-block)
-      (await! (fake/change-stdout))
-      (check (fake/txt-for-selector "#result") => "9"))
+      (check (fake/change-result-p) => "9"))
 
     (testing "displays booleans"
-      (ui/assert-out "true" "true")
-      (ui/assert-out "false" "false")
-      (ui/assert-out "nil" "nil"))
+      (ui/type-and-assert-result "true" "true")
+      (ui/type-and-assert-result "false" "false")
+      (ui/type-and-assert-result "nil" "nil"))
 
     (testing "captures STDOUT"
       (fake/type-and-eval "(println :FOOBAR)")
-      (check (await! (fake/change-stdout)) => #":FOOBAR"))
+      (check (fake/change-result-p) => #":FOOBAR"))
 
     (testing "detects NS on file"
       (swap! fake/state assoc
              :code "(ns clojure.string)\n(upper-case \"this is upper\")"
              :range [[1 1] [1 1]])
       (fake/run-command! :evaluate-block)
-      (await! (fake/change-stdout))
-      (check (:stdout @fake/state) => #"THIS IS UPPER"))
+      (check (fake/change-stdout-p) => #"THIS IS UPPER"))
 
     (testing "displays invalid EDN"
-      (ui/assert-out "{ :foo bar 10 }" "{(keyword \"foo bar\") 10}")
+      (ui/type-and-assert-result "{ :foo bar 10 }" "{(keyword \"foo bar\") 10}")
       (ui/click-nth-link-and-assert-children
        "[ :foo bar 10 ]" 1))
 

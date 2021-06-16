@@ -19,6 +19,12 @@
      (async/<! (~'change-stdout))
      (~'check (str/replace (~'txt-for-selector "#result") #"(\n|\s+)+" " ") ~'=> ~representation)))
 
+(defmacro type-and-assert-result [representation cmd]
+  `(do
+     (repl-tooling.integration.fake-editor/type-and-eval ~cmd)
+     (promesa.core/let [res# (repl-tooling.integration.fake-editor/change-result-p)]
+       (check.async/check (str/replace res# #"(\n|\s+)+" " ") ~'=> ~representation))))
+
 (defmacro click-nth-link-and-assert [representation nth]
   `(do
      (~'click-selector ~(str "#result a:nth-child(n+" nth ")"))
