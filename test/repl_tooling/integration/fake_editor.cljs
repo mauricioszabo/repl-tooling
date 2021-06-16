@@ -94,6 +94,11 @@
     (wait-for-p #(and (not= old (txt-for-selector "#result"))
                       (txt-for-selector "#result")))))
 
+(defn change-stdout-p []
+  (let [old (txt-for-selector "#stdout")]
+    (wait-for-p #(and (not= old (txt-for-selector "#stdout"))
+                      (txt-for-selector "#stdout")))))
+
 (defn handle-disconnect []
   (reset! (:eval-result @state) nil)
   (swap! state assoc
@@ -138,10 +143,10 @@
    [:h4 "Socket REPL connections"]
    [:p [:b "Hostname: "] [:input {:type "text" :value (:host @state)
                                   :on-change #(->> % .-target .-value (swap! state assoc :host))}]
-       [:b " Port: "] [:input {:type "text" :value (:port @state)
-                               :on-change #(->> % .-target .-value int (swap! state assoc :port))}]
-       [:b " Filename: "] [:input {:type "text" :value (:filename @state)
-                                   :on-change #(->> % .-target .-value (swap! state assoc :filename))}]]
+    [:b " Port: "] [:input {:type "text" :value (:port @state)
+                            :on-change #(->> % .-target .-value int (swap! state assoc :port))}]
+    [:b " Filename: "] [:input {:type "text" :value (:filename @state)
+                                :on-change #(->> % .-target .-value (swap! state assoc :filename))}]]
    [:textarea {:style {:width "100%" :height "100px"}
                :value (:code @state)
                :on-change #(->> % .-target .-value (swap! state assoc :code))}]
@@ -160,20 +165,20 @@
       [:button {:on-click #(connect!)} "Connect!"])
     [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]]
    [:div
-    (when-let [res @(:eval-result @state)]
-      [:div
-       [:h5 "RESULT"]
-       [:pre
-        [:div {:id "result" :class "result repl-tooling"}
-         (render/view-for-result res)]]])]
-   (when-let [out (:stdout @state)]
-     [:div
-      [:h5 "STDOUT"]
-      [:pre out]])
+    [:div
+     [:h5 "RESULT"]
+     [:pre
+      [:div {:id "result" :class "result repl-tooling"}
+       (when-let [res @(:eval-result @state)]
+         (render/view-for-result res))]]]]
+   [:div
+    [:h5 "STDOUT"
+     (when-let [out (:stdout @state)]
+       [:pre#stdout out])]]
+   [:div
+    [:h5 "STDERR"]]
    (when-let [out (:stderr @state)]
-     [:div
-      [:h5 "STDERR"]
-      [:pre out]])])
+     [:pre#stderr out])])
 
 (defn click-link [link-text]
   (p/let [find-link
@@ -185,3 +190,7 @@
 
           link (wait-for-p find-link)]
     (.click link)))
+
+(defn clear-results! []
+  (reset! (:eval-result @state) nil)
+  (swap! state assoc :stderr "" :stdout ""))
