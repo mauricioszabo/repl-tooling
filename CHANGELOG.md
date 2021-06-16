@@ -5,6 +5,7 @@
 - Disabled clj-kondo statistics for now
 - Fixed stacktraces in Clojerl
 - Fixed Lumo REPL
+- Source for var now works for ClojureScript with Shadow-CLJS
 
 ## 0.5.13
 - Goto var definition is now on Pathom
