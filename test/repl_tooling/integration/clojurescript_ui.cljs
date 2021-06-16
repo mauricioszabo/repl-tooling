@@ -59,18 +59,18 @@
 
     (testing "captures STDOUT"
       (fake/type-and-eval "(println :FOOBAR)")
-      (check (fake/change-result-p) => #":FOOBAR"))
+      (check (fake/change-stdout-p) => #":FOOBAR"))
 
     (testing "detects NS on file"
       (swap! fake/state assoc
              :code "(ns clojure.string)\n(upper-case \"this is upper\")"
              :range [[1 1] [1 1]])
       (fake/run-command! :evaluate-block)
-      (check (fake/change-stdout-p) => #"THIS IS UPPER"))
+      (check (fake/change-result-p) => #"THIS IS UPPER"))
 
     (testing "displays invalid EDN"
       (ui/type-and-assert-result "{ :foo bar 10 }" "{(keyword \"foo bar\") 10}")
-      (ui/click-nth-link-and-assert-children
+      (ui/click-link-and-assert-children
        "[ :foo bar 10 ]" 1))
 
     ; TODO: All of these!
@@ -78,7 +78,7 @@
     ;   (ui/assert-out (str "\"01234567891011121314151617181920212223242526272829"
     ;                       "303132333435363738394041424344 ... \"")
     ;                  "(apply str (range 100))")
-    ;   (ui/click-nth-link-and-assert
+    ;   (ui/click-link-and-assert
     ;    (str "\"0123456789101112131415161718192021222324252627282930313233343"
     ;         "536373839404142434445464748495051525354555657585960616263646566"
     ;         "676869707172737475767778798081828384 ... \"")
@@ -86,40 +86,40 @@
     ;
     ; (testing "evaluates and presents big lists"
     ;   (ui/assert-out "( 0 1 2 3 4 5 6 7 8 9 ... )" "(range)")
-    ;   (ui/click-nth-link-and-assert
+    ;   (ui/click-link-and-assert
     ;    "( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 ... )" 2)
-    ;   (ui/click-nth-link-and-assert-children
+    ;   (ui/click-link-and-assert-children
     ;    "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 ..." 1)
     ;   (testing "toggle off"
-    ;     (ui/click-nth-link-and-assert-children "" 1)))
+    ;     (ui/click-link-and-assert-children "" 1)))
     ;
     ; (testing "evaluates and presents big vectors"
     ;   (ui/assert-out "[ 0 1 2 3 4 5 6 7 8 9 ... ]" "(vec (range 14))")
-    ;   (ui/click-nth-link-and-assert
+    ;   (ui/click-link-and-assert
     ;    "[ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 ]" 2)
-    ;   (ui/click-nth-link-and-assert-children
+    ;   (ui/click-link-and-assert-children
     ;    "0 1 2 3 4 5 6 7 8 9 10 11 12 13" 1))
     ;
     ; (testing "evaluates and presents big sets"
     ;   (ui/assert-out "#{ 0 1 2 3 4 5 6 7 8 9 ... }" "(apply sorted-set (range 14))")
-    ;   (ui/click-nth-link-and-assert
+    ;   (ui/click-link-and-assert
     ;    "#{ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 }" 2)
-    ;   (ui/click-nth-link-and-assert-children
+    ;   (ui/click-link-and-assert-children
     ;    "0 1 2 3 4 5 6 7 8 9 10 11 12 13" 1))
     ;
     ; (testing "evaluates and presents maps"
     ;   (ui/assert-out "{ :a ( 0 1 2 3 4 5 6 7 8 9 ... ) , :b 90 }"
     ;                  "(sorted-map :a (range 12) :b 90)")
-    ;   (ui/click-nth-link-and-assert
+    ;   (ui/click-link-and-assert
     ;    "{ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 ) , :b 90 }" 2)
-    ;   (ui/click-nth-link-and-assert-children
+    ;   (ui/click-link-and-assert-children
     ;    "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 ) ] [ :b 90 ]" 1))
     ;
     (testing "evaluates and presents taggable objects"
-      (ui/assert-out #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 \) , :b 20 \}"
-                     "(do (defrecord Foo [a b]) (->Foo (range 10) 20))")
+      (ui/type-and-assert-result #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 \) , :b 20 \}"
+                                 "(do (defrecord Foo [a b]) (->Foo (range 10) 20))")
       #_
-      (ui/click-nth-link-and-assert-children
+      (ui/click-link-and-assert-children
        "{ :a ( 0 1 2 3 4 5 6 7 8 9 ) , :b 20 }" 1))))
 
     ; (testing "evaluates promises, and patches result"
@@ -128,7 +128,7 @@
     ;   (let [res (async/<! (change-result))]
     ;     (check res => #"10")))))
       ; #_
-      ; (ui/click-nth-link-and-assert-children
+      ; (ui/click-link-and-assert-children
       ;  "{ :a ( 0 1 2 3 4 5 6 7 8 9 ) , :b 20 }" 1))
       ;
       ; (testing "evaluates and presents classes"
