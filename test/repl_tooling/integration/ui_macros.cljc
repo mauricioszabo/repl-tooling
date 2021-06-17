@@ -3,7 +3,7 @@
   (:require [clojure.core.async :as async]
             [clojure.string :as str]
             [reagent.core :as r]
-            [devcards.core :as cards]
+            [devcards.core :as cards :include-macros true]
             #?(:cljs [repl-tooling.editor-integration.renderer.protocols :as proto])))
 
 (defn- type-and-just-for-test [])

@@ -1,7 +1,7 @@
 (ns repl-tooling.editor-integration.configs-test
   (:require [repl-tooling.editor-integration.configs :as configs]
             [clojure.test :refer [testing]]
-            [devcards.core :as cards]
+            [devcards.core :as cards :include-macros true]
             [check.core :refer [check]]
             [repl-tooling.integration.fake-editor :as editor]
             [clojure.core.async :as async]

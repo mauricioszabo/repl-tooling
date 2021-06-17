@@ -1,5 +1,5 @@
 (ns repl-tooling.editor-integration.pathom-test
-  (:require [devcards.core :as cards]
+  (:require [devcards.core :as cards :include-macros true]
             [repl-tooling.commands-to-repl.pathom :as pathom]
             [matcher-combinators.matchers :as m]
             [clojure.test]

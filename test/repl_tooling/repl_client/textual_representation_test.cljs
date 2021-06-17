@@ -2,7 +2,7 @@
   (:require [clojure.test :refer [testing is] :as test]
             [check.core :refer [check]]
             [clojure.core.async :as async]
-            [devcards.core :as cards :require-macros true]
+            [devcards.core :as cards :include-macros true]
             [repl-tooling.eval-helpers :refer [eval-on-repl eval-and-parse
                                                async-with-clj-repl]]
             [repl-tooling.editor-integration.renderer.protocols :as proto]

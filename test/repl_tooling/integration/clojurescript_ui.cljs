@@ -10,7 +10,7 @@
             [check.async :refer [async-test check testing]]
             [promesa.core :as p]
             [clojure.core.async :as async]
-            [devcards.core :as cards]))
+            [devcards.core :as cards :include-macros true]))
 
 (cards/defcard-rg fake-editor
   fake/editor

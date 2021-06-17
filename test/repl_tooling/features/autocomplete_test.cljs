@@ -5,7 +5,7 @@
             [matcher-combinators.matchers :refer [embeds]]
             [check.core :refer [check]]
             [check.async-old :refer [await!]]
-            [devcards.core :as cards]
+            [devcards.core :as cards :include-macros true]
             [repl-tooling.features.autocomplete.simple :as simple]
             [repl-tooling.features.autocomplete.compliment :as compliment]
             [repl-tooling.features.autocomplete.suitable :as suit]

@@ -10,7 +10,7 @@
             [repl-tooling.integration.ui-macros :as m]
             [repl-tooling.eval-helpers :as e]
             [clojure.core.async :as async]
-            [devcards.core :as cards]
+            [devcards.core :as cards :include-macros true]
             [repl-tooling.editor-integration.configs :as configs]))
 
 (defn render [interactive-obj]

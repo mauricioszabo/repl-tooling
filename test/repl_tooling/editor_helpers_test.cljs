@@ -1,6 +1,6 @@
 (ns repl-tooling.editor-helpers-test
   (:require [clojure.test :refer [testing] :as test]
-            [devcards.core :as cards :require-macros true]
+            [devcards.core :as cards :include-macros true]
             [check.core :refer [check]]
             [check.mocks :refer [mocking]]
             [repl-tooling.editor-helpers :as helpers]

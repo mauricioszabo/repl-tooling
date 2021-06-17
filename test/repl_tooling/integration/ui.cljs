@@ -1,5 +1,5 @@
 (ns repl-tooling.integration.ui
-  (:require [devcards.core :as cards]
+  (:require [devcards.core :as cards :include-macros true]
             [schema.core :as s]
 
             [repl-tooling.editor-helpers-test]

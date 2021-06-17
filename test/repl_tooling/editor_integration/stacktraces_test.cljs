@@ -1,5 +1,5 @@
 (ns repl-tooling.editor-integration.stacktraces-test
-  (:require [devcards.core :as cards]
+  (:require [devcards.core :as cards :include-macros true]
             [clojure.test]
             [promesa.core :as p]
             [repl-tooling.integration.fake-editor :as fake]

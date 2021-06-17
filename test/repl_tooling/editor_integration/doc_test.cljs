@@ -9,7 +9,7 @@
             [check.async :refer [async-test testing check]]
             [clojure.core.async :as async]
             [repl-tooling.integration.ui-macros :as m]
-            [devcards.core :as cards]))
+            [devcards.core :as cards :include-macros true]))
 
 ;; FIXME: some problems with this test...
 #_
