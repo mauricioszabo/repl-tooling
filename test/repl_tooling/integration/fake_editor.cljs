@@ -98,6 +98,11 @@
     (wait-for-p #(and (not= old (txt-for-selector "#stdout"))
                       (txt-for-selector "#stdout")))))
 
+(defn change-stderr-p []
+  (let [old (txt-for-selector "#stderr")]
+    (wait-for-p #(and (not= old (txt-for-selector "#stderr"))
+                      (txt-for-selector "#stderr")))))
+
 (defn handle-disconnect []
   (reset! (:eval-result @state) nil)
   (swap! state assoc
