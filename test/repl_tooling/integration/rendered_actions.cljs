@@ -1,9 +1,6 @@
 (ns repl-tooling.integration.rendered-actions
-  (:require [clojure.core.async :as async]
-            [repl-tooling.editor-integration.connection :as conn]
-            [repl-tooling.integration.fake-editor :as fake]
-            [repl-tooling.integration.ui-macros :as ui]
-            [clojure.test] ;:refer [async testing is]]
+  (:require [repl-tooling.integration.fake-editor :as fake]
+            [clojure.test]
             [check.async :refer [testing async-test check]]
             [promesa.core :as p]
             [devcards.core :as cards]))
@@ -31,44 +28,41 @@
 
 (set! cards/test-timeout 20000)
 (cards/deftest copy-to-clipboard
-  (let [copy (async/chan)]
-    (async-test "actions that can be made after rendering a result"
-      {:teardown (fake/disconnect!)}
+  (async-test "actions that can be made after rendering a result"
+    {:teardown (fake/disconnect!)}
 
-      (fake/connect! {:on-copy #(do
-                                  (prn :COPY %)
-                                  (p/resolve! @clipboard %))})
+    (fake/connect! {:on-copy #(p/resolve! @clipboard %)})
 
-      (testing "copies tagged literals to clipboard"
-        (fake/type-and-eval "(tagged-literal 'foo [1 2])")
-        (fake/change-result-p)
-        (click-clipboard 0)
-        (check @clipboard => "#foo [1 2]"))
+    (testing "copies tagged literals to clipboard"
+      (fake/type-and-eval "(tagged-literal 'foo [1 2])")
+      (fake/change-result-p)
+      (click-clipboard 0)
+      (check @clipboard => "#foo [1 2]"))
 
-      (testing "copy only first line"
-        (click-chevron 0)
-        (click-clipboard 0)
-        (check @clipboard => "#foo [1 2]"))
+    (testing "copy only first line"
+      (click-chevron 0)
+      (click-clipboard 0)
+      (check @clipboard => "#foo [1 2]"))
 
-      (testing "copies colls"
-        (click-clipboard 1)
-        (check @clipboard => "[1 2]"))
+    (testing "copies colls"
+      (click-clipboard 1)
+      (check @clipboard => "[1 2]"))
 
-      (testing "copies leafs"
-        (click-chevron 1)
-        (click-clipboard 2)
-        (check @clipboard => "1")
-        (click-clipboard 3)
-        (check @clipboard => "2"))
+    (testing "copies leafs"
+      (click-chevron 1)
+      (click-clipboard 2)
+      (check @clipboard => "1")
+      (click-clipboard 3)
+      (check @clipboard => "2"))
 
-      (testing "copies incomplete string"
-        (fake/type-and-eval "(str (range 80))")
-        (fake/change-result-p)
-        (click-clipboard 0)
-        (check @clipboard => #"28 29"))
+    (testing "copies incomplete string"
+      (fake/type-and-eval "(str (range 80))")
+      (fake/change-result-p)
+      (click-clipboard 0)
+      (check @clipboard => #"28 29"))
 
-      (testing "copies objects"
-        (fake/type-and-eval "(Object.)")
-        (fake/change-result-p)
-        (click-clipboard 0)
-        (check @clipboard => #"#object.*java\.lang\.Object")))))
+    (testing "copies objects"
+      (fake/type-and-eval "(Object.)")
+      (fake/change-result-p)
+      (click-clipboard 0)
+      (check @clipboard => #"#object.*java\.lang\.Object"))))
