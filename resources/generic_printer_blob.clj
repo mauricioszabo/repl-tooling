@@ -55,10 +55,10 @@
           (clojerl.IHash/hash (get this :form))))))
 
 #?(:clje
-   (defn normalize-error [res]
+   (defn normalize-error [res trace]
      (let [trace (mapv (fn [[_ _ _ [[_ file] [_ line]]]]
                          [nil nil (str file) line])
-                       (erlang/get_stacktrace))]
+                       trace)]
        (if (instance? clojerl.ExceptionInfo res)
          {:type "clojerl.ExceptionInfo"
           :message (serialize (.message res))

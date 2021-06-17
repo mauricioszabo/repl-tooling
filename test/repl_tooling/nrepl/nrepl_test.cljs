@@ -1,5 +1,5 @@
 (ns repl-tooling.nrepl.nrepl-test
-  (:require [devcards.core :as cards]
+  (:require [devcards.core :as cards :include-macros true]
             [clojure.test :refer [testing is]]
             [check.core :refer [check] :as c]
             [clojure.core.async :as async]

@@ -9,6 +9,8 @@
             [rewrite-clj.reader :as clj-reader]
             [rewrite-clj.parser :as parser]
             [repl-tooling.editor-integration.schemas :as schemas]
+            [duck-repled.editor-helpers :as helpers]
+            [promesa.core :as p]
             [schema.core :as s]
             ["fs" :as fs]
             ["path" :as path]))
@@ -141,175 +143,26 @@
            (update result :error #(cond-> % (not (:parsed? result)) read-result)))
          :parsed? true))
 
-(defn text-in-range [text [[row1 col1] [row2 col2]]]
-  (let [lines (str/split-lines text)
-        rows-offset (- (min row2 (count lines)) row1)]
-    (-> lines
-        (subvec row1 (min (count lines) (inc row2)))
-        (update 0 #(str/join "" (drop col1 %)))
-        (update rows-offset #(str/join "" (take (inc (if (zero? rows-offset)
-                                                       (- col2 col1)
-                                                       col2))
-                                                %)))
-        (->> (str/join "\n")))))
+(def text-in-range helpers/text-in-range)
+(def top-levels helpers/top-blocks)
+(def current-var helpers/current-var)
+(def block-for helpers/block-for)
 
-(defn- simple-read [str]
-  (reader/read-string {:default (fn [_ res] res) :read-cond :allow} str))
+(defn top-block-for [text position]
+  (let [tops (helpers/top-blocks text)]
+    (helpers/top-block-for tops position)))
 
-(defn- parse-reader [reader]
-  (try
-    (let [parsed (parser/parse reader)]
-      (when parsed
-        (cond
-          (node/whitespace-or-comment? parsed) :whitespace
-
-          (instance? rewrite-clj.node.uneval/UnevalNode parsed)
-          (->> parsed :children (remove node/whitespace-or-comment?) first)
-
-          :else parsed)))
-    (catch :default _
-      (clj-reader/read-char reader)
-      :whitespace)))
-
-(defn top-levels*
-  "Gets all top-level ranges for the current code"
-  [code]
-  (let [reader (clj-reader/indexing-push-back-reader code)]
-    (loop [sofar []]
-      (let [parsed (parse-reader reader)]
-        (case parsed
-          :whitespace (recur sofar)
-          nil sofar
-          (let [as-str (node/string parsed)
-                {:keys [row col end-row end-col]} (meta parsed)]
-            (recur (conj sofar [[[(dec row) (dec col)]
-                                 [(dec end-row) (- end-col 2)]]
-                                as-str]))))))))
-
-(let [memo (atom [])]
-  (defn top-levels [code]
-    (if-let [res (->> @memo (filter #(-> % first (= code))) first)]
-      (second res)
-      (let [res (top-levels* code)]
-        (swap! memo conj [code res])
-        (when (-> @memo count (> 10)) (swap! memo subvec 1))
-        res))))
-
-(defn ns-range-for
-  "Gets the current NS range (and ns name) for the current code, considering
-that the cursor is in row and col (0-based)"
-  [code [row col]]
-  (let [levels (top-levels code)
-        before-selection? (fn [[[[_ _] [erow ecol]] _]]
-                            (or (and (= erow row) (<= col ecol))
-                                (< erow row)))
-        is-ns? #(and (list? %) (some-> % first (= 'ns)))
-        read (memoize #(try (simple-read %) (catch :default _ nil)))
-        find-ns-for (fn [top-blocks] (->> top-blocks
-                                          (map #(update % 1 read))
-                                          (filter #(-> % peek is-ns?))
-                                          (map #(update % 1 second))
-                                          first))]
-    (or (->> levels
-             (take-while before-selection?)
-             reverse
-             find-ns-for)
-        (->> levels
-             (drop-while before-selection?)
-             find-ns-for))))
-
-
-(defn in-range? [{:keys [row col end-row end-col]} {r :row c :col}]
-  (and (>= r row)
-       (<= r end-row)
-       (if (= r row) (>= c col) true)
-       (if (= r end-row) (<= c end-col) true)))
-
-(defn find-inners-by-pos
-  "Find last node (if more than one node) that is in range of pos and
-  satisfying the given predicate depth first from initial zipper
-  location."
-  [zloc pos]
-  (->> zloc
-       (iterate zip/next)
-       (take-while identity)
-       (take-while (complement move/end?))
-       (filter #(in-range? (-> % zip/node meta) pos))))
-
-(defn- reader-tag? [node]
-  (when node
-    (or (instance? rewrite-clj.node.reader-macro.ReaderMacroNode node)
-        (instance? rewrite-clj.node.fn/FnNode node)
-        (instance? rewrite-clj.node.quote.QuoteNode node)
-        (instance? rewrite-clj.node.reader-macro.DerefNode node))))
-
-(defn- filter-forms [nodes]
-  (when nodes
-    (let [valid-tag? (comp #{:vector :list :map :set :quote} :tag)]
-      (->> nodes
-           (map zip/node)
-           (partition-all 2 1)
-           (map (fn [[fst snd]]
-                  (cond
-                    (reader-tag? fst) fst
-                    (-> fst :tag (= :list) (and snd (reader-tag? snd))) snd
-                    (valid-tag? fst) fst)))
-           (filter identity)
-           first))))
-
-(defn- zip-from-code [code]
-  (let [reader (clj-reader/indexing-push-back-reader code)
-        nodes (->> (repeatedly #(try
-                                  (parser/parse reader)
-                                  (catch :default _
-                                    (clj-reader/read-char reader)
-                                    (node/whitespace-node " "))))
-                   (take-while identity)
-                   (doall))
-        all-nodes (with-meta
-                    (node/forms-node nodes)
-                    (meta (first nodes)))]
-    (-> all-nodes zip-base/edn)))
-
-(defn- current-var* [zipped row col]
-  (let [node (-> zipped
-                 (zip/find-last-by-pos {:row (inc row) :col (inc col)})
-                 zip/node)]
-    (when (and node (-> node node/whitespace-or-comment? not))
-      (let [{:keys [row col end-row end-col]} (meta node)]
-        [[[(dec row) (dec col)] [(dec end-row) (- end-col 2)]]
-         (node/string node)]))))
-
-(defn current-var [code [row col]]
-  (let [zipped (zip-from-code code)]
-    (or (current-var* zipped row col)
-        (current-var* zipped row (dec col)))))
-
-(defn block-for
-  "Gets the current block from the code (a string) to the current row and col (0-based)"
-  [code [row col]]
-  (let [node-block (-> code
-                       zip-from-code
-                       (find-inners-by-pos {:row (inc row) :col (inc col)})
-                       reverse
-                       filter-forms)
-        {:keys [row col end-row end-col]} (some-> node-block meta)]
-    (when node-block
-      [[[(dec row) (dec col)] [(dec end-row) (- end-col 2)]]
-       (node/string node-block)])))
-
-(defn top-block-for
-  "Gets the top-level from the code (a string) to the current row and col (0-based)"
-  [code [row col]]
-  (let [tops (top-levels code)
-        in-range? (fn [[[[b-row b-col] [e-row e-col]]]]
-                    (or (and (<= b-row row) (< row e-row))
-                        (and (<= b-row row e-row)
-                             (or (<= b-col col e-col)
-                                 (<= b-col (dec col) e-col)))))]
-    (->> tops (filter in-range?) first)))
+(defn ns-range-for [text position]
+  (let [tops (helpers/top-blocks text)]
+    (helpers/ns-range-for tops position)))
 
 (def ^:dynamic *out-on-aux* false)
+
+(defn with-out [fun]
+  (set! *out-on-aux* true)
+  (let [p (p/do! (fun))]
+    (p/finally p #(set! *out-on-aux* false))
+    p))
 
 (s/defn get-possible-port :- (s/maybe s/Int)
   [project-paths :- [s/Str], detect-nrepl? :- s/Bool, typed-port :- (s/maybe s/Int)]

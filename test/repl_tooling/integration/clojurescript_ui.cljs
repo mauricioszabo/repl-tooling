@@ -6,11 +6,11 @@
             [repl-tooling.editor-integration.renderer :as render]
             [repl-tooling.integration.fake-editor :as fake
              :refer [change-stdout txt-for-selector type-and-eval change-result]]
-            [clojure.test :refer [async testing is]]
-            [check.core :refer [check]]
-            [check.async-old :refer [async-test await!]]
+            [clojure.test :refer [is]]
+            [check.async :refer [async-test check testing]]
+            [promesa.core :as p]
             [clojure.core.async :as async]
-            [devcards.core :as cards]))
+            [devcards.core :as cards :include-macros true]))
 
 (cards/defcard-rg fake-editor
   fake/editor
@@ -23,21 +23,19 @@
 
 (cards/deftest repl-evaluation
   (async-test "ClojureScript REPL evaluation" {:teardown (fake/disconnect!)
-                                               :timeout 7000}
-    (await! (fake/connect! {:notify prn}))
+                                               :timeout 8000}
+    (fake/connect! {:notify prn})
     (swap! fake/state assoc :filename "foo.cljs")
     (fake/run-command! :connect-embedded)
-    (await! (async/timeout 1000))
+    (p/delay 1000)
 
     (testing "evaluation works for nil"
       (fake/type-and-eval "nil")
-      (await! (fake/change-stdout))
-      (check (fake/txt-for-selector "#result") => "nil"))
+      (check (fake/change-result-p) => "nil"))
 
     (testing "evaluation works, but doesn't print something on STDOUT"
       (fake/type-and-eval "(/ 10 0)")
-      (await! (fake/change-stdout))
-      (check (fake/txt-for-selector "#result") => "##Inf")
+      (check (fake/change-result-p) => "##Inf")
       (is (not (re-find #"=>" (fake/txt-for-selector "#stdout")))))
 
     (testing "evaluate blocks"
@@ -45,37 +43,34 @@
              :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
              :range [[3 3] [3 3]])
       (fake/run-command! :evaluate-block)
-      (await! (fake/change-stdout))
-      (check (fake/txt-for-selector "#result") => "7"))
+      (check (fake/change-result-p) => "7"))
 
     (testing "evaluate top blocks"
       (swap! fake/state assoc
              :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
              :range [[3 3] [3 3]])
       (fake/run-command! :evaluate-top-block)
-      (await! (fake/change-stdout))
-      (check (fake/txt-for-selector "#result") => "9"))
+      (check (fake/change-result-p) => "9"))
 
     (testing "displays booleans"
-      (ui/assert-out "true" "true")
-      (ui/assert-out "false" "false")
-      (ui/assert-out "nil" "nil"))
+      (ui/type-and-assert-result "true" "true")
+      (ui/type-and-assert-result "false" "false")
+      (ui/type-and-assert-result "nil" "nil"))
 
     (testing "captures STDOUT"
       (fake/type-and-eval "(println :FOOBAR)")
-      (check (await! (fake/change-stdout)) => #":FOOBAR"))
+      (check (fake/change-stdout-p) => #":FOOBAR"))
 
     (testing "detects NS on file"
       (swap! fake/state assoc
              :code "(ns clojure.string)\n(upper-case \"this is upper\")"
              :range [[1 1] [1 1]])
       (fake/run-command! :evaluate-block)
-      (await! (fake/change-stdout))
-      (check (:stdout @fake/state) => #"THIS IS UPPER"))
+      (check (fake/change-result-p) => #"THIS IS UPPER"))
 
     (testing "displays invalid EDN"
-      (ui/assert-out "{ :foo bar 10 }" "{(keyword \"foo bar\") 10}")
-      (ui/click-nth-link-and-assert-children
+      (ui/type-and-assert-result "{ :foo bar 10 }" "{(keyword \"foo bar\") 10}")
+      (ui/click-link-and-assert-children
        "[ :foo bar 10 ]" 1))
 
     ; TODO: All of these!
@@ -83,7 +78,7 @@
     ;   (ui/assert-out (str "\"01234567891011121314151617181920212223242526272829"
     ;                       "303132333435363738394041424344 ... \"")
     ;                  "(apply str (range 100))")
-    ;   (ui/click-nth-link-and-assert
+    ;   (ui/click-link-and-assert
     ;    (str "\"0123456789101112131415161718192021222324252627282930313233343"
     ;         "536373839404142434445464748495051525354555657585960616263646566"
     ;         "676869707172737475767778798081828384 ... \"")
@@ -91,40 +86,40 @@
     ;
     ; (testing "evaluates and presents big lists"
     ;   (ui/assert-out "( 0 1 2 3 4 5 6 7 8 9 ... )" "(range)")
-    ;   (ui/click-nth-link-and-assert
+    ;   (ui/click-link-and-assert
     ;    "( 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 ... )" 2)
-    ;   (ui/click-nth-link-and-assert-children
+    ;   (ui/click-link-and-assert-children
     ;    "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 ..." 1)
     ;   (testing "toggle off"
-    ;     (ui/click-nth-link-and-assert-children "" 1)))
+    ;     (ui/click-link-and-assert-children "" 1)))
     ;
     ; (testing "evaluates and presents big vectors"
     ;   (ui/assert-out "[ 0 1 2 3 4 5 6 7 8 9 ... ]" "(vec (range 14))")
-    ;   (ui/click-nth-link-and-assert
+    ;   (ui/click-link-and-assert
     ;    "[ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 ]" 2)
-    ;   (ui/click-nth-link-and-assert-children
+    ;   (ui/click-link-and-assert-children
     ;    "0 1 2 3 4 5 6 7 8 9 10 11 12 13" 1))
     ;
     ; (testing "evaluates and presents big sets"
     ;   (ui/assert-out "#{ 0 1 2 3 4 5 6 7 8 9 ... }" "(apply sorted-set (range 14))")
-    ;   (ui/click-nth-link-and-assert
+    ;   (ui/click-link-and-assert
     ;    "#{ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 }" 2)
-    ;   (ui/click-nth-link-and-assert-children
+    ;   (ui/click-link-and-assert-children
     ;    "0 1 2 3 4 5 6 7 8 9 10 11 12 13" 1))
     ;
     ; (testing "evaluates and presents maps"
     ;   (ui/assert-out "{ :a ( 0 1 2 3 4 5 6 7 8 9 ... ) , :b 90 }"
     ;                  "(sorted-map :a (range 12) :b 90)")
-    ;   (ui/click-nth-link-and-assert
+    ;   (ui/click-link-and-assert
     ;    "{ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 ) , :b 90 }" 2)
-    ;   (ui/click-nth-link-and-assert-children
+    ;   (ui/click-link-and-assert-children
     ;    "[ :a ( 0 1 2 3 4 5 6 7 8 9 10 11 ) ] [ :b 90 ]" 1))
     ;
     (testing "evaluates and presents taggable objects"
-      (ui/assert-out #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 \) , :b 20 \}"
-                     "(do (defrecord Foo [a b]) (->Foo (range 10) 20))")
+      (ui/type-and-assert-result #"#.+Foo \{ :a \( 0 1 2 3 4 5 6 7 8 9 \) , :b 20 \}"
+                                 "(do (defrecord Foo [a b]) (->Foo (range 10) 20))")
       #_
-      (ui/click-nth-link-and-assert-children
+      (ui/click-link-and-assert-children
        "{ :a ( 0 1 2 3 4 5 6 7 8 9 ) , :b 20 }" 1))))
 
     ; (testing "evaluates promises, and patches result"
@@ -133,7 +128,7 @@
     ;   (let [res (async/<! (change-result))]
     ;     (check res => #"10")))))
       ; #_
-      ; (ui/click-nth-link-and-assert-children
+      ; (ui/click-link-and-assert-children
       ;  "{ :a ( 0 1 2 3 4 5 6 7 8 9 ) , :b 20 }" 1))
       ;
       ; (testing "evaluates and presents classes"

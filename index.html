@@ -4,6 +4,31 @@
     <meta charset="utf-8">
 
     <style>
+      div.repl-tooling.result div.error {
+        color: @text-color-error;
+      }
+      div.repl-tooling.result div.rows {
+        display: flex;
+        flex-direction: column;
+      }
+      div.repl-tooling.result div.cols {
+        display: flex;
+        flex-direction: row;
+      }
+      div.repl-tooling.result div.block {
+        display: block;
+      }
+      div.repl-tooling.result div.title {
+        font-weight: 800;
+      }
+      div.repl-tooling.result div.pre {
+        white-space: pre-wrap;
+      }
+      div.repl-tooling.result div.space {
+        opacity: 0.1;
+        margin: 0.6em;
+      }
+
       a.icon.clipboard::after {
         content: "copy"
       }

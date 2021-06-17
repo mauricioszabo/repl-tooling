@@ -161,18 +161,33 @@ REPL available"
                                         :title (str "Ran test: " current-var)
                                         :message "See REPL for any failures"}))))
 
-(defn source-for-var! [state {:keys [filename range contents]}]
-  (let [[_ current-var] (helpers/current-var contents (first range))
-        evaluate #(cmds/run-feature! state :eval {:text % :auto-detect true})]
+(defn- source! [state]
+  (p/let [eql (-> @state :editor/features :eql)
+          on-stdout (-> @state :editor/callbacks :on-stdout)
+          source (eql [{:editor/contents [{:text/current-var [:text/contents
+                                                              :definition/source]}]}])]
+    (if-let [source (-> source
+                        :editor/contents
+                        :text/current-var
+                        :definition/source
+                        :text/contents)]
+      (on-stdout source)
+      (helpers/with-out
+        #(p/let [req (eql {:text/contents (str "(do (clojure.core/require 'clojure.repl)"
+                                               " #'clojure.repl/source)")}
+                          [:repl/result])]
+          (if (:repl/result req)
+            (eql (-> source :editor/contents :text/current-var)
+                 ['(:repl/result
+                    {:repl/template
+                     (clojure.repl/source :repl/code)})])
+            (throw "Error")))))))
 
-    (if (need-cljs? (cmds/run-callback! state :get-config) filename)
-      (cmds/run-callback! state :notify
-                          {:type :error
-                           :title "Source for Var not supported for ClojureScript"})
-      (-> (evaluate "(require 'clojure.repl)")
-          (p/then #(evaluate (str "(clojure.repl/source " current-var ")")))
-          (p/catch #(cmds/run-callback!
-                     state :notify {:type :error
-                                    :title (str "Source for Var "
-                                                "not supported for "
-                                                (-> @state :repl/info :kind-name))}))))))
+(defn source-for-var! [state]
+  (p/catch (source! state)
+           #(cmds/run-callback! state
+                                :notify
+                                {:type :error
+                                 :title (str "Source for Var "
+                                             "not supported for "
+                                             (-> @state :repl/info :kind-name))})))

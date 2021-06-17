@@ -1,7 +1,7 @@
 version: 2.1
 defaults: &defaults
   docker:
-    - image: circleci/clojure:openjdk-11-lein-node
+    - image: circleci/node:lts
 
 jobs:
   test:

@@ -1,6 +1,6 @@
 (ns repl-tooling.repl-client.connection-test
   (:require [clojure.test :refer [testing async is]]
-            [devcards.core :as cards]
+            [devcards.core :as cards :include-macros true]
             [check.core :refer [check]]
             [check.async-old :refer [async-test]]
             [clojure.core.async :as async]

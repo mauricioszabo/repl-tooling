@@ -3,7 +3,7 @@
   (:require [clojure.core.async :as async]
             [clojure.string :as str]
             [reagent.core :as r]
-            [devcards.core :as cards]
+            [devcards.core :as cards :include-macros true]
             #?(:cljs [repl-tooling.editor-integration.renderer.protocols :as proto])))
 
 (defn- type-and-just-for-test [])
@@ -19,6 +19,12 @@
      (async/<! (~'change-stdout))
      (~'check (str/replace (~'txt-for-selector "#result") #"(\n|\s+)+" " ") ~'=> ~representation)))
 
+(defmacro type-and-assert-result [representation cmd]
+  `(do
+     (repl-tooling.integration.fake-editor/type-and-eval ~cmd)
+     (promesa.core/let [res# (repl-tooling.integration.fake-editor/change-result-p)]
+       (check.async/check (str/replace res# #"(\n|\s+)+" " ") ~'=> ~representation))))
+
 (defmacro click-nth-link-and-assert [representation nth]
   `(do
      (~'click-selector ~(str "#result a:nth-child(n+" nth ")"))
@@ -32,6 +38,26 @@
      (async/<! (~'change-result))
      (~'check (str/replace (~'txt-for-selector "#result .children") #"(\n|\s+)+" " ")
        ~'=> ~representation)))
+
+(defmacro click-link-and-assert [representation nth]
+  `(promesa.core/do!
+    (.. ~'js/document
+        (~'querySelector ~(str "#result a:nth-child(n+" nth ")"))
+        ~'click)
+
+    (promesa.core/let [res# (repl-tooling.integration.fake-editor/change-result-p)]
+      (check.async/check (str/replace res# #"(\n|\s+)+" " ") ~'=> ~representation))))
+
+(defmacro click-link-and-assert-children [representation nth]
+  `(promesa.core/do!
+     (.. ~'js/document
+         (~'querySelector ~(str "#result a:nth-child(n+" nth ")"))
+         ~'click)
+
+     (repl-tooling.integration.fake-editor/change-result-p)
+     (promesa.core/let [res# (repl-tooling.integration.fake-editor/txt-for-selector
+                              "#result .children")]
+        (check.async/check (str/replace res# #"(\n|\s+)+" " ") ~'=> ~representation))))
 
 (defmacro card-for-renderer! []
   `(do

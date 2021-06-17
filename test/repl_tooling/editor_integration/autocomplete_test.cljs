@@ -5,7 +5,7 @@
             [check.core :refer [check]]
             [check.async-old :refer [async-test]]
             [matcher-combinators.matchers :refer [embeds]]
-            [devcards.core :as cards]
+            [devcards.core :as cards :include-macros true]
             [repl-tooling.repl-client.clojure :as clj]
             [repl-tooling.eval-helpers :as h]
             [repl-tooling.editor-integration.connection :as conn]))

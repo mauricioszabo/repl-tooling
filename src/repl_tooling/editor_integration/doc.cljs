@@ -21,27 +21,23 @@
 (defn doc-for-var [state]
   (p/let [id (gensym "doc-for-var")
           {:keys [run-feature run-callback]} @state
-          {:editor/keys [current-var-range data]} (run-feature
-                                                   :eql
-                                                   [:editor/data
-                                                    :editor/current-var-range])
+          seed (run-feature :eql [:editor/data :text/current-var])
+          {:editor/keys [current-var data]} seed
+          current-range (:text/range current-var (:range data))
           _ (run-callback :on-start-eval {:id id
                                           :editor-data data
-                                          :range current-var-range})
-          k [:editor/data data]
-          res (run-feature :eql [{k [:var/meta :var/spec]}])
-          {:keys [var/meta var/spec]} (get res k)
-          doc (if (map? meta)
-                {:result (helpers/LiteralRender. (translate-to-doc meta spec))}
+                                          :range current-range})
+          res (run-feature :eql seed [:render/doc])
+          doc (if-let [doc (:render/doc res)]
+                {:result (helpers/Interactive. doc)}
                 {:error (helpers/LiteralRender. "Can't find doc for this variable")})]
     (run-callback :on-eval {:id id
                             :repl nil
                             :result (assoc doc
                                            :parsed? true
-                                           :literal true
                                            :as-text (-> (:result doc)
                                                         (or (:error doc))
                                                         pr-str
                                                         pr-str))
                             :editor-data data
-                            :range current-var-range})))
+                            :range current-range})))

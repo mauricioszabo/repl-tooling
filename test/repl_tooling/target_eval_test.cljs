@@ -1,10 +1,9 @@
 (ns repl-tooling.target-eval-test
-  (:require [check.core :refer [check]]
-            [clojure.test :refer [deftest run-tests]]
+  (:require [check.async :refer [check async-test testing]]
+            [clojure.test :refer [deftest run-tests] :as test]
+            [matcher-combinators.matchers :as m]
             [repl-tooling.editor-integration.connection :as connection]
-            [repl-tooling.features.promised-test :refer [promised-test testing]]
-            [promesa.core :as p]
-            [clojure.edn :as edn]))
+            [promesa.core :as p]))
 
 (def filename (atom "foo.cljs"))
 (def state (atom nil))
@@ -42,8 +41,8 @@
     p))
 
 (deftest evaluation-test
-  (promised-test {:teardown #(connection/disconnect!)
-                  :timeout 10000}
+  (async-test "evaluates code" {:teardown #(connection/disconnect!)
+                                :timeout 10000}
     (testing "connects to a REPL"
       (p/let [c (connect!)]
         (check @c => {:editor/commands {:evaluate-top-block {:name "Evaluate Top Block"
@@ -64,7 +63,7 @@
 
     (testing "evaluates regexp"
       (p/let [res (evaluate! "#\"foo\"")]
-        (check (-> res :result :result) =expect=> #"foo")))
+        (check res => {:result {:result regexp?}})))
 
     (testing "evaluates keywords and symbols"
       (p/let [res (evaluate! "(keyword \"foo\")")]
@@ -87,13 +86,15 @@
       (p/let [res (evaluate! "(throw (ex-info \"Foo\" {}))")]
         (check res => {:result {:error {:message "Foo"}}})))))
 
+(defmethod test/report [::test/default :summary] [{:keys [test pass fail error]}]
+  (println "Ran" test "tests containing" (+ pass fail error) "assertions.")
+  (println pass "passed," fail "failures," error "errors.")
+  (if (= 0 fail error)
+    (js/process.exit 0)
+    (js/process.exit 1)))
+
 (defn run [file-name]
   (reset! filename file-name)
-  (p/catch (p/let [res (run-tests)
-                   {:keys [fail error]} (:report-counters res)]
-             (if (and fail error)
-               (.exit js/process (+ fail error))
-               (.exit js/process 1)))
-           #(.exit js/process 1)))
+  (run-tests))
 
 #_(reset! filename "foo.clj")

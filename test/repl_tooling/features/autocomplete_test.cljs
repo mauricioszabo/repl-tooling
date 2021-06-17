@@ -5,7 +5,7 @@
             [matcher-combinators.matchers :refer [embeds]]
             [check.core :refer [check]]
             [check.async-old :refer [await!]]
-            [devcards.core :as cards]
+            [devcards.core :as cards :include-macros true]
             [repl-tooling.features.autocomplete.simple :as simple]
             [repl-tooling.features.autocomplete.compliment :as compliment]
             [repl-tooling.features.autocomplete.suitable :as suit]
@@ -21,7 +21,8 @@
 
     (testing "completing macros and private fns in current NS"
       (let [res (simple/for-clj repl 'repl-tooling.integration.ui-macros "type-and")]
-        (check (await! res) => [{:candidate "type-and-just-for-test" :type :function}
+        (check (await! res) => [{:candidate "type-and-assert-result" :type :function}
+                                {:candidate "type-and-just-for-test" :type :function}
                                 {:candidate "type-and-result" :type :function}])))
 
     (testing "completing imported vars"

@@ -7,11 +7,10 @@
             [repl-tooling.editor-integration.commands :as cmds]
             [repl-tooling.editor-helpers :as helpers]
             [sci.impl.namespaces :as sci-ns]
-            [repl-tooling.ui.pinkie :as pinkie]
-            [pinkgorilla.ui.jsrender :as jsrender]
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [repl-tooling.commands-to-repl.pathom :as pathom]
+            [repl-tooling.editor-integration.renderer.pinkie :as r-pinkie]
             ["path" :refer [dirname join]]
             ["fs" :refer [watch readFile existsSync]]
             ["ansi_up" :default Ansi]))
@@ -60,7 +59,7 @@
                                            (assoc (first args)
                                                   :repl curr-repl))
                         (apply cmds/run-feature! state cmd args))))
-     'eql (partial pathom/eql {:editor-state state})
+     'eql (pathom/eql-from-state state)
      'get-top-block #(cmds/run-feature! state :get-code :top-block)
      'get-block #(cmds/run-feature! state :get-code :block)
      'get-var #(cmds/run-feature! state :get-code :var)
@@ -72,35 +71,6 @@
      'eval (partial cmds/run-feature! state :eval)
      'add-resolver pathom/add-resolver
      'compose-resolver pathom/compose-resolver}))
-
-(defn- norm-reagent-fn [fun]
-  (fn [ & args]
-    (let [empty (js/Object.)
-          state (r/atom empty)
-          render (fn [ state & args]
-                   (if (= empty @state)
-                     (do
-                       (p/let [res (apply fun args)]
-                         (reset! state res))
-                       [:div.repl-tooling.icon.loading])
-                     @state))]
-      (apply vector render state args))))
-
-(defn- norm-pinkie-fn [fun]
-  (fn [ & args]
-    [jsrender/render-js
-     {:f (fn [dom args]
-           (let [div (.createElement js/document "div")
-                 upd (fn [elem]
-                       (try (.removeChild dom div) (catch :default _))
-                       (.appendChild dom elem))
-                 elem (apply fun (js->clj args))]
-             (.. div -classList (add "repl-tooling" "icon" "loading"))
-             (.appendChild dom div)
-             (if (instance? js/Promise elem)
-               (.then elem upd)
-               (upd elem))))
-      :data args}]))
 
 (defn- render-ns [editor-state]
   {'js-require #(-> @editor-state
@@ -118,7 +88,7 @@
    'set-attr (fn [^js e attr value]
               (.setAttribute e attr value))
    'register-reagent #(if (and (keyword? %1) (namespace %1) (fn? %2))
-                        (pinkie/register-tag %1 (norm-reagent-fn %2))
+                        (r-pinkie/register-reagent %1 %2)
                         (cmds/run-callback!
                          editor-state
                          :notify
@@ -127,7 +97,7 @@
                           :text (str "First argument needs to be a namespaced keyword, "
                                      "and second argument needs to be a reagent fn")}))
    'register-tag #(if (and (keyword? %1) (namespace %1) (fn? %2))
-                    (pinkie/register-tag %1 (norm-pinkie-fn %2))
+                    (r-pinkie/register-tag %1 %2)
                     (cmds/run-callback!
                      editor-state
                      :notify
@@ -196,9 +166,10 @@
 (defn evaluate-code [{:keys [code bindings sci-state editor-state repl]
                       :or {sci-state (atom {})}}]
   (let [bindings (cond
-                   editor-state (merge promised-bindings
-                                       (debug-bindings editor-state)
-                                       bindings)
+                   editor-state (-> promised-bindings
+                                    (assoc 'eql (-> @editor-state :editor/feature :eql))
+                                    (merge (debug-bindings editor-state)
+                                           bindings))
                    :else promised-bindings)]
     (sci/eval-string code {:env sci-state
                            :classes {:allow :all}

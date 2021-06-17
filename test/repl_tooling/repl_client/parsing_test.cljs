@@ -2,7 +2,7 @@
   (:require [clojure.test :refer [async testing is]]
             [check.core :refer [check]]
             [clojure.core.async :as async]
-            [devcards.core :as cards]
+            [devcards.core :as cards :include-macros true]
             [repl-tooling.eval :as eval]
             [repl-tooling.editor-helpers :as helpers]
             [repl-tooling.eval-helpers :refer [eval-on-repl eval-and-parse

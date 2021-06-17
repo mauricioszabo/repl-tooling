@@ -56,6 +56,7 @@
       (do
         (println "\n\n        RETRYING..." (inc tries) " time(s)")
         (api/refresh @cards)
+        (future (shell/sh "node" "target/fixture.js"))
         (recur (inc tries)))
       @fails)))
 
@@ -86,7 +87,9 @@
 (defn run-tests-on-ci {:shadow/requires-server true} []
   (shadow/watch :integration)
   (shadow/watch :fixture)
-  (let [sh (future (shell/sh "node" "target/fixture.js"))
+  (let [sh (future
+            (while true
+              (shell/sh "node" "target/fixture.js")))
         failures (run-tests!)]
     (System/exit (if (zero? failures) 0 1))))
 

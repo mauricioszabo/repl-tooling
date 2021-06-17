@@ -67,8 +67,7 @@
                                      (e-eval/run-test-at-cursor! state data))}
       :source-for-var {:name "Source for Var"
                        :description "Gets the source of the current var"
-                       :command #(p/let [data (editor-data)]
-                                   (e-eval/source-for-var! state data))}
+                       :command #(e-eval/source-for-var! state)}
       :disconnect {:name "Disconnect REPLs"
                    :description "Disconnect all current connected REPLs"
                    :command disconnect!}

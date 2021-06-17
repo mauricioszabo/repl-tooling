@@ -4,12 +4,16 @@
             [clojure.string :as str]
             [repl-tooling.editor-integration.commands :as cmds]
             [repl-tooling.editor-helpers :as helpers]
+            [repl-tooling.repl-client.clj-helper :refer [contents-for-fn]]
             [repl-tooling.ui.pinkie :as pinkie]
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [repl-tooling.editor-integration.interpreter :as int]
             [repl-tooling.editor-integration.renderer :as render]
             [repl-tooling.commands-to-repl.pathom :as pathom]
+            [repl-tooling.editor-integration.renderer.pinkie :as r-pinkie]
+            ["highlight.js" :as highlight]
+            ["commonmark" :refer [Parser HtmlRenderer]]
             ["path" :refer [dirname join]]
             ["fs" :refer [watch readFile existsSync]]
             ["ansi_up" :default Ansi]))
@@ -104,19 +108,11 @@
 (defn- reg-commands [editor-state cmds-from-tooling config-file]
   (pathom/reset-resolvers)
   (p/let [cmds-from-config (fns-or-check-errors editor-state config-file)
-          commands (merge cmds-from-tooling cmds-from-config)]
+          commands (-> cmds-from-tooling
+                       (merge cmds-from-config)
+                       (dissoc :let :then :catch))]
     (swap! editor-state assoc :editor/commands commands)
     (cmds/run-callback! editor-state :register-commands commands)))
-
-(defonce ^:private ansi (new Ansi))
-(defn- ansi-tag [attrs & txts]
-  (let [[attrs txts] (if (map? attrs)
-                       [attrs txts]
-                       [{} (cons attrs txts)])
-        attrs (merge {:class "pre block"} attrs)]
-    [:div (assoc attrs
-                 :dangerouslySetInnerHTML
-                 #js {:__html (. ansi ansi_to_html (apply str txts))})]))
 
 (defn- clojure-renderer [editor-state edn]
   (let [fake-res {:result edn :parsed? true :as-text (pr-str edn)}
@@ -124,8 +120,10 @@
     [render/view-for-result parsed-ratom]))
 
 (defn register-custom-tags! [editor-state]
-  (pinkie/register-tag :div/ansi ansi-tag)
-  (pinkie/register-tag :div/clj #(clojure-renderer editor-state %)))
+  (pinkie/register-tag :div/ansi r-pinkie/ansi-tag)
+  (pinkie/register-tag :div/clj #(clojure-renderer editor-state %))
+  (r-pinkie/register-tag :div/md r-pinkie/markdown-tag)
+  (pinkie/register-tag :div/clj-code r-pinkie/code-tag))
 
 (defn prepare-commands [editor-state cmds-from-tooling]
   (register-custom-tags! editor-state)

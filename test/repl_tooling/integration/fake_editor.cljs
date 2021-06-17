@@ -41,11 +41,18 @@
                         :range [[0 0] [0 0]]
                         :eval-result (r/atom nil)}))
 
+(defn- reset-state! []
+  (swap! state merge {:code ""
+                      :filename "file.clj"
+                      :stdout nil
+                      :stderr nil
+                      :range [[0 0] [0 0]]
+                      :eval-result (r/atom nil)}))
+
 (defn- res [result]
   (p/let [parse (-> @state :features :result-for-renderer)
           res (parse result)]
-    (reset! (:eval-result @state) res)
-    (swap! state update :stdout (fn [e] (str e "=> " (-> result :result :as-text) "\n")))))
+    (reset! (:eval-result @state) res)))
 
 (defn run-command! [command]
   (if-let [cmd (get-in @state [:commands command :command])]
@@ -81,6 +88,21 @@
     (wait-for #(and (not= old (txt-for-selector "#result"))
                     (txt-for-selector "#result")))))
 
+(defn change-result-p []
+  (let [old (txt-for-selector "#result")]
+    (wait-for-p #(and (not= old (txt-for-selector "#result"))
+                      (txt-for-selector "#result")))))
+
+(defn change-stdout-p []
+  (let [old (txt-for-selector "#stdout")]
+    (wait-for-p #(and (not= old (txt-for-selector "#stdout"))
+                      (txt-for-selector "#stdout")))))
+
+(defn change-stderr-p []
+  (let [old (txt-for-selector "#stderr")]
+    (wait-for-p #(and (not= old (txt-for-selector "#stderr"))
+                      (txt-for-selector "#stderr")))))
+
 (defn handle-disconnect []
   (reset! (:eval-result @state) nil)
   (swap! state assoc
@@ -91,6 +113,7 @@
 (defn connect!
   ([] (connect! {}))
   ([additional-callbacks]
+   (reset-state!)
    (if (-> @state :repls :eval)
      (.resolve js/Promise @state)
      (.
@@ -124,31 +147,54 @@
    [:h4 "Socket REPL connections"]
    [:p [:b "Hostname: "] [:input {:type "text" :value (:host @state)
                                   :on-change #(->> % .-target .-value (swap! state assoc :host))}]
-       [:b " Port: "] [:input {:type "text" :value (:port @state)
-                               :on-change #(->> % .-target .-value int (swap! state assoc :port))}]]
+    [:b " Port: "] [:input {:type "text" :value (:port @state)
+                            :on-change #(->> % .-target .-value int (swap! state assoc :port))}]
+    [:b " Filename: "] [:input {:type "text" :value (:filename @state)
+                                :on-change #(->> % .-target .-value (swap! state assoc :filename))}]]
    [:textarea {:style {:width "100%" :height "100px"}
                :value (:code @state)
                :on-change #(->> % .-target .-value (swap! state assoc :code))}]
-   [:p
+   [:div
+    (when (-> @state :repls :eval)
+      (for [[command] (:commands @state)]
+        [:button {:key command
+                  :on-click #(run-command! command)}
+         (pr-str command)]))]
+   [:div
     (if (-> @state :repls :eval)
       [:span
        [:button {:on-click evaluate}
         "Evaluate"] " "
        [:button {:on-click disconnect!} "Disconnect!"]]
-      [:button {:on-click #(connect!)} "Connect!"])]
-   [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]
+      [:button {:on-click #(connect!)} "Connect!"])
+    [:p (if (-> @state :repls :eval) "Connected" "Disconnected")]]
    [:div
-    (when-let [res @(:eval-result @state)]
-      [:div
-       [:h5 "RESULT"]
-       [:pre
-        [:div {:id "result" :class "result"}
-         (render/view-for-result res)]]])]
-   (when-let [out (:stdout @state)]
-     [:div
-      [:h5 "STDOUT"]
-      [:pre out]])
+    [:div
+     [:h5 "RESULT"]
+     [:pre
+      [:div {:id "result" :class "result repl-tooling"}
+       (when-let [res @(:eval-result @state)]
+         (render/view-for-result res))]]]]
+   [:div
+    [:h5 "STDOUT"
+     (when-let [out (:stdout @state)]
+       [:pre#stdout out])]]
+   [:div
+    [:h5 "STDERR"]]
    (when-let [out (:stderr @state)]
-     [:div
-      [:h5 "STDERR"]
-      [:pre out]])])
+     [:pre#stderr out])])
+
+(defn click-link [link-text]
+  (p/let [find-link
+          (fn []
+            (->> "div.result a"
+                 (.querySelectorAll js/document)
+                 (filter #(->> % .-innerText (re-find (re-pattern link-text))))
+                 first))
+
+          link (wait-for-p find-link)]
+    (.click link)))
+
+(defn clear-results! []
+  (reset! (:eval-result @state) nil)
+  (swap! state assoc :stderr "" :stdout ""))
