@@ -39,6 +39,15 @@
      (~'check (str/replace (~'txt-for-selector "#result .children") #"(\n|\s+)+" " ")
        ~'=> ~representation)))
 
+(defmacro click-link-and-assert [representation nth]
+  `(promesa.core/do!
+    (.. ~'js/document
+        (~'querySelector ~(str "#result a:nth-child(n+" nth ")"))
+        ~'click)
+
+    (promesa.core/let [res# (repl-tooling.integration.fake-editor/change-result-p)]
+      (check.async/check (str/replace res# #"(\n|\s+)+" " ") ~'=> ~representation))))
+
 (defmacro click-link-and-assert-children [representation nth]
   `(promesa.core/do!
      (.. ~'js/document
