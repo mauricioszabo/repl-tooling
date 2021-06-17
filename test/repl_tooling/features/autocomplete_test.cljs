@@ -21,7 +21,8 @@
 
     (testing "completing macros and private fns in current NS"
       (let [res (simple/for-clj repl 'repl-tooling.integration.ui-macros "type-and")]
-        (check (await! res) => [{:candidate "type-and-just-for-test" :type :function}
+        (check (await! res) => [{:candidate "type-and-assert-result" :type :function}
+                                {:candidate "type-and-just-for-test" :type :function}
                                 {:candidate "type-and-result" :type :function}])))
 
     (testing "completing imported vars"
