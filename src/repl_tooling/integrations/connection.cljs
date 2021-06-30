@@ -54,9 +54,12 @@ runs the command to change it to CLJS, and returns an evaluator for CLJS."
     :or {identifier :cljs-eval}}]
   (let [host "localhost"
         dir (->> directories
-                 (filter #(existsSync (join % ".shadow-cljs" "http.port")))
+                 (filter #(existsSync (join % ".shadow-cljs" "server.token")))
                  first)
-        port (-> (join dir ".shadow-cljs" "http.port") readFileSync str js/parseInt)
+        port-file (if (existsSync (join dir ".shadow-cljs" "https-port.port"))
+                    "https-port.port"
+                    "http.port")
+        port (-> (join dir ".shadow-cljs" port-file) readFileSync str js/parseInt)
         token (-> (join dir ".shadow-cljs" "server.token") readFileSync str)
         on-output (fn [res]
                     (cond
@@ -84,4 +87,5 @@ runs the command to change it to CLJS, and returns an evaluator for CLJS."
                          :host host
                          :port port
                          :token token
-                         :on-output on-output})))
+                         :on-output on-output
+                         :ssl? (= port-file "https-port.port")})))

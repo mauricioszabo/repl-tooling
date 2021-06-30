@@ -283,7 +283,7 @@
 
 (defn- create-ws-conn! [id url state]
   (try
-    (let [ws (Websocket. url)
+    (let [ws (Websocket. url #js {:rejectUnauthorized false})
           update-state! (fn []
                           (swap! state assoc :ws ws)
                           (swap! repls/connections assoc id {:conn ws :buffer (atom [])}))]
@@ -309,14 +309,15 @@
     (catch :default e
       {:error (.-message e)})))
 
-(defn connect! [{:keys [id build-id host port token on-output]}]
+(defn connect! [{:keys [id build-id host port token on-output ssl?]}]
   (let [p (p/deferred)
         state (atom {:build-id build-id :should-disconnect? false
                      :evaluator p
                      :on-output (or on-output identity) :pending-evals {}
                      :build->id {} :id->build {}})
         ws (create-ws-conn! id
-                            (str "ws://" host ":" port
+                            (str (if ssl? "wss://" "ws://")
+                                 host ":" port
                                  "/api/remote-relay?server-token=" token)
                             state)]
     (if (:error ws)
