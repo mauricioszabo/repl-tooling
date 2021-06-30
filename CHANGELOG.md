@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## 0.6.0
+- Shadow-CLJS now can connect when the remote API is running over SSL
 - Migrated most of Pathom code to a new project called Duck-REPLed
 - Disabled clj-kondo statistics for now
 - Fixed stacktraces in Clojerl
