@@ -24,6 +24,10 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+      - run: sudo apt-get -y install openjdk-8-jdk
+      - run: wget https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein
+      - run: chmod +x lein
+      - run: sudo mv lein  /usr/bin/
       - run: ./scripts/deploy.sh
 
   babashka:
