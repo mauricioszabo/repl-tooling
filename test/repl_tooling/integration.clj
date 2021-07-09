@@ -58,7 +58,9 @@
         (api/refresh @cards)
         (future (shell/sh "node" "target/fixture.js"))
         (recur (inc tries)))
-      @fails)))
+      (do
+        (println "\033[31m      " @fails "COMPLETELY FAILED ON" description ". Giving up\033[0m")
+        @fails))))
 
 (defn run-tests! []
   (prepare-selenium!)
