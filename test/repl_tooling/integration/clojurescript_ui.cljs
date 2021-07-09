@@ -23,34 +23,38 @@
 
 (cards/deftest repl-evaluation
   (async-test "ClojureScript REPL evaluation" {:teardown (fake/disconnect!)
-                                               :timeout 8000}
+                                               :timeout 16000}
     (fake/connect! {:notify prn})
     (swap! fake/state assoc :filename "foo.cljs")
     (fake/run-command! :connect-embedded)
     (p/delay 1000)
 
     (testing "evaluation works for nil"
-      (fake/type-and-eval "nil")
-      (check (fake/change-result-p) => "nil"))
+      (fake/changing-result res
+        (fake/type-and-eval "nil")
+        (check res => "nil")))
 
     (testing "evaluation works, but doesn't print something on STDOUT"
-      (fake/type-and-eval "(/ 10 0)")
-      (check (fake/change-result-p) => "##Inf")
-      (is (not (re-find #"=>" (fake/txt-for-selector "#stdout")))))
+      (fake/changing-result res
+        (fake/type-and-eval "(/ 10 0)")
+        (check res => "##Inf")
+        (is (not (re-find #"=>" (fake/txt-for-selector "#stdout"))))))
 
     (testing "evaluate blocks"
-      (swap! fake/state assoc
-             :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
-             :range [[3 3] [3 3]])
-      (fake/run-command! :evaluate-block)
-      (check (fake/change-result-p) => "7"))
+      (fake/changing-result res
+        (swap! fake/state assoc
+               :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
+               :range [[3 3] [3 3]])
+        (fake/run-command! :evaluate-block)
+        (check res => "7")))
 
     (testing "evaluate top blocks"
-      (swap! fake/state assoc
-             :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
-             :range [[3 3] [3 3]])
-      (fake/run-command! :evaluate-top-block)
-      (check (fake/change-result-p) => "9"))
+      (fake/changing-result res
+        (swap! fake/state assoc
+               :code "(+ 1 2)\n\n(+ 2 \n  (+ 3 4))"
+               :range [[3 3] [3 3]])
+        (fake/run-command! :evaluate-top-block)
+        (check res => "9")))
 
     (testing "displays booleans"
       (ui/type-and-assert-result "true" "true")
@@ -58,15 +62,17 @@
       (ui/type-and-assert-result "nil" "nil"))
 
     (testing "captures STDOUT"
-      (fake/type-and-eval "(println :FOOBAR)")
-      (check (fake/change-stdout-p) => #":FOOBAR"))
+      (fake/changing-stdout res
+        (fake/type-and-eval "(println :FOOBAR)")
+        (check res => #":FOOBAR")))
 
     (testing "detects NS on file"
-      (swap! fake/state assoc
-             :code "(ns clojure.string)\n(upper-case \"this is upper\")"
-             :range [[1 1] [1 1]])
-      (fake/run-command! :evaluate-block)
-      (check (fake/change-result-p) => #"THIS IS UPPER"))
+      (fake/changing-result res
+        (swap! fake/state assoc
+               :code "(ns clojure.string)\n(upper-case \"this is upper\")"
+               :range [[1 1] [1 1]])
+        (fake/run-command! :evaluate-block)
+        (check res => #"THIS IS UPPER")))
 
     (testing "displays invalid EDN"
       (ui/type-and-assert-result "{ :foo bar 10 }" "{(keyword \"foo bar\") 10}")
