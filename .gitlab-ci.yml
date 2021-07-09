@@ -81,12 +81,32 @@ clojureclr:
   image: mcr.microsoft.com/dotnet/sdk:5.0
   script:
     - apt-get update
-    - apt-get install -y tmux nodejs
+    - apt-get install -y tmux nodejs tmate locales-all
+    # - apt-get install -y nodejs tmate
     - dotnet tool install --global --version 1.10.0-alpha1 Clojure.Main
+
+    # Debug, debug...
+    # - apt-get install -y ssh
+    # - echo | ssh-keygen -b 2048 -t rsa -q -N ""
+    # - tmate -L ssht new-session -d
+    # - tmate -L ssht show-messages
+    # - tmate -L ssht send-keys "/root/.dotnet/tools/Clojure.Main" Enter
+    - sleep 2
+    # - tmate -L ssht send-keys "(clojure.core.server/start-server {:name \"test\" :port 4444 :accept 'clojure.core.server/repl})" Enter
     - tmux new-session -d
-    - tmux send-keys "/root/.dotnet/tools/Clojure.Main -e \"(clojure.core.server/start-server {:name \\\"test\\\" :port 4444 :accept 'clojure.core.server/repl})(read)\"" Enter
-    - tmux attach
+    # - /root/.dotnet/tools/Clojure.Main -e "(clojure.core.server/start-server {:name \"test\" :port 4444 :accept 'clojure.core.server/repl})"
+    - tmux send-keys "/root/.dotnet/tools/Clojure.Main -e \"(clojure.core.server/start-server {:name \\\"test\\\" :port 4444 :accept 'clojure.core.server/repl})(System.Threading.Thread/Sleep 49000)\"" Enter
+    # - tmux send-keys "/root/.dotnet/tools/Clojure.Main" Enter
+    # - sleep 2
+    # - tmux send-keys "(clojure.core.server/start-server {:name \"test\" :port 4444 :accept 'clojure.core.server/repl})" Enter
+    # - tmux attach
+    # - /root/.dotnet/tools/Clojure.Main -e "(clojure.core.server/start-server {:name \"test\" :port 4444 :accept 'clojure.core.server/repl})"
+    - nohup /root/.dotnet/tools/Clojure.Main -e "(clojure.core.server/start-server {:name \"test\" :port 4444 :accept 'clojure.core.server/repl})(System.Threading.Thread/Sleep 49000)" &
+    # - echo "(clojure.core.server/start-server {:name \"test\" :port 4444 :accept 'clojure.core.server/repl})(System.Threading.Thread/Sleep 49000)" | /root/.dotnet/tools/Clojure.Main &
     - ./bb -e '(when-not (babashka.wait/wait-for-port "127.0.0.1" 4444 {:timeout 60000}) (System/exit 1))'
+    # - sleep 40
+    # - tmux save-buffer -
+
     - node target/fixture.js somefile.clj
 
 # deploy-job:      # This job runs in the deploy stage.
