@@ -35,7 +35,7 @@ joker:
   script:
     - wget https://github.com/candid82/joker/releases/download/v0.15.6/joker-0.15.6-linux-amd64.zip
     - unzip joker*.zip
-    - ./joker --exit-to-repl localhost:4444 & ./bb -e '(when-not (babashka.wait/wait-for-port "127.0.0.1" 4444 {:timeout 60000}) (System/exit 1))' && node target/fixture.js joker.joke
+    - ./joker --exit-to-repl localhost:4444 & sleep 20; node target/fixture.js joker.joke
 
 lumo:
   stage: test-on-env
