@@ -1,0 +1,83 @@
+image: circleci/node:lts
+
+stages:          # List of stages for jobs, and their order of execution
+  - test
+  - test-on-env
+  - deploy
+
+test:   # This job runs in the test stage.
+  stage: test    # It only starts when the job in the build stage completes successfully.
+  script:
+    - ./scripts/ci
+  cache:
+    untracked: true
+    policy: push
+
+babashka:
+  cache:
+    untracked: true
+    policy: pull
+  script: 
+      - unzip babashka*zip
+      - ./bb --socket-repl 4444 & sleep 2; node target/fixture.js babashka.bb
+
+joker:
+  stage: test-on-env
+  cache:
+    untracked: true
+    policy: pull
+  script:
+    - wget https://github.com/candid82/joker/releases/download/v0.15.6/joker-0.15.6-linux-amd64.zip
+    - unzip joker*.zip
+    - ./joker --exit-to-repl localhost:4444 & sleep 2; node target/fixture.js joker.joke
+
+lumo:
+  stage: test-on-env
+  cache:
+    untracked: true
+    policy: pull
+  script:
+    - sudo apt install tmux
+    - sudo npm install -g lumo-cljs --unsafe-perm
+    - tmux new-session -d
+    - tmux send-keys 'lumo -n 4444 ' Enter
+    - sleep 5; node target/fixture.js lumo.cljs
+
+clojerl:
+  stage: test-on-env
+  cache:
+    untracked: true
+    policy: pull
+  image: erlang
+  script:
+    - apt-get update
+    - apt-get install -y git npm nodejs rlwrap tmux
+    - echo '{erl_opts, [debug_info]}. {deps, [{clojerl, {git, "https://github.com/clojerl/clojerl", {branch, "master"}}}]}. {plugins, [{rebar3_clojerl, "0.8.4"}]}.' > rebar.config
+    - echo ":foo" | rebar3 clojerl repl
+    - tmux new-session -d
+    - tmux send-keys 'rebar3 clojerl repl' Enter
+    - tmux send-keys "(do (require 'clojure.core.server) (clojure.core.server/start-server {:name \"socket-repl\" :port 4444 :accept 'clojure.main/repl :address \"localhost\"}))" Enter
+    - sleep 20; node target/fixture.js clojerl.clje
+
+clojureclr:
+  stage: test-on-env
+  cache:
+    untracked: true
+    policy: pull
+  image: mcr.microsoft.com/dotnet/sdk:5.0
+  script:
+    - apt-get update
+    - apt-get install -y tmux nodejs
+    - dotnet tool install --global --version 1.10.0-alpha1 Clojure.Main
+    - tmux new-session -d
+    - tmux send-keys "/root/.dotnet/tools/Clojure.Main -e \"(clojure.core.server/start-server {:name \\\"test\\\" :port 4444 :accept 'clojure.core.server/repl})(read)\"" Enter
+    - sleep 20; node target/fixture.js somefile.clj
+
+
+
+
+# deploy-job:      # This job runs in the deploy stage.
+#   stage: deploy  # It only runs when *both* jobs in the test stage complete successfully.
+#   script:
+#     - echo "Deploying application..."
+#     - echo "Application successfully deployed."
