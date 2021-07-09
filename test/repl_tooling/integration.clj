@@ -59,7 +59,7 @@
         (future (shell/sh "node" "target/fixture.js"))
         (recur (inc tries)))
       (do
-        (println "\033[31m      " @fails "COMPLETELY FAILED ON" description ". Giving up\033[0m")
+        (println "\033[31m      " @fails "COMPLETELY FAILED. Giving up\033[0m")
         @fails))))
 
 (defn run-tests! []
