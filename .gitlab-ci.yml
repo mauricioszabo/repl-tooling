@@ -14,6 +14,9 @@ test:   # This job runs in the test stage.
     policy: push
 
 babashka:
+  stage: test-on-env
+  needs:
+    - test
   cache:
     untracked: true
     policy: pull
@@ -23,6 +26,8 @@ babashka:
 
 joker:
   stage: test-on-env
+  needs:
+    - test
   cache:
     untracked: true
     policy: pull
@@ -33,6 +38,8 @@ joker:
 
 lumo:
   stage: test-on-env
+  needs:
+    - test
   cache:
     untracked: true
     policy: pull
@@ -45,6 +52,8 @@ lumo:
 
 clojerl:
   stage: test-on-env
+  needs:
+    - test
   cache:
     untracked: true
     policy: pull
@@ -61,6 +70,8 @@ clojerl:
 
 clojureclr:
   stage: test-on-env
+  needs:
+    - test
   cache:
     untracked: true
     policy: pull
