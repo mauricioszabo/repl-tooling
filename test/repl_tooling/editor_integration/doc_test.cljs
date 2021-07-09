@@ -31,9 +31,10 @@
       (fake/run-command! :info-for-var)
       (check (fake/change-result-p) => #"toUpperCase"))))
 
+(set! cards/test-timeout 30000)
 (cards/deftest doc-for-var
   (async-test "documentation for var" {:teardown (fake/disconnect!)
-                                       :timeout 16000}
+                                       :timeout 30000}
     (fake/connect!)
     (testing "doc for Clojure"
       (fake/type "str")
