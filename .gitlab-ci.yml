@@ -80,12 +80,12 @@ clojureclr:
     policy: pull
   image: mcr.microsoft.com/dotnet/sdk:5.0
   script:
-    - ls -l
     - apt-get update
     - apt-get install -y tmux nodejs
     - dotnet tool install --global --version 1.10.0-alpha1 Clojure.Main
     - tmux new-session -d
     - tmux send-keys "/root/.dotnet/tools/Clojure.Main -e \"(clojure.core.server/start-server {:name \\\"test\\\" :port 4444 :accept 'clojure.core.server/repl})(read)\"" Enter
+    - tmux attach
     - ./bb -e '(when-not (babashka.wait/wait-for-port "127.0.0.1" 4444 {:timeout 60000}) (System/exit 1))'
     - node target/fixture.js somefile.clj
 
