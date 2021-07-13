@@ -127,6 +127,7 @@ workflows:
               only:
                 - /^v.+/
       - lumo:
+          <<: *prepost
           requires:
             - test
           filters:
