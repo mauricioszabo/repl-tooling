@@ -12,7 +12,8 @@
 
 (set! cards/test-timeout 20000)
 (cards/deftest autodetection-of-autocomplete
-  (async-test "autocomplete" {:teardown (conn/disconnect!)}
+  (async-test "autocomplete" {:teardown (conn/disconnect!)
+                              :timeout 16000}
     (let [data (atom {:contents "(let [foa 10] foa)\n(let [foo 10] (+ fo))"
                       :filename "foo.clj"
                       :range [[1 19] [1 19]]})

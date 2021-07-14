@@ -20,6 +20,6 @@ sudo mv clj-kondo /usr/bin
 export DISPLAY=:99
 Xvfb -screen 0 1024x768x24+32 :99 &
 mkdir ~/video
-nohup ffmpeg -video_size 1024x768 -f x11grab -i :99.0 ~/video/out.mpg &
+# nohup ffmpeg -video_size 1024x768 -f x11grab -i :99.0 ~/video/out.mpg &
 
 npx shadow-cljs clj-run repl-tooling.integration/run-tests-on-ci
