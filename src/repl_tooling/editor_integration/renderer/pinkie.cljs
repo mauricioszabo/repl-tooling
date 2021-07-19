@@ -32,7 +32,7 @@
      {:f (fn [dom args]
            (let [div (.createElement js/document "div")
                  upd (fn [elem]
-                       (try (.removeChild dom div) (catch :default _))
+                       (aset dom "innerHTML" "")
                        (.appendChild dom elem))
                  elem (apply fun (js->clj args))]
              (.. div -classList (add "repl-tooling" "icon" "loading"))
