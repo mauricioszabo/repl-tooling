@@ -29,16 +29,16 @@
   [ds]
   (.stringify js/JSON (clj->js ds)))
 
-(defn html5-tag? [tag]
-  (let [; reagent also has :div#main.big which we have to transform to :div
-        tag-typed (cached-parse tag) ; #js {:name "<>", :id nil, :class nil, :custom false}
-        ;_ (.log js/console "tag typed:" (pr-str tag-typed))
-        tag-clean (.-tag tag-typed)
-        tag-clean (if (nil? tag-clean) nil (keyword tag-clean))]
-       ; tag-clean (keyword (:name (js->clj tag-typed :keywordize-keys true)))
-       ; _ (.log js/console "tag clean:" tag-clean)
-
-    (contains? html5-tags tag-clean)))
+; (defn html5-tag? [tag]
+;   (let [; reagent also has :div#main.big which we have to transform to :div
+;         tag-typed (cached-parse tag nil nil) ; #js {:name "<>", :id nil, :class nil, :custom false}
+;         ;_ (.log js/console "tag typed:" (pr-str tag-typed))
+;         tag-clean (.-tag tag-typed)
+;         tag-clean (if (nil? tag-clean) nil (keyword tag-clean))]
+;        ; tag-clean (keyword (:name (js->clj tag-typed :keywordize-keys true)))
+;        ; _ (.log js/console "tag clean:" tag-clean)
+;
+;     (contains? html5-tags tag-clean)))
 
 (defn pinkie-tag? [tag]
   (and (keyword? tag) (namespace tag)))
@@ -57,7 +57,7 @@
   (if (hiccup-vector? hiccup-vector)
     (let [tag (first hiccup-vector)]
       (and (not (pinkie-exclude? hiccup-vector))
-           (not (html5-tag? tag))
+           #_(not (html5-tag? tag))
            (pinkie-tag? tag)))
     false))
 
