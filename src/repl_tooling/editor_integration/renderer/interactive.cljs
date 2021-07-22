@@ -149,61 +149,6 @@
        [:div.pre (-> errors first pr-str)]]
       [error-boundary
         [html state]])))
-#_
-(r/set-default-compiler! t/default-compiler*)
-
-#_
-(let [reag (fn [tag v compiler]
-             ; (prn :TAG tag :V v)
-             (try
-               (t/reag-element tag v compiler)
-               (catch :default e
-                 (prn :AN-ERROR e))))
-      compiler
-      (let [id "My-COMPILER"]
-        (reify r-proto/Compiler
-          ;; This is used to as cache key to cache component fns per compiler
-          (get-id [this] id)
-          (parse-tag [this tag-name tag-value]
-                     (try
-                       ; (prn :WAT3)
-                       (t/cached-parse this tag-name tag-value)
-                       (catch :default e
-                         (prn :ERROR3! e)
-                         (r/as-element [:div.error "ERROR HERE"]))))
-          (as-element [this x]
-                      (try
-                        ; (prn :WAT x)
-                        (t/as-element this x reag)
-                        (catch :default e
-                          (prn :ERROR! e)
-                          (r/as-element [:div.error "ERROR HERE"]))))
-          (make-element [this argv component jsprops first-child]
-                      (try
-                        ; (prn :WAT2)
-                        (t/make-element this argv component jsprops first-child)
-                        (catch :default e
-                          (prn :ERROR2! e)
-                          (r/as-element [:div.error "ERROR HERE"]))))))]
-  (r/set-default-compiler! compiler)
-  (rdom/render [html state] (js/document.createElement "div")))
-
-#_
-(int/evaluate-code
- {:code code
-  :bindings (bindings-for editor-state eql state {} nil)
-  :editor-state editor-state})
-
-#_
-(let [old r-component/wrap-render
-      errors (atom [])]
-  (with-redefs [r-component/wrap-render (fn [c compiler]
-                                          (try
-                                            (old c compiler)
-                                            (catch :default e
-                                              (swap! errors conj [c e])
-                                              [])))]
-    (r-server/render-to-string [html state])))
 
 (defrecord Interactive [edn repl editor-state]
   proto/Renderable
