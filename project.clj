@@ -5,7 +5,7 @@
                  [funcool/promesa "6.0.0"]
                  [rewrite-cljs "0.4.4"]
                  [paprika "0.1.3"]
-                 [borkdude/sci "0.1.1-alpha.7"]
+                 [org.babashka/sci "0.3.2"]
                  [com.wsscode/pathom "2.3.1"]
                  [org.pinkgorilla/gorilla-renderable-ui "0.1.33"]
                  [link.szabo.mauricio/duck-repled "0.1.1-SNAPSHOT"]]
